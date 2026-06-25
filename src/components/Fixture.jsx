@@ -31,7 +31,7 @@ export default function Fixture({ data }) {
   const partidosFiltrados = useMemo(() => {
     let list
     if (fase === 'liga') {
-      list = Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && p.numero === fechaSel)
+      list = Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && Number(p.numero) === Number(fechaSel))
     } else if (fase === 'copa_oro') {
       list = Object.entries(partidos).filter(([, p]) => ORO_FASES.includes(p.fase))
     } else if (fase === 'copa_plata') {

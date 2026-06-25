@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { db, ref, push, update, remove } from '../firebase'
+import { useState, useEffect } from 'react'
+import { db, ref, push, update, remove, set } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 
 const FASES_OPT = [
@@ -14,7 +14,7 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Resultados', 'Novedades']
+const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades']
 
 export default function Admin({ data }) {
   const [tab, setTab] = useState('Equipos')
@@ -23,10 +23,11 @@ export default function Admin({ data }) {
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-3">
         <h1 className="text-xl font-black text-white mb-3">Panel Admin</h1>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        {/* Tabs en 2 renglones si no entran todos */}
+        <div className="flex flex-wrap gap-2">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                 ${tab === t ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
               {t}
             </button>
@@ -34,11 +35,12 @@ export default function Admin({ data }) {
         </div>
       </div>
       <div className="px-4 pb-6">
-        {tab === 'Equipos' && <TabEquipos data={data} />}
-        {tab === 'Jugadores' && <TabJugadores data={data} />}
-        {tab === 'Partidos' && <TabPartidos data={data} />}
+        {tab === 'Equipos'    && <TabEquipos data={data} />}
+        {tab === 'Jugadores'  && <TabJugadores data={data} />}
+        {tab === 'Partidos'   && <TabPartidos data={data} />}
+        {tab === 'Copas'      && <TabCopas data={data} />}
         {tab === 'Resultados' && <TabResultados data={data} />}
-        {tab === 'Novedades' && <TabNovedades data={data} />}
+        {tab === 'Novedades'  && <TabNovedades data={data} />}
       </div>
     </div>
   )
@@ -55,15 +57,15 @@ function TabEquipos({ data }) {
   const handleImagen = async e => {
     const f = e.target.files[0]
     if (!f) return
-    const b64 = await compressImage(f, 300, 0.8)
-    setEscudo(b64)
+    setEscudo(await compressImage(f, 300, 0.8))
   }
 
   const guardar = async () => {
     if (!nombre.trim()) return
     setLoading(true)
-    const payload = { nombre: nombre.trim(), ...(escudo !== undefined && { escudo: escudo || null }) }
     if (editId) {
+      const payload = { nombre: nombre.trim() }
+      if (escudo !== undefined) payload.escudo = escudo || null
       await update(ref(db, `equipos/${editId}`), payload)
     } else {
       await push(ref(db, 'equipos'), { nombre: nombre.trim(), escudo: escudo || null })
@@ -72,8 +74,13 @@ function TabEquipos({ data }) {
   }
 
   const editar = (id, eq) => {
-    setEditId(id); setNombre(eq.nombre); setEscudo(undefined)
+    setEditId(id)
+    setNombre(eq.nombre)
+    setEscudo(undefined)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const cancelar = () => { setEditId(null); setNombre(''); setEscudo(null) }
 
   const eliminar = async id => {
     if (!confirm('¿Eliminar equipo?')) return
@@ -83,30 +90,53 @@ function TabEquipos({ data }) {
 
   return (
     <div className="pt-4 space-y-4">
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</p>
+      {/* Banner de edición */}
+      {editId && (
+        <div className="bg-green-900/30 border border-green-600/40 rounded-xl px-4 py-2 flex items-center gap-2">
+          <span className="text-green-400 text-sm">✏️ Editando:</span>
+          <span className="text-white text-sm font-bold">{equipos[editId]?.nombre}</span>
+        </div>
+      )}
+
+      <div className={`bg-[#1a1a1a] rounded-xl p-4 border space-y-3 ${editId ? 'border-green-600/60' : 'border-green-900/30'}`}>
+        <p className="text-sm font-bold text-green-400">{editId ? '✏️ Editar Equipo' : 'Nuevo Equipo'}</p>
         <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del equipo"
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
         <div>
-          <p className="text-xs text-gray-500 mb-1">Escudo (opcional)</p>
+          <p className="text-xs text-gray-500 mb-1">{editId ? 'Nuevo escudo (opcional)' : 'Escudo (opcional)'}</p>
           <input type="file" accept="image/*" onChange={handleImagen} className="text-xs text-gray-400" />
-          {escudo && <img src={escudo} className="w-16 h-16 object-contain mt-2 rounded-lg" />}
+          {escudo && escudo !== undefined && <img src={escudo} className="w-16 h-16 object-contain mt-2 rounded-lg" />}
         </div>
         <div className="flex gap-2">
-          {editId && <button onClick={() => { setEditId(null); setNombre(''); setEscudo(null) }} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-2.5 text-sm">Cancelar</button>}
-          <button onClick={guardar} disabled={loading || !nombre.trim()} className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
-            {loading ? 'Guardando...' : editId ? 'Actualizar' : 'Agregar'}
+          {editId && (
+            <button onClick={cancelar} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-2.5 text-sm border border-green-900/20">
+              Cancelar
+            </button>
+          )}
+          <button onClick={guardar} disabled={loading || !nombre.trim()}
+            className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
+            {loading ? 'Guardando...' : editId ? 'Actualizar equipo' : 'Agregar equipo'}
           </button>
         </div>
       </div>
 
       <div className="space-y-2">
         {Object.entries(equipos).map(([id, eq]) => (
-          <div key={id} className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/20 flex items-center gap-3">
-            {eq.escudo ? <img src={eq.escudo} className="w-10 h-10 object-contain rounded-lg" /> : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl">⚽</div>}
-            <p className="flex-1 font-semibold text-white">{eq.nombre}</p>
-            <button onClick={() => editar(id, eq)} className="text-xs text-green-400 px-2 py-1">Editar</button>
-            <button onClick={() => eliminar(id)} className="text-xs text-red-400 px-2 py-1">Borrar</button>
+          <div key={id} className={`bg-[#1a1a1a] rounded-xl p-3 border flex items-center gap-3 transition-all
+            ${editId === id ? 'border-green-600/50' : 'border-green-900/20'}`}>
+            {eq.escudo
+              ? <img src={eq.escudo} className="w-10 h-10 object-contain rounded-lg flex-shrink-0" />
+              : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl flex-shrink-0">⚽</div>
+            }
+            <p className="flex-1 font-semibold text-white min-w-0 truncate">{eq.nombre}</p>
+            <button onClick={() => editar(id, eq)}
+              className="text-xs bg-green-900/40 text-green-400 border border-green-800/40 rounded-lg px-3 py-1.5 font-medium flex-shrink-0">
+              Editar
+            </button>
+            <button onClick={() => eliminar(id)}
+              className="text-xs text-red-400 px-2 py-1 flex-shrink-0">
+              Borrar
+            </button>
           </div>
         ))}
         {Object.keys(equipos).length === 0 && <p className="text-gray-600 text-sm text-center py-4">Sin equipos</p>}
@@ -148,11 +178,12 @@ function TabJugadores({ data }) {
           {Object.entries(equipos).map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)}
         </select>
         {equipoSel && <>
-          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del jugador"
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre y Apellido"
             className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
           <input value={dni} onChange={e => setDni(e.target.value)} placeholder="DNI (opcional)" inputMode="numeric"
             className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
-          <button onClick={agregar} disabled={loading || !nombre.trim()} className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
+          <button onClick={agregar} disabled={loading || !nombre.trim()}
+            className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
             {loading ? 'Guardando...' : 'Agregar Jugador'}
           </button>
         </>}
@@ -177,98 +208,650 @@ function TabJugadores({ data }) {
   )
 }
 
+/* ─── ROUND ROBIN ─── */
+function buildRoundRobin(equiposIds) {
+  const ids = [...equiposIds].sort(() => Math.random() - 0.5)
+  if (ids.length % 2 !== 0) ids.push('bye')
+  const n = ids.length
+  const fixture = {}
+  const t = [...ids]
+  for (let ronda = 0; ronda < n - 1; ronda++) {
+    const matches = []
+    for (let i = 0; i < n / 2; i++) {
+      if (t[i] !== 'bye' && t[n - 1 - i] !== 'bye') {
+        const swap = Math.random() > 0.5
+        matches.push({ local: swap ? t[i] : t[n - 1 - i], visitante: swap ? t[n - 1 - i] : t[i] })
+      }
+    }
+    fixture[ronda + 1] = matches
+    const last = t[n - 1]
+    for (let j = n - 1; j > 1; j--) t[j] = t[j - 1]
+    t[1] = last
+  }
+  return fixture
+}
+
+/* ─── PARTIDO CARD (usado en TabPartidos) ─── */
+function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
+  const [gl, setGl] = useState(String(p.golesLocal ?? ''))
+  const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
+  const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
+  const [saving, setSaving] = useState(false)
+  const [showTarj, setShowTarj] = useState(false)
+  const [tarjEq, setTarjEq] = useState('')
+  const [tarjJug, setTarjJug] = useState('')
+  const [tarjTipo, setTarjTipo] = useState('amarilla')
+  const [selGol, setSelGol] = useState({ [p.local]: '', [p.visitante]: '' })
+  const [quickNames, setQuickNames] = useState({ [p.local]: '', [p.visitante]: '' })
+
+  // Separado: la hora se sincroniza siempre (puede cambiar con "Aplicar a todos")
+  // Los goles NO se sincronizan cuando cambia la hora — evita resetear lo que el usuario está escribiendo
+  useEffect(() => {
+    setHora(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
+  }, [p.fechaHora])
+
+  useEffect(() => {
+    setGl(String(p.golesLocal ?? ''))
+    setGv(String(p.golesVisitante ?? ''))
+  }, [p.golesLocal, p.golesVisitante])
+
+  const golesPartido = Object.entries(goles[p.id] || {})
+  const tarjetasPartido = Object.entries(tarjetas[p.id] || {})
+  const amarillas = tarjetasPartido.filter(([, t]) => t.tipo === 'amarilla').length
+  const rojas     = tarjetasPartido.filter(([, t]) => t.tipo === 'roja').length
+
+  // Goles agrupados por jugador → "Juan (x2)"
+  const golesAgrupados = Object.values(
+    golesPartido.reduce((acc, [gid, g]) => {
+      const key = `${g.equipoId}___${g.jugadorId}`
+      if (!acc[key]) acc[key] = { equipoId: g.equipoId, jugadorId: g.jugadorId, ids: [], count: 0 }
+      acc[key].ids.push(gid)
+      acc[key].count++
+      return acc
+    }, {})
+  )
+
+  const jugsPorEquipo = id =>
+    Object.entries(jugadores[id] || {})
+      .map(([jid, j]) => ({ jid, nombre: j.nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  const guardarHora = () => {
+    if (!hora) return update(ref(db, `partidos/${p.id}`), { fechaHora: null })
+    const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
+    update(ref(db, `partidos/${p.id}`), { fechaHora: dia ? `${dia}T${hora}` : null })
+  }
+
+  const guardarResultado = async () => {
+    if (gl === '' || gv === '') return
+    setSaving(true)
+    await update(ref(db, `partidos/${p.id}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
+    setSaving(false)
+  }
+
+  // Un toque en el botón del jugador = +1 gol
+  const tapGol = (equipoId, jugadorId) =>
+    push(ref(db, `goles/${p.id}`), { equipoId, jugadorId, enContra: false })
+
+  // Quitar UN gol del jugador (el último registrado)
+  const quitarGol = (ids) => remove(ref(db, `goles/${p.id}/${ids[ids.length - 1]}`))
+
+  // Entrada rápida: crea jugador si no existe y suma gol
+  const addGoalManual = async (eqId) => {
+    const nombre = quickNames[eqId]?.trim()
+    if (!nombre) return
+    const existente = Object.entries(jugadores[eqId] || {})
+      .find(([, j]) => j.nombre.toLowerCase() === nombre.toLowerCase())
+    let jugadorId
+    if (existente) {
+      jugadorId = existente[0]
+    } else {
+      const nuevo = await push(ref(db, `jugadores/${eqId}`), { nombre })
+      jugadorId = nuevo.key
+    }
+    await push(ref(db, `goles/${p.id}`), { equipoId: eqId, jugadorId, enContra: false })
+    setQuickNames(prev => ({ ...prev, [eqId]: '' }))
+  }
+
+  const agregarTarjeta = async () => {
+    if (!tarjEq || !tarjJug) return
+    await push(ref(db, `tarjetas/${p.id}`), { equipoId: tarjEq, jugadorId: tarjJug, tipo: tarjTipo })
+    setTarjEq(''); setTarjJug(''); setTarjTipo('amarilla')
+  }
+
+  return (
+    <div className={`rounded-xl border overflow-hidden transition-all ${p.jugado ? 'border-green-700/50 bg-[#1a1a1a]' : 'border-green-900/20 bg-[#1a1a1a]'}`}>
+
+      {/* Header: equipos + resultado */}
+      <div className={`px-3 py-2.5 ${p.jugado ? 'bg-green-900/20' : ''}`}>
+        {/* Nombre y escudos */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
+            {equipos[p.local]?.escudo && <img src={equipos[p.local].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
+            <span className="text-sm font-bold text-white truncate">{equipos[p.local]?.nombre || '?'}</span>
+          </div>
+          {/* Marcador grande */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
+            <span className="text-gray-600 font-black text-lg">-</span>
+            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
+            <button onClick={guardarResultado}
+              className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
+              {saving ? '⏳' : '✓'}
+            </button>
+          </div>
+          <div className="flex-1 flex items-center gap-1.5 min-w-0">
+            {equipos[p.visitante]?.escudo && <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
+            <span className="text-sm font-bold text-white truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+          </div>
+        </div>
+
+        {/* Solo hora */}
+        <div className="flex gap-2">
+          <input type="time" value={hora} onChange={e => setHora(e.target.value)}
+            className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
+          <button onClick={guardarHora} className="bg-[#222] border border-green-900/30 text-green-400 rounded-lg px-3 py-1.5 text-xs font-bold">✓</button>
+        </div>
+      </div>
+
+      {/* Goleadores — 2 columnas por equipo */}
+      <div className="px-3 py-2 border-t border-green-900/10">
+        <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">⚽ Goleadores</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[p.local, p.visitante].map((eqId, colIdx) => {
+            const jugs = jugsPorEquipo(eqId)
+            const chipsEquipo = golesAgrupados.filter(g => g.equipoId === eqId)
+            const isRight = colIdx === 1
+            return (
+              <div key={eqId} className="space-y-1.5">
+                <p className={`text-[10px] font-bold text-green-400 truncate ${isRight ? 'text-right' : ''}`}>
+                  {equipos[eqId]?.nombre}
+                </p>
+
+                {/* Chips del equipo */}
+                {chipsEquipo.length > 0 && (
+                  <div className={`flex flex-wrap gap-1 ${isRight ? 'justify-end' : ''}`}>
+                    {chipsEquipo.map(g => (
+                      <div key={`${g.equipoId}___${g.jugadorId}`}
+                        className="flex items-center gap-1 bg-green-900/30 border border-green-700/30 rounded-full px-2 py-0.5">
+                        <span className="text-green-300 text-[11px] font-semibold">
+                          {jugadores[g.equipoId]?.[g.jugadorId]?.nombre?.split(' ')[0] || '?'}
+                          {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
+                        </span>
+                        <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Select jugador registrado */}
+                {jugs.length > 0 && (
+                  <div className="flex gap-1">
+                    <select
+                      value={selGol[eqId] || ''}
+                      onChange={e => setSelGol(prev => ({ ...prev, [eqId]: e.target.value }))}
+                      className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-1.5 py-1.5 text-white text-[11px] outline-none min-w-0"
+                    >
+                      <option value="">Jugador</option>
+                      {jugs.map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                    </select>
+                    <button
+                      onClick={() => selGol[eqId] && tapGol(eqId, selGol[eqId])}
+                      disabled={!selGol[eqId]}
+                      className="bg-green-700 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
+                    >⚽</button>
+                  </div>
+                )}
+
+                {/* Entrada rápida */}
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    placeholder={jugs.length > 0 ? '+ Nuevo' : '+ Jugador'}
+                    value={quickNames[eqId] || ''}
+                    onChange={e => setQuickNames(prev => ({ ...prev, [eqId]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && addGoalManual(eqId)}
+                    className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none placeholder:text-gray-700 min-w-0"
+                  />
+                  <button
+                    onClick={() => addGoalManual(eqId)}
+                    disabled={!quickNames[eqId]?.trim()}
+                    className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
+                  >⚽</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Tarjetas (collapsible) */}
+      <div className="px-3 pb-3 border-t border-green-900/10 pt-2">
+        <button onClick={() => setShowTarj(!showTarj)}
+          className="w-full flex items-center justify-between bg-[#111] rounded-lg px-3 py-2 text-xs">
+          <span className="text-gray-400">
+            🟨🟥 Tarjetas
+            {amarillas > 0 && <span className="ml-2 text-yellow-400 font-bold">{amarillas}</span>}
+            {rojas > 0 && <span className="ml-2 text-red-400 font-bold">{rojas}</span>}
+            {amarillas === 0 && rojas === 0 && <span className="text-gray-600 ml-1">— sin tarjetas</span>}
+          </span>
+          <span className="text-green-500 text-[10px]">{showTarj ? '▲' : '▼'}</span>
+        </button>
+
+        {showTarj && (
+          <div className="mt-2 space-y-2">
+            {tarjetasPartido.map(([tid, t]) => (
+              <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
+                <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                <span className="flex-1 text-gray-300 truncate">
+                  {jugadores[t.equipoId]?.[t.jugadorId]?.nombre || '?'}
+                  <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
+                </span>
+                <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+              </div>
+            ))}
+
+            {/* Agregar tarjeta */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex gap-1.5">
+                <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
+                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                  <option value="">Equipo</option>
+                  {[p.local, p.visitante].map(id => (
+                    <option key={id} value={id}>{equipos[id]?.nombre || id}</option>
+                  ))}
+                </select>
+                <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
+                  className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                  <option value="amarilla">🟨 Amarilla</option>
+                  <option value="roja">🟥 Roja</option>
+                </select>
+              </div>
+              <div className="flex gap-1.5">
+                <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
+                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                  <option value="">Jugador</option>
+                  {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                </select>
+                <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
+                  className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
+                  + Tarjeta
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {p.jugado && (
+        <div className="bg-green-900/20 px-3 py-1">
+          <span className="text-[11px] text-green-400">✓ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── PARTIDOS ─── */
 function TabPartidos({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
-  const [numero, setNumero] = useState('')
-  const [fase, setFase] = useState('liga')
-  const [local, setLocal] = useState('')
-  const [visitante, setVisitante] = useState('')
-  const [fechaHora, setFechaHora] = useState('')
-  const [cancha, setCancha] = useState('')
-  const [loading, setLoading] = useState(false)
+  const jugadores = data.jugadores || {}
+  const goles = data.goles || {}
+  const tarjetas = data.tarjetas || {}
+  const masterFixture = data.master_fixture || null
+  const homeFecha = data.home_fecha || null
 
-  const agregar = async () => {
-    if (!local || !visitante || local === visitante) return alert('Seleccioná equipos distintos')
-    setLoading(true)
-    await push(ref(db, 'partidos'), {
-      numero: numero ? Number(numero) : null,
-      fase, local, visitante,
-      fechaHora: fechaHora || null,
-      cancha: cancha || null,
-      jugado: false,
-      golesLocal: null,
-      golesVisitante: null,
-    })
-    setNumero(''); setLocal(''); setVisitante(''); setFechaHora(''); setCancha(''); setLoading(false)
+  const cantEquipos = Object.keys(equipos).length
+  const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
+
+  const [fechaSel, setFechaSel] = useState(1)
+  const [fechaDia, setFechaDia] = useState('')
+  const [generando, setGenerando] = useState(false)
+  const [publicando, setPublicando] = useState(false)
+
+  // Cuando cambia la fecha seleccionada, inferir la fecha del día si todos los partidos tienen la misma
+  useEffect(() => {
+    const dias = [...new Set(
+      Object.values(partidos)
+        .filter(p => p.fase === 'liga' && Number(p.numero) === fechaSel && p.fechaHora)
+        .map(p => p.fechaHora.split('T')[0])
+    )]
+    setFechaDia(dias.length === 1 ? dias[0] : '')
+  }, [fechaSel])
+
+  // Aplicar la fecha del día a todos los partidos de esta fecha
+  const aplicarFechaATodos = async () => {
+    if (!fechaDia || partidosFecha.length === 0) return
+    for (const partido of partidosFecha) {
+      const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : null
+      await update(ref(db, `partidos/${partido.id}`), {
+        fechaHora: horaExist ? `${fechaDia}T${horaExist}` : null
+      })
+    }
   }
 
-  const eliminar = async id => {
-    if (!confirm('¿Eliminar partido?')) return
-    await remove(ref(db, `partidos/${id}`))
-    await remove(ref(db, `goles/${id}`))
-    await remove(ref(db, `tarjetas/${id}`))
+  const partidosFecha = Object.entries(partidos)
+    .filter(([, p]) => p.fase === 'liga' && p.numero === fechaSel)
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+
+  const generarFecha = async () => {
+    if (cantEquipos < 2) return alert('Necesitás al menos 2 equipos')
+    const yaExiste = partidosFecha.length > 0
+    if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    setGenerando(true)
+    let fixture = masterFixture
+    if (!fixture) {
+      fixture = buildRoundRobin(Object.keys(equipos))
+      await set(ref(db, 'master_fixture'), fixture)
+    }
+    for (const [id, p] of Object.entries(partidos)) {
+      if (p.fase === 'liga' && p.numero === fechaSel) {
+        await remove(ref(db, `partidos/${id}`))
+        await remove(ref(db, `goles/${id}`))
+        await remove(ref(db, `tarjetas/${id}`))
+      }
+    }
+    const ronda = fixture[fechaSel] || []
+    const arr = Array.isArray(ronda) ? ronda : Object.values(ronda)
+    for (const m of arr) {
+      await push(ref(db, 'partidos'), {
+        numero: fechaSel, fase: 'liga',
+        local: m.local, visitante: m.visitante,
+        fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null,
+      })
+    }
+    setGenerando(false)
   }
 
-  const eqOpts = Object.entries(equipos).map(([id, eq]) => ({ id, label: eq.nombre })).sort((a, b) => a.label.localeCompare(b.label))
-  const listaPartidos = Object.entries(partidos).map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.numero || 99) - (b.numero || 99))
+  const publicarEnHome = async () => {
+    setPublicando(true)
+    await set(ref(db, 'home_fecha'), fechaSel)
+    setPublicando(false)
+  }
+
+  const quitarDeHome = () => set(ref(db, 'home_fecha'), null)
+
+  const eliminarFecha = async () => {
+    if (!confirm(`¿Borrar todos los partidos de la Fecha ${fechaSel}?`)) return
+    for (const p of partidosFecha) {
+      await remove(ref(db, `partidos/${p.id}`))
+      await remove(ref(db, `goles/${p.id}`))
+      await remove(ref(db, `tarjetas/${p.id}`))
+    }
+    if (homeFecha === fechaSel) await set(ref(db, 'home_fecha'), null)
+  }
 
   return (
     <div className="pt-4 space-y-4">
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">Nuevo Partido</p>
-        <div className="flex gap-2">
+
+      {/* Selector de fecha + Generar */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
+        <div className="flex gap-3 items-end">
           <div className="flex-1">
-            <p className="text-[10px] text-gray-500 mb-1">Fecha / Ronda N°</p>
-            <input value={numero} onChange={e => setNumero(e.target.value)} type="number" min="1" placeholder="Ej: 1"
-              className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[10px] text-gray-500 mb-1">Fase</p>
-            <select value={fase} onChange={e => setFase(e.target.value)}
-              className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none">
-              {FASES_OPT.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Seleccioná la Fecha</p>
+            <select
+              value={fechaSel}
+              onChange={e => setFechaSel(Number(e.target.value))}
+              className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
+            >
+              {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+                const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
+                return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+              })}
             </select>
           </div>
+          <button
+            onClick={generarFecha}
+            disabled={generando || cantEquipos < 2}
+            className="bg-green-600 text-white rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all whitespace-nowrap flex-shrink-0"
+          >
+            {generando ? '⏳' : '🎲 Generar'}
+          </button>
         </div>
-        <div className="flex gap-2">
-          <select value={local} onChange={e => setLocal(e.target.value)}
-            className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none">
-            <option value="">Local</option>
-            {eqOpts.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-          <span className="self-center text-gray-600 font-bold text-xs">VS</span>
-          <select value={visitante} onChange={e => setVisitante(e.target.value)}
-            className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none">
-            <option value="">Visitante</option>
-            {eqOpts.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
+        {/* Date picker compartido */}
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Día de los partidos</p>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={fechaDia}
+              onChange={e => setFechaDia(e.target.value)}
+              className="flex-1 bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
+            />
+            <button
+              onClick={aplicarFechaATodos}
+              disabled={!fechaDia || partidosFecha.length === 0}
+              className="bg-green-800 text-white rounded-xl px-3 py-2.5 text-xs font-bold disabled:opacity-30 whitespace-nowrap"
+            >
+              Aplicar a todos
+            </button>
+          </div>
         </div>
-        <input value={fechaHora} onChange={e => setFechaHora(e.target.value)} type="datetime-local"
-          className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-        <input value={cancha} onChange={e => setCancha(e.target.value)} placeholder="Cancha (opcional)"
-          className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-        <button onClick={agregar} disabled={loading || !local || !visitante}
-          className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
-          {loading ? 'Guardando...' : 'Agregar Partido'}
-        </button>
+        {!masterFixture && cantEquipos >= 2 && (
+          <p className="text-[11px] text-gray-500 text-center">Primera vez: crea el fixture maestro para todas las fechas</p>
+        )}
       </div>
 
-      <div className="space-y-2">
-        {listaPartidos.map(p => (
-          <div key={p.id} className="bg-[#1a1a1a] rounded-xl px-3 py-2.5 border border-green-900/20 flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-green-500 font-semibold">{FASES_OPT.find(f => f.value === p.fase)?.label}{p.numero ? ` · F${p.numero}` : ''}</p>
-              <p className="text-sm text-white font-medium truncate">
-                {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}
-              </p>
-              {p.jugado && <p className="text-xs text-green-400">{p.golesLocal} - {p.golesVisitante}</p>}
+      {/* Lista de partidos */}
+      {partidosFecha.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
+              Fecha {fechaSel} · {partidosFecha.length} partidos
+            </p>
+            <button onClick={eliminarFecha} className="text-[11px] text-red-400">Borrar fecha</button>
+          </div>
+
+          {partidosFecha.map(p => (
+            <PartidoCard
+              key={p.id}
+              p={p}
+              equipos={equipos}
+              jugadores={jugadores}
+              goles={goles}
+              tarjetas={tarjetas}
+              fechaDia={fechaDia}
+            />
+          ))}
+
+          <button onClick={publicarEnHome} disabled={publicando}
+            className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+            {publicando ? 'Publicando...' : `📢 Publicar Fecha ${fechaSel} en Inicio`}
+          </button>
+          {homeFecha === fechaSel && (
+            <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
+              <p className="text-xs text-green-400">✅ Fecha {fechaSel} publicada en Inicio</p>
+              <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
             </div>
-            <button onClick={() => eliminar(p.id)} className="text-xs text-red-400 px-2 flex-shrink-0">Borrar</button>
+          )}
+        </div>
+      )}
+
+      {partidosFecha.length === 0 && (
+        <p className="text-center text-gray-600 text-sm py-8">
+          Seleccioná una fecha y tocá "🎲 Generar" para crear los partidos
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* ─── COPAS ─── */
+function TabCopas({ data }) {
+  const equipos = data.equipos || {}
+  const partidos = data.partidos || {}
+  const copasEquipos = data.copas_equipos || {}
+
+  const [copa, setCopa] = useState('oro')
+  const [addEq, setAddEq] = useState('')
+  const [gen, setGen] = useState(false)
+
+  const COPAS = [
+    { id: 'oro',    label: 'Copa Oro',    icon: '🥇' },
+    { id: 'plata',  label: 'Copa Plata',  icon: '🥈' },
+    { id: 'bronce', label: 'Copa Bronce', icon: '🥉' },
+  ]
+
+  const RONDAS = {
+    oro:    [
+      { fase: 'oro_4tos',  label: '4tos de Final', minEq: 4 },
+      { fase: 'oro_semi',  label: 'Semifinales',   minEq: 2 },
+      { fase: 'oro_final', label: 'Final',          minEq: 2 },
+    ],
+    plata:  [
+      { fase: 'plata_semi',  label: 'Semifinales', minEq: 2 },
+      { fase: 'plata_final', label: 'Final',        minEq: 2 },
+    ],
+    bronce: [
+      { fase: 'bronce_final', label: 'Final', minEq: 2 },
+    ],
+  }
+
+  const equiposCopa = Array.isArray(copasEquipos[copa]) ? copasEquipos[copa] : []
+
+  const disponibles = Object.entries(equipos)
+    .filter(([id]) => !equiposCopa.includes(id))
+    .map(([id, eq]) => ({ id, nombre: eq.nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  const saveEquipos = (nuevos) => set(ref(db, `copas_equipos/${copa}`), nuevos.length ? nuevos : null)
+
+  const agregarEquipo = async () => {
+    if (!addEq) return
+    await saveEquipos([...equiposCopa, addEq])
+    setAddEq('')
+  }
+
+  const quitarEquipo = (eqId) => saveEquipos(equiposCopa.filter(id => id !== eqId))
+
+  const mover = (idx, dir) => {
+    const arr = [...equiposCopa]
+    const swap = idx + dir
+    if (swap < 0 || swap >= arr.length) return
+    ;[arr[idx], arr[swap]] = [arr[swap], arr[idx]]
+    saveEquipos(arr)
+  }
+
+  const buildBracket = (ids) => {
+    const n = ids.length
+    const out = []
+    for (let i = 0; i < Math.floor(n / 2); i++)
+      out.push({ local: ids[i], visitante: ids[n - 1 - i] })
+    return out
+  }
+
+  const generarRonda = async (fase, minEq) => {
+    if (equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
+    const yaHay = Object.values(partidos).some(p => p.fase === fase)
+    if (yaHay && !confirm('Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
+    setGen(fase)
+    for (const [id, p] of Object.entries(partidos))
+      if (p.fase === fase) {
+        await remove(ref(db, `partidos/${id}`))
+        await remove(ref(db, `goles/${id}`))
+        await remove(ref(db, `tarjetas/${id}`))
+      }
+    for (const { local, visitante } of buildBracket(equiposCopa))
+      await push(ref(db, 'partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+    setGen(false)
+  }
+
+  const copaInfo = COPAS.find(c => c.id === copa)
+  const rondasCopa = RONDAS[copa]
+
+  return (
+    <div className="pt-4 space-y-4">
+      {/* Selector copa */}
+      <div className="flex gap-2">
+        {COPAS.map(c => (
+          <button key={c.id} onClick={() => { setCopa(c.id); setAddEq('') }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all
+              ${copa === c.id ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
+            {c.icon} {c.label.replace('Copa ', '')}
+          </button>
+        ))}
+      </div>
+
+      {/* Equipos */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
+        <p className="text-sm font-bold text-green-400">
+          {copaInfo?.label}
+          <span className="ml-2 text-gray-500 font-normal text-xs">{equiposCopa.length} equipo{equiposCopa.length !== 1 ? 's' : ''}</span>
+        </p>
+
+        {equiposCopa.length === 0 && (
+          <p className="text-gray-600 text-sm text-center py-2">Sin equipos — agregá los participantes</p>
+        )}
+
+        {equiposCopa.map((eqId, idx) => (
+          <div key={eqId} className="flex items-center gap-2 bg-[#111] rounded-xl px-3 py-2">
+            <span className="text-green-500 text-xs font-black w-4 text-center flex-shrink-0">{idx + 1}</span>
+            {equipos[eqId]?.escudo && (
+              <img src={equipos[eqId].escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" />
+            )}
+            <span className="flex-1 text-white text-sm font-semibold truncate">{equipos[eqId]?.nombre || eqId}</span>
+            <button onClick={() => mover(idx, -1)} disabled={idx === 0} className="text-gray-600 text-xs px-1 disabled:opacity-20">▲</button>
+            <button onClick={() => mover(idx, 1)} disabled={idx === equiposCopa.length - 1} className="text-gray-600 text-xs px-1 disabled:opacity-20">▼</button>
+            <button onClick={() => quitarEquipo(eqId)} className="text-red-400 text-xs px-1">✕</button>
           </div>
         ))}
-        {listaPartidos.length === 0 && <p className="text-gray-600 text-sm text-center py-4">Sin partidos</p>}
+
+        {disponibles.length > 0 && (
+          <div className="flex gap-2 pt-1">
+            <select value={addEq} onChange={e => setAddEq(e.target.value)}
+              className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none">
+              <option value="">+ Agregar equipo</option>
+              {disponibles.map(eq => <option key={eq.id} value={eq.id}>{eq.nombre}</option>)}
+            </select>
+            <button onClick={agregarEquipo} disabled={!addEq}
+              className="bg-green-700 text-white rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-30">+</button>
+          </div>
+        )}
+      </div>
+
+      {/* Rondas */}
+      <div className="space-y-2">
+        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Rondas</p>
+        {rondasCopa.map(({ fase, label, minEq }) => {
+          const ps = Object.entries(partidos)
+            .filter(([, p]) => p.fase === fase)
+            .map(([id, p]) => ({ id, ...p }))
+          return (
+            <div key={fase} className="bg-[#1a1a1a] rounded-xl border border-green-900/20 overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <p className="flex-1 text-sm font-bold text-white">{copaInfo?.icon} {label}</p>
+                <button
+                  onClick={() => generarRonda(fase, minEq)}
+                  disabled={!!gen || equiposCopa.length < minEq}
+                  className="bg-green-700 text-white rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-30 active:scale-95 transition-all whitespace-nowrap"
+                >
+                  {gen === fase ? '⏳' : ps.length > 0 ? '↺ Regenerar' : '🎲 Generar'}
+                </button>
+              </div>
+              {ps.length > 0 && (
+                <div className="border-t border-green-900/10 divide-y divide-green-900/5">
+                  {ps.map(p => (
+                    <div key={p.id} className="flex items-center gap-2 px-4 py-2 text-xs">
+                      <span className="flex-1 text-right text-white font-semibold truncate">{equipos[p.local]?.nombre || '?'}</span>
+                      <span className={`flex-shrink-0 px-2 font-black ${p.jugado ? 'text-green-400' : 'text-gray-600'}`}>
+                        {p.jugado ? `${p.golesLocal}-${p.golesVisitante}` : 'vs'}
+                      </span>
+                      <span className="flex-1 text-white font-semibold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+                      <button onClick={() => remove(ref(db, `partidos/${p.id}`))} className="text-red-400 pl-2">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {ps.length === 0 && equiposCopa.length < minEq && (
+                <p className="px-4 pb-3 text-[11px] text-gray-600">Necesitás al menos {minEq} equipos en la lista</p>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -285,11 +868,9 @@ function TabResultados({ data }) {
   const [gl, setGl] = useState('')
   const [gv, setGv] = useState('')
   const [savingRes, setSavingRes] = useState(false)
-  // Gol form
   const [golEq, setGolEq] = useState('')
   const [golJug, setGolJug] = useState('')
   const [golEC, setGolEC] = useState(false)
-  // Tarjeta form
   const [tarjEq, setTarjEq] = useState('')
   const [tarjJug, setTarjJug] = useState('')
   const [tarjTipo, setTarjTipo] = useState('amarilla')
@@ -305,19 +886,13 @@ function TabResultados({ data }) {
   const guardarResultado = async () => {
     if (!partidoId || gl === '' || gv === '') return
     setSavingRes(true)
-    await update(ref(db, `partidos/${partidoId}`), {
-      golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true,
-    })
+    await update(ref(db, `partidos/${partidoId}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
     setSavingRes(false)
   }
 
   const agregarGol = async () => {
     if (!golEq || (!golEC && !golJug)) return
-    await push(ref(db, `goles/${partidoId}`), {
-      equipoId: golEq,
-      jugadorId: golJug || 'sin_jugador',
-      enContra: golEC,
-    })
+    await push(ref(db, `goles/${partidoId}`), { equipoId: golEq, jugadorId: golJug || 'sin_jugador', enContra: golEC })
     setGolEq(''); setGolJug(''); setGolEC(false)
   }
 
@@ -333,7 +908,6 @@ function TabResultados({ data }) {
 
   return (
     <div className="pt-4 space-y-4">
-      {/* Select partido */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30">
         <p className="text-xs text-gray-500 mb-2">Seleccioná un partido</p>
         <select value={partidoId} onChange={e => {
@@ -354,7 +928,6 @@ function TabResultados({ data }) {
 
       {partido && (
         <>
-          {/* Resultado */}
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
             <p className="text-sm font-bold text-green-400">Resultado</p>
             <div className="flex items-center gap-3">
@@ -376,9 +949,8 @@ function TabResultados({ data }) {
             </button>
           </div>
 
-          {/* Goles individuales */}
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-            <p className="text-sm font-bold text-green-400">Goles (opcional)</p>
+            <p className="text-sm font-bold text-green-400">Goles (por jugador)</p>
             <div className="space-y-2">
               {golesPartido.map(([id, g]) => (
                 <div key={id} className="flex items-center gap-2 text-sm">
@@ -413,9 +985,8 @@ function TabResultados({ data }) {
             </div>
           </div>
 
-          {/* Tarjetas */}
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-            <p className="text-sm font-bold text-green-400">Tarjetas (opcional)</p>
+            <p className="text-sm font-bold text-green-400">Tarjetas</p>
             <div className="space-y-2">
               {tarjetasPartido.map(([id, t]) => (
                 <div key={id} className="flex items-center gap-2 text-sm">

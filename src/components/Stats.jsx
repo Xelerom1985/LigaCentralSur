@@ -7,9 +7,18 @@ export default function Stats({ data }) {
   const goles = data.goles || {}
   const tarjetas = data.tarjetas || {}
 
+  // Solo contamos goles/tarjetas de partidos que aún existen
+  const golesValidos = useMemo(() =>
+    Object.fromEntries(Object.entries(goles).filter(([pid]) => partidos[pid]))
+  , [goles, partidos])
+
+  const tarjetasValidas = useMemo(() =>
+    Object.fromEntries(Object.entries(tarjetas).filter(([pid]) => partidos[pid]))
+  , [tarjetas, partidos])
+
   const goleadores = useMemo(() => {
     const cnt = {}
-    Object.values(goles).forEach(g => {
+    Object.values(golesValidos).flatMap(Object.values).forEach(g => {
       if (!g.enContra && g.jugadorId && g.equipoId) {
         const key = `${g.equipoId}___${g.jugadorId}`
         cnt[key] = (cnt[key] || 0) + 1
@@ -25,7 +34,7 @@ export default function Stats({ data }) {
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 20)
-  }, [goles, jugadores, equipos])
+  }, [golesValidos, jugadores, equipos])
 
   const valla = useMemo(() => {
     const gc = {}
@@ -49,7 +58,7 @@ export default function Stats({ data }) {
 
   const amarillas = useMemo(() => {
     const cnt = {}
-    Object.values(tarjetas).filter(t => t.tipo === 'amarilla' && t.jugadorId && t.equipoId).forEach(t => {
+    Object.values(tarjetasValidas).flatMap(Object.values).filter(t => t.tipo === 'amarilla' && t.jugadorId && t.equipoId).forEach(t => {
       const key = `${t.equipoId}___${t.jugadorId}`
       cnt[key] = (cnt[key] || 0) + 1
     })
@@ -57,11 +66,11 @@ export default function Stats({ data }) {
       const [equipoId, jugadorId] = key.split('___')
       return { nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
     }).sort((a, b) => b.total - a.total).slice(0, 10)
-  }, [tarjetas, jugadores, equipos])
+  }, [tarjetasValidas, jugadores, equipos])
 
   const rojas = useMemo(() => {
     const cnt = {}
-    Object.values(tarjetas).filter(t => t.tipo === 'roja' && t.jugadorId && t.equipoId).forEach(t => {
+    Object.values(tarjetasValidas).flatMap(Object.values).filter(t => t.tipo === 'roja' && t.jugadorId && t.equipoId).forEach(t => {
       const key = `${t.equipoId}___${t.jugadorId}`
       cnt[key] = (cnt[key] || 0) + 1
     })
@@ -69,7 +78,65 @@ export default function Stats({ data }) {
       const [equipoId, jugadorId] = key.split('___')
       return { nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
     }).sort((a, b) => b.total - a.total).slice(0, 10)
-  }, [tarjetas, jugadores, equipos])
+  }, [tarjetasValidas, jugadores, equipos])
+
+  const equipoGoleador = useMemo(() => {
+    const gf = {}, pj = {}
+    Object.values(partidos)
+      .filter(p => p.jugado && p.golesLocal != null && p.local && p.visitante)
+      .forEach(p => {
+        gf[p.local] = (gf[p.local] || 0) + Number(p.golesLocal)
+        gf[p.visitante] = (gf[p.visitante] || 0) + Number(p.golesVisitante)
+        pj[p.local] = (pj[p.local] || 0) + 1
+        pj[p.visitante] = (pj[p.visitante] || 0) + 1
+      })
+    return Object.entries(gf)
+      .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
+      .sort((a, b) => b.goles - a.goles)
+  }, [partidos, equipos])
+
+  const equipoGoleado = useMemo(() => {
+    const gc = {}, pj = {}
+    Object.values(partidos)
+      .filter(p => p.jugado && p.golesLocal != null && p.local && p.visitante)
+      .forEach(p => {
+        gc[p.local] = (gc[p.local] || 0) + Number(p.golesVisitante)
+        gc[p.visitante] = (gc[p.visitante] || 0) + Number(p.golesLocal)
+        pj[p.local] = (pj[p.local] || 0) + 1
+        pj[p.visitante] = (pj[p.visitante] || 0) + 1
+      })
+    return Object.entries(gc)
+      .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
+      .sort((a, b) => b.goles - a.goles)
+  }, [partidos, equipos])
+
+  const hatTricks = useMemo(() => {
+    const lista = []
+    Object.entries(golesValidos).forEach(([partidoId, golesPartido]) => {
+      const cnt = {}
+      Object.values(golesPartido).forEach(g => {
+        if (!g.enContra && g.jugadorId && g.equipoId) {
+          const key = `${g.equipoId}___${g.jugadorId}`
+          cnt[key] = (cnt[key] || 0) + 1
+        }
+      })
+      Object.entries(cnt).forEach(([key, total]) => {
+        if (total >= 3) {
+          const [equipoId, jugadorId] = key.split('___')
+          const p = partidos[partidoId]
+          const rival = p ? (p.local === equipoId ? p.visitante : p.local) : null
+          lista.push({
+            nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?',
+            equipo: equipos[equipoId]?.nombre || '',
+            escudo: equipos[equipoId]?.escudo,
+            goles: total,
+            vs: rival ? (equipos[rival]?.nombre || '') : '',
+          })
+        }
+      })
+    })
+    return lista.sort((a, b) => b.goles - a.goles)
+  }, [golesValidos, jugadores, equipos, partidos])
 
   const Section = ({ title, emoji, children, empty }) => (
     <section className="mb-6">
@@ -123,6 +190,40 @@ export default function Stats({ data }) {
         <Section title="Tarjetas Rojas" emoji="🟥" empty={rojas.length === 0}>
           <div className="overflow-hidden rounded-xl">
             {rojas.map((r, i) => <RankRow key={i} pos={i + 1} nombre={r.nombre} equipo={r.equipo} escudo={r.escudo} valor={r.total} tag="rojas" tagColor="text-red-400" />)}
+          </div>
+        </Section>
+
+        <Section title="Equipo Más Goleador" emoji="🔥" empty={equipoGoleador.length === 0}>
+          <div className="overflow-hidden rounded-xl">
+            {equipoGoleador.map((e, i) => (
+              <RankRow key={e.id} pos={i + 1} nombre={e.nombre} escudo={e.escudo} valor={e.goles} tag={`en ${e.pj} partidos`} tagColor="text-orange-400" />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Equipo Más Goleado" emoji="😬" empty={equipoGoleado.length === 0}>
+          <div className="overflow-hidden rounded-xl">
+            {equipoGoleado.map((e, i) => (
+              <RankRow key={e.id} pos={i + 1} nombre={e.nombre} escudo={e.escudo} valor={e.goles} tag={`en ${e.pj} partidos`} tagColor="text-red-400" />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Hat-Tricks" emoji="🎩" empty={hatTricks.length === 0}>
+          <div className="overflow-hidden rounded-xl">
+            {hatTricks.map((h, i) => (
+              <div key={i} className={`flex items-center gap-3 px-3 py-2.5 ${i % 2 === 0 ? 'bg-[#161616]' : 'bg-[#1a1a1a]'} ${i === 0 ? 'rounded-t-xl' : ''} last:rounded-b-xl border-b border-green-900/10 last:border-0`}>
+                {h.escudo ? <img src={h.escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" /> : <div className="w-7 h-7 rounded bg-green-900/20 flex-shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{h.nombre}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{h.equipo}{h.vs ? ` · vs ${h.vs}` : ''}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-lg font-black text-yellow-400">{h.goles}</span>
+                  <p className="text-[9px] text-gray-500 uppercase">goles</p>
+                </div>
+              </div>
+            ))}
           </div>
         </Section>
       </div>
