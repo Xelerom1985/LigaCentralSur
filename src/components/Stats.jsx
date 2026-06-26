@@ -27,10 +27,12 @@ export default function Stats({ data }) {
     return Object.entries(cnt)
       .map(([key, total]) => {
         const [equipoId, jugadorId] = key.split('___')
-        const nombre = jugadores[equipoId]?.[jugadorId]?.nombre || 'Jugador'
+        const jug = jugadores[equipoId]?.[jugadorId] || {}
+        const nombre = jug.nombre || 'Jugador'
+        const numero = jug.numero || ''
         const equipo = equipos[equipoId]?.nombre || ''
         const escudo = equipos[equipoId]?.escudo
-        return { equipoId, jugadorId, nombre, equipo, escudo, total }
+        return { equipoId, jugadorId, nombre, numero, equipo, escudo, total }
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 20)
@@ -64,7 +66,8 @@ export default function Stats({ data }) {
     })
     return Object.entries(cnt).map(([key, total]) => {
       const [equipoId, jugadorId] = key.split('___')
-      return { nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
+      const jug = jugadores[equipoId]?.[jugadorId] || {}
+      return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
     }).sort((a, b) => b.total - a.total).slice(0, 10)
   }, [tarjetasValidas, jugadores, equipos])
 
@@ -76,7 +79,8 @@ export default function Stats({ data }) {
     })
     return Object.entries(cnt).map(([key, total]) => {
       const [equipoId, jugadorId] = key.split('___')
-      return { nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
+      const jug = jugadores[equipoId]?.[jugadorId] || {}
+      return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
     }).sort((a, b) => b.total - a.total).slice(0, 10)
   }, [tarjetasValidas, jugadores, equipos])
 
@@ -125,8 +129,10 @@ export default function Stats({ data }) {
           const [equipoId, jugadorId] = key.split('___')
           const p = partidos[partidoId]
           const rival = p ? (p.local === equipoId ? p.visitante : p.local) : null
+          const jugHT = jugadores[equipoId]?.[jugadorId] || {}
           lista.push({
-            nombre: jugadores[equipoId]?.[jugadorId]?.nombre || '?',
+            nombre: jugHT.nombre || '?',
+            numero: jugHT.numero || '',
             equipo: equipos[equipoId]?.nombre || '',
             escudo: equipos[equipoId]?.escudo,
             goles: total,
@@ -147,12 +153,15 @@ export default function Stats({ data }) {
     </section>
   )
 
-  const RankRow = ({ pos, nombre, equipo, escudo, valor, tag, tagColor = 'text-green-400' }) => (
+  const RankRow = ({ pos, nombre, numero, equipo, escudo, valor, tag, tagColor = 'text-green-400' }) => (
     <div className={`flex items-center gap-3 px-3 py-2.5 ${pos % 2 === 0 ? 'bg-[#161616]' : 'bg-[#1a1a1a]'} ${pos === 1 ? 'rounded-t-xl' : ''} last:rounded-b-xl border-b border-green-900/10 last:border-0`}>
       <span className={`w-6 text-center text-xs font-black flex-shrink-0 ${pos === 1 ? 'text-yellow-400' : pos === 2 ? 'text-gray-300' : pos === 3 ? 'text-orange-400' : 'text-gray-500'}`}>{pos}</span>
       {escudo ? <img src={escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" /> : <div className="w-7 h-7 rounded bg-green-900/20 flex items-center justify-center text-xs text-gray-600 flex-shrink-0">⚽</div>}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{nombre}</p>
+        <div className="flex items-baseline gap-1">
+          {numero && <span className="text-[11px] font-black text-green-400/60 flex-shrink-0">#{numero}</span>}
+          <p className="text-sm font-semibold text-white truncate">{nombre}</p>
+        </div>
         {equipo && <p className="text-[10px] text-gray-500 truncate">{equipo}</p>}
       </div>
       <div className="text-right flex-shrink-0">
@@ -171,7 +180,7 @@ export default function Stats({ data }) {
       <div className="px-4 pb-4">
         <Section title="Máximo Goleador" emoji="⚽" empty={goleadores.length === 0}>
           <div className="overflow-hidden rounded-xl">
-            {goleadores.map((g, i) => <RankRow key={i} pos={i + 1} nombre={g.nombre} equipo={g.equipo} escudo={g.escudo} valor={g.total} tag="goles" />)}
+            {goleadores.map((g, i) => <RankRow key={i} pos={i + 1} nombre={g.nombre} numero={g.numero} equipo={g.equipo} escudo={g.escudo} valor={g.total} tag="goles" />)}
           </div>
         </Section>
 
@@ -183,13 +192,13 @@ export default function Stats({ data }) {
 
         <Section title="Tarjetas Amarillas" emoji="🟨" empty={amarillas.length === 0}>
           <div className="overflow-hidden rounded-xl">
-            {amarillas.map((a, i) => <RankRow key={i} pos={i + 1} nombre={a.nombre} equipo={a.equipo} escudo={a.escudo} valor={a.total} tag="amarillas" tagColor="text-yellow-400" />)}
+            {amarillas.map((a, i) => <RankRow key={i} pos={i + 1} nombre={a.nombre} numero={a.numero} equipo={a.equipo} escudo={a.escudo} valor={a.total} tag="amarillas" tagColor="text-yellow-400" />)}
           </div>
         </Section>
 
         <Section title="Tarjetas Rojas" emoji="🟥" empty={rojas.length === 0}>
           <div className="overflow-hidden rounded-xl">
-            {rojas.map((r, i) => <RankRow key={i} pos={i + 1} nombre={r.nombre} equipo={r.equipo} escudo={r.escudo} valor={r.total} tag="rojas" tagColor="text-red-400" />)}
+            {rojas.map((r, i) => <RankRow key={i} pos={i + 1} nombre={r.nombre} numero={r.numero} equipo={r.equipo} escudo={r.escudo} valor={r.total} tag="rojas" tagColor="text-red-400" />)}
           </div>
         </Section>
 
@@ -215,7 +224,10 @@ export default function Stats({ data }) {
               <div key={i} className={`flex items-center gap-3 px-3 py-2.5 ${i % 2 === 0 ? 'bg-[#161616]' : 'bg-[#1a1a1a]'} ${i === 0 ? 'rounded-t-xl' : ''} last:rounded-b-xl border-b border-green-900/10 last:border-0`}>
                 {h.escudo ? <img src={h.escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" /> : <div className="w-7 h-7 rounded bg-green-900/20 flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{h.nombre}</p>
+                  <div className="flex items-baseline gap-1">
+                    {h.numero && <span className="text-[11px] font-black text-green-400/60 flex-shrink-0">#{h.numero}</span>}
+                    <p className="text-sm font-semibold text-white truncate">{h.nombre}</p>
+                  </div>
                   <p className="text-[10px] text-gray-500 truncate">{h.equipo}{h.vs ? ` · vs ${h.vs}` : ''}</p>
                 </div>
                 <div className="text-right flex-shrink-0">

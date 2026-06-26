@@ -152,6 +152,7 @@ function TabJugadores({ data }) {
   const [equipoSel, setEquipoSel] = useState('')
   const [nombre, setNombre] = useState('')
   const [dni, setDni] = useState('')
+  const [numero, setNumero] = useState('')
   const [loading, setLoading] = useState(false)
 
   const lista = equipoSel ? Object.entries(jugadores[equipoSel] || {}) : []
@@ -159,8 +160,8 @@ function TabJugadores({ data }) {
   const agregar = async () => {
     if (!equipoSel || !nombre.trim()) return
     setLoading(true)
-    await push(ref(db, `jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim() })
-    setNombre(''); setDni(''); setLoading(false)
+    await push(ref(db, `jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+    setNombre(''); setDni(''); setNumero(''); setLoading(false)
   }
 
   const eliminar = async jugId => {
@@ -180,8 +181,12 @@ function TabJugadores({ data }) {
         {equipoSel && <>
           <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre y Apellido"
             className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
-          <input value={dni} onChange={e => setDni(e.target.value)} placeholder="DNI (opcional)" inputMode="numeric"
-            className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+          <div className="flex gap-2">
+            <input value={numero} onChange={e => setNumero(e.target.value)} placeholder="N° camiseta" inputMode="numeric"
+              className="w-28 bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+            <input value={dni} onChange={e => setDni(e.target.value)} placeholder="DNI (opcional)" inputMode="numeric"
+              className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+          </div>
           <button onClick={agregar} disabled={loading || !nombre.trim()}
             className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
             {loading ? 'Guardando...' : 'Agregar Jugador'}
@@ -192,13 +197,18 @@ function TabJugadores({ data }) {
       {equipoSel && (
         <div className="space-y-2">
           <p className="text-xs text-green-400 font-bold uppercase tracking-widest">{equipos[equipoSel]?.nombre} · {lista.length} jugadores</p>
-          {lista.map(([id, j]) => (
+          {lista
+            .sort((a, b) => (Number(a[1].numero) || 999) - (Number(b[1].numero) || 999))
+            .map(([id, j]) => (
             <div key={id} className="bg-[#1a1a1a] rounded-xl px-3 py-2.5 border border-green-900/20 flex items-center gap-2">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-white">{j.nombre}</p>
+              {j.numero && (
+                <span className="w-8 text-center text-sm font-black text-green-400 flex-shrink-0">#{j.numero}</span>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{j.nombre}</p>
                 {j.dni && <p className="text-[11px] text-gray-500">DNI: {j.dni}</p>}
               </div>
-              <button onClick={() => eliminar(id)} className="text-xs text-red-400 px-2">Borrar</button>
+              <button onClick={() => eliminar(id)} className="text-xs text-red-400 px-2 flex-shrink-0">Borrar</button>
             </div>
           ))}
           {lista.length === 0 && <p className="text-gray-600 text-sm text-center py-3">Sin jugadores</p>}
@@ -273,8 +283,8 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 
   const jugsPorEquipo = id =>
     Object.entries(jugadores[id] || {})
-      .map(([jid, j]) => ({ jid, nombre: j.nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .map(([jid, j]) => ({ jid, nombre: j.nombre, numero: j.numero || '' }))
+      .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
   const guardarHora = () => {
     if (!hora) return update(ref(db, `partidos/${p.id}`), { fechaHora: null })
@@ -395,7 +405,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                       className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-1.5 py-1.5 text-white text-[11px] outline-none min-w-0"
                     >
                       <option value="">Jugador</option>
-                      {jugs.map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                      {jugs.map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
                     </select>
                     <button
                       onClick={() => selGol[eqId] && tapGol(eqId, selGol[eqId])}
@@ -903,8 +913,8 @@ function TabResultados({ data }) {
   }
 
   const jugsPorEquipo = id => Object.entries(jugadores[id] || {})
-    .map(([jid, j]) => ({ jid, nombre: j.nombre }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .map(([jid, j]) => ({ jid, nombre: j.nombre, numero: j.numero || '' }))
+    .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
   return (
     <div className="pt-4 space-y-4">
@@ -971,7 +981,7 @@ function TabResultados({ data }) {
               <select value={golJug} onChange={e => setGolJug(e.target.value)}
                 className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
                 <option value="">Jugador</option>
-                {jugsPorEquipo(golEq).map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                {jugsPorEquipo(golEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-2">
@@ -1007,7 +1017,7 @@ function TabResultados({ data }) {
               <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
                 className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
                 <option value="">Jugador</option>
-                {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
               </select>
               <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
                 className="bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
