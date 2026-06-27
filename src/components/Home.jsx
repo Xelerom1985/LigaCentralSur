@@ -1,10 +1,72 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
+
+function Lightbox({ src, onClose }) {
+  const imgRef = useRef(null)
+  const st = useRef({ scale: 1, x: 0, y: 0, d0: 0, ox: 0, oy: 0 })
+  const [, tick] = useState(0)
+
+  useEffect(() => {
+    const el = imgRef.current
+    if (!el) return
+    const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const onStart = e => {
+      if (e.touches.length === 2) st.current.d0 = dist(e.touches)
+      else { st.current.ox = e.touches[0].clientX - st.current.x; st.current.oy = e.touches[0].clientY - st.current.y }
+    }
+    const onMove = e => {
+      e.preventDefault()
+      const s = st.current
+      if (e.touches.length === 2) {
+        const d = dist(e.touches)
+        s.scale = Math.min(Math.max(s.scale * d / s.d0, 1), 5)
+        s.d0 = d
+      } else if (s.scale > 1) {
+        s.x = e.touches[0].clientX - s.ox
+        s.y = e.touches[0].clientY - s.oy
+      }
+      tick(n => n + 1)
+    }
+    const onEnd = () => {
+      if (st.current.scale < 1.05) { st.current = { ...st.current, scale: 1, x: 0, y: 0 }; tick(n => n + 1) }
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+    }
+  }, [])
+
+  const { scale, x, y } = st.current
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center overflow-hidden"
+      onClick={scale <= 1 ? onClose : undefined}
+    >
+      <img
+        ref={imgRef}
+        src={src}
+        className="max-w-full max-h-full object-contain select-none"
+        style={{ transform: `scale(${scale}) translate(${x / scale}px, ${y / scale}px)`, touchAction: 'none' }}
+        onClick={e => e.stopPropagation()}
+        draggable={false}
+      />
+      <button onClick={onClose}
+        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center">
+        ✕
+      </button>
+    </div>
+  )
+}
 
 export default function Home({ data }) {
   const equipos  = data.equipos  || {}
   const partidos = data.partidos || {}
   const novedades = data.novedades || {}
   const homeFecha = data.home_fecha ?? null
+  const [lightbox, setLightbox] = useState(null)
 
   const fechaPartidos = useMemo(() => {
     if (!homeFecha) return []
@@ -51,7 +113,7 @@ export default function Home({ data }) {
 
       {/* Contenido fixture + novedades */}
       {hasOverlay && (
-        <div className="absolute inset-x-0 top-[28%] bottom-[72px] px-4 pb-3 pt-2 space-y-3 overflow-y-auto">
+        <div className="absolute inset-x-0 top-[24%] bottom-[72px] px-4 pb-3 pt-2 space-y-3 overflow-y-auto">
 
           {homeFecha && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
@@ -98,7 +160,13 @@ export default function Home({ data }) {
 
           {novedadesList.map(n => (
             <div key={n.id} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
-              {n.imagen && <img src={n.imagen} className="w-full h-36 object-cover" />}
+              {n.imagen && (
+                <img
+                  src={n.imagen}
+                  className="w-full h-auto object-contain cursor-pointer"
+                  onClick={() => setLightbox(n.imagen)}
+                />
+              )}
               <div className="px-4 py-3">
                 <p className="text-white font-bold text-sm">{n.titulo}</p>
                 {n.detalle && <p className="text-gray-300 text-xs mt-1 leading-relaxed">{n.detalle}</p>}
@@ -157,6 +225,8 @@ export default function Home({ data }) {
         </div>
 
       </div>
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+
     </div>
   )
 }

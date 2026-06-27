@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { db, ref, onValue } from './firebase'
+import { db, ref, onValue, push, update, increment } from './firebase'
+
+const parseDevice = () => {
+  const ua = navigator.userAgent
+  let so = 'Otro', modelo = 'Desconocido', browser = 'Otro'
+  if (/iPhone/.test(ua))       { so = 'iOS';     modelo = 'iPhone' }
+  else if (/iPad/.test(ua))    { so = 'iOS';     modelo = 'iPad' }
+  else if (/Android/.test(ua)) {
+    so = 'Android'
+    const m = ua.match(/Android [^;]+;\s*([^)]+)/)
+    modelo = m ? m[1].trim() : 'Android'
+  } else if (/Windows/.test(ua)) { so = 'Windows'; modelo = 'PC' }
+  else if (/Macintosh/.test(ua)) { so = 'macOS';   modelo = 'Mac' }
+  if (/CriOS/.test(ua))             browser = 'Chrome'
+  else if (/Chrome/.test(ua))       browser = 'Chrome'
+  else if (/Firefox/.test(ua))      browser = 'Firefox'
+  else if (/Edg/.test(ua))          browser = 'Edge'
+  else if (/Safari/.test(ua))       browser = 'Safari'
+  return { so, modelo, browser }
+}
 import Navbar from './components/Navbar'
 import Home from './components/Home'
 import Fixture from './components/Fixture'
@@ -27,6 +46,18 @@ export default function App() {
     const unsub = onValue(ref(db, '/'), snap => setData(snap.val() || {}))
     return () => unsub()
   }, [])
+
+  // Registrar visita al abrir la app
+  useEffect(() => {
+    const { so, modelo, browser } = parseDevice()
+    push(ref(db, 'analytics/visitas'), { fecha: new Date().toISOString(), ts: Date.now(), so, modelo, browser })
+  }, [])
+
+  // Contar visitas por sección
+  useEffect(() => {
+    if (!seccion || seccion === 'admin') return
+    update(ref(db, 'analytics/secciones'), { [seccion]: increment(1) })
+  }, [seccion])
 
   useEffect(() => {
     const handler = e => {
