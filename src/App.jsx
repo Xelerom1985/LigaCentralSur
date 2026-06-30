@@ -106,11 +106,10 @@ export default function App() {
     return () => window.removeEventListener('popstate', handler)
   }, [])
 
-  // Restaurar sesión admin persistida
+  // Restaurar sesión admin persistida (solo el acceso, no navegar a admin)
   useEffect(() => {
     if (localStorage.getItem(SESSION_KEY) === '1') {
       setAuthed(true)
-      setSeccion('admin')
     }
   }, [])
 

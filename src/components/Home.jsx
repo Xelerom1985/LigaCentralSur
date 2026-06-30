@@ -228,7 +228,11 @@ export default function Home({ data }) {
           <div className="text-center text-[9px] text-white/40">Sasha</div>
         </div>
 
+        {/* Crédito desarrollador */}
+        <p className="text-center text-[9px] text-white/20 mt-1">App desarrollada por Fernando Flores</p>
+
       </div>
+
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
 
     </div>
