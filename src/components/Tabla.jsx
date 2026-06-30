@@ -53,12 +53,6 @@ export default function Tabla({ data }) {
       </div>
 
       <div className="px-3 pb-4">
-        {/* Leyenda */}
-        <div className="flex gap-4 mb-3 text-[10px]">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-900/60 inline-block" /> Copa de Oro (Top 8)</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-900/40 inline-block" /> Copa de Bronce (9+)</span>
-        </div>
-
         {/* Header tabla */}
         <div className="bg-[#111] rounded-t-xl px-3 py-2 border border-green-900/30">
           <div className="flex items-center text-[10px] text-gray-500 font-bold uppercase">
@@ -106,8 +100,6 @@ export default function Tabla({ data }) {
 
         {/* Clasificación */}
         <div className="mt-4 space-y-1 text-[11px] text-gray-500">
-          <p>🟢 Top 8 clasifican a Copa de Oro</p>
-          <p>🟠 9vo en adelante juegan Copa de Bronce</p>
           <p>PG=ganados · PE=empatados · PP=perdidos · DIF=diferencia de gol</p>
         </div>
       </div>

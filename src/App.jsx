@@ -30,6 +30,8 @@ import Stats from './components/Stats'
 import Admin from './components/Admin'
 
 const PIN = '2041'
+const CRED_KEY = 'lcs_admin_cred'
+const SESSION_KEY = 'lcs_admin_session'
 
 export default function App() {
   const [data, setData] = useState({})
@@ -38,6 +40,12 @@ export default function App() {
   const [showPin, setShowPin] = useState(false)
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState(false)
+
+  // Biometría
+  const [bioAvail, setBioAvail] = useState(false)
+  const [hasCred, setHasCred] = useState(false)
+  const [showBioPrompt, setShowBioPrompt] = useState(false)
+  const [bioError, setBioError] = useState(false)
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW()
   const [installPrompt, setInstallPrompt] = useState(null)
@@ -59,6 +67,19 @@ export default function App() {
     if (!seccion || seccion === 'admin') return
     update(ref(db, 'analytics/secciones'), { [seccion]: increment(1) })
   }, [seccion])
+
+  // Verificar soporte de biometría al montar
+  useEffect(() => {
+    const checkBio = async () => {
+      if (!window.PublicKeyCredential) return
+      try {
+        const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        setBioAvail(ok)
+        if (ok && localStorage.getItem(CRED_KEY)) setHasCred(true)
+      } catch {}
+    }
+    checkBio()
+  }, [])
 
   useEffect(() => {
     const handler = e => {
@@ -85,6 +106,19 @@ export default function App() {
     return () => window.removeEventListener('popstate', handler)
   }, [])
 
+  // Restaurar sesión admin persistida
+  useEffect(() => {
+    if (localStorage.getItem(SESSION_KEY) === '1') {
+      setAuthed(true)
+      setSeccion('admin')
+    }
+  }, [])
+
+  const entrarAdmin = () => {
+    localStorage.setItem(SESSION_KEY, '1')
+    setAuthed(true); setShowPin(false); setPinInput(''); setPinError(false); setSeccion('admin')
+  }
+
   const navegar = sec => {
     if (sec === 'admin') {
       if (authed) setSeccion('admin')
@@ -97,7 +131,8 @@ export default function App() {
 
   const intentarPin = () => {
     if (pinInput === PIN) {
-      setAuthed(true); setShowPin(false); setPinInput(''); setPinError(false); setSeccion('admin')
+      entrarAdmin()
+      if (bioAvail && !hasCred) setShowBioPrompt(true)
     } else {
       setPinError(true); setTimeout(() => setPinError(false), 1200)
     }
@@ -105,12 +140,62 @@ export default function App() {
 
   const handleLockClick = () => {
     if (authed) {
+      localStorage.removeItem(SESSION_KEY)
       setAuthed(false)
       setSeccion('home')
     } else {
       setShowPin(true)
       setPinInput('')
       setPinError(false)
+      setBioError(false)
+    }
+  }
+
+  // Registrar huella por primera vez
+  const registrarHuella = async () => {
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32))
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'Liga Central Sur' },
+          user: { id: new TextEncoder().encode('lcs-admin'), name: 'admin', displayName: 'Administrador' },
+          pubKeyCredParams: [
+            { alg: -7, type: 'public-key' },
+            { alg: -257, type: 'public-key' },
+          ],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000,
+        }
+      })
+      localStorage.setItem(CRED_KEY, JSON.stringify(Array.from(new Uint8Array(cred.rawId))))
+      setHasCred(true)
+      setShowBioPrompt(false)
+    } catch {
+      setShowBioPrompt(false)
+    }
+  }
+
+  // Autenticar con huella
+  const autenticarHuella = async () => {
+    setBioError(false)
+    try {
+      const stored = localStorage.getItem(CRED_KEY)
+      if (!stored) return
+      const credId = new Uint8Array(JSON.parse(stored))
+      const challenge = crypto.getRandomValues(new Uint8Array(32))
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{ id: credId, type: 'public-key' }],
+          userVerification: 'required',
+          timeout: 60000,
+        }
+      })
+      entrarAdmin()
+    } catch {
+      setBioError(true)
+      setTimeout(() => setBioError(false), 2000)
     }
   }
 
@@ -140,14 +225,8 @@ export default function App() {
               <p className="text-white text-sm font-bold leading-tight">Liga Central Sur</p>
               <p className="text-gray-400 text-xs leading-tight">Instalá la app en tu dispositivo</p>
             </div>
-            <button
-              onClick={() => setShowInstall(false)}
-              className="text-gray-600 text-lg flex-shrink-0 px-1"
-            >✕</button>
-            <button
-              onClick={instalarApp}
-              className="bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0 active:scale-95 transition-all"
-            >Instalar</button>
+            <button onClick={() => setShowInstall(false)} className="text-gray-600 text-lg flex-shrink-0 px-1">✕</button>
+            <button onClick={instalarApp} className="bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0 active:scale-95 transition-all">Instalar</button>
           </div>
         </div>
       )}
@@ -173,6 +252,40 @@ export default function App() {
             <div className="flex gap-2 mt-3">
               <button onClick={() => { setShowPin(false); setPinInput('') }} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
               <button onClick={intentarPin} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Entrar</button>
+            </div>
+
+            {/* Botón biometría */}
+            {hasCred && bioAvail && (
+              <button
+                onClick={autenticarHuella}
+                className="w-full mt-3 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-[#111] border border-green-900/40 active:scale-95 transition-all"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={`w-7 h-7 ${bioError ? 'text-red-400' : 'text-green-400'}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+                </svg>
+                <span className={`text-xs font-semibold ${bioError ? 'text-red-400' : 'text-green-400'}`}>
+                  {bioError ? 'No se reconoció' : 'Entrar con huella'}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal activar huella (aparece después del primer PIN correcto) */}
+      {showBioPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-green-800 shadow-2xl">
+            <div className="text-center mb-5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-14 h-14 text-green-400 mx-auto mb-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+              </svg>
+              <p className="text-white font-bold text-lg">¿Activar huella dactilar?</p>
+              <p className="text-gray-400 text-sm mt-1">La próxima vez entrás sin escribir el PIN</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowBioPrompt(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm border border-green-900/20">Ahora no</button>
+              <button onClick={registrarHuella} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Activar</button>
             </div>
           </div>
         </div>

@@ -84,8 +84,9 @@ export default function Home({ data }) {
 
   const fmtHora = str => {
     if (!str) return null
-    try { return new Date(str).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) }
-    catch { return str }
+    const t = str.split('T')[1]?.slice(0, 5)
+    if (!t || t === '00:00') return null
+    return t
   }
 
   const fechaLabel = useMemo(() => {
@@ -126,7 +127,9 @@ export default function Home({ data }) {
                 )}
               </div>
               <div className="divide-y divide-white/5">
-                {fechaPartidos.map(p => (
+                {fechaPartidos.map(p => {
+                  const hora = fmtHora(p.fechaHora)
+                  return (
                   <div key={p.id} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
                       <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || '?'}</span>
@@ -138,10 +141,10 @@ export default function Home({ data }) {
                       {p.jugado ? (
                         <>
                           <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
-                          {p.fechaHora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{fmtHora(p.fechaHora)}</p>}
+                          {hora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{hora}</p>}
                         </>
-                      ) : p.fechaHora ? (
-                        <p className="text-white font-black text-xl leading-tight">{fmtHora(p.fechaHora)}</p>
+                      ) : hora ? (
+                        <p className="text-white font-black text-xl leading-tight">{hora}</p>
                       ) : (
                         <p className="text-gray-500 text-sm font-bold">vs</p>
                       )}
@@ -153,7 +156,8 @@ export default function Home({ data }) {
                       <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

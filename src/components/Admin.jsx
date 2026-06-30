@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { db, ref, push, update, remove, set } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 
@@ -275,6 +275,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
   const [saving, setSaving] = useState(false)
+  const [horaSaved, setHoraSaved] = useState(false)
   const [showTarj, setShowTarj] = useState(false)
   const [tarjEq, setTarjEq] = useState('')
   const [tarjJug, setTarjJug] = useState('')
@@ -318,6 +319,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
     if (!hora) return update(ref(db, `partidos/${p.id}`), { fechaHora: null })
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     update(ref(db, `partidos/${p.id}`), { fechaHora: dia ? `${dia}T${hora}` : null })
+    setHoraSaved(true)
   }
 
   const guardarResultado = async () => {
@@ -388,9 +390,9 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 
         {/* Solo hora */}
         <div className="flex gap-2">
-          <input type="time" value={hora} onChange={e => setHora(e.target.value)}
+          <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
             className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
-          <button onClick={guardarHora} className="bg-[#222] border border-green-900/30 text-green-400 rounded-lg px-3 py-1.5 text-xs font-bold">✓</button>
+          <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
         </div>
       </div>
 
@@ -549,8 +551,8 @@ function TabPartidos({ data }) {
   const [fechaDia, setFechaDia] = useState('')
   const [generando, setGenerando] = useState(false)
   const [publicando, setPublicando] = useState(false)
+  const dateInputRef = useRef(null)
 
-  // Cuando cambia la fecha seleccionada, inferir la fecha del día si todos los partidos tienen la misma
   useEffect(() => {
     const dias = [...new Set(
       Object.values(partidos)
@@ -560,21 +562,26 @@ function TabPartidos({ data }) {
     setFechaDia(dias.length === 1 ? dias[0] : '')
   }, [fechaSel])
 
-  // Aplicar la fecha del día a todos los partidos de esta fecha
-  const aplicarFechaATodos = async () => {
-    if (!fechaDia || partidosFecha.length === 0) return
-    for (const partido of partidosFecha) {
-      const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : null
-      await update(ref(db, `partidos/${partido.id}`), {
-        fechaHora: horaExist ? `${fechaDia}T${horaExist}` : null
-      })
-    }
-  }
-
   const partidosFecha = Object.entries(partidos)
     .filter(([, p]) => p.fase === 'liga' && p.numero === fechaSel)
     .map(([id, p]) => ({ id, ...p }))
     .sort((a, b) => a.id.localeCompare(b.id))
+
+  const fmtDia = iso => {
+    if (!iso) return null
+    const [y, m, d] = iso.split('-')
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    const fecha = new Date(`${iso}T12:00`)
+    return `${dias[fecha.getDay()]} ${d}/${m}/${y}`
+  }
+
+  const aplicarFechaATodos = async () => {
+    if (!fechaDia || partidosFecha.length === 0) return
+    for (const partido of partidosFecha) {
+      const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : '00:00'
+      await update(ref(db, `partidos/${partido.id}`), { fechaHora: `${fechaDia}T${horaExist}` })
+    }
+  }
 
   const generarFecha = async () => {
     if (cantEquipos < 2) return alert('Necesitás al menos 2 equipos')
@@ -594,12 +601,19 @@ function TabPartidos({ data }) {
       }
     }
     const ronda = fixture[fechaSel] || []
-    const arr = Array.isArray(ronda) ? ronda : Object.values(ronda)
+    let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    // Resto FC siempre primero (para que le toque el horario de 14:00)
+    const restoId = Object.entries(equipos).find(([, e]) => /resto/i.test(e.nombre || ''))?.[0]
+    if (restoId) {
+      const idx = arr.findIndex(m => m.local === restoId || m.visitante === restoId)
+      if (idx > 0) arr.unshift(...arr.splice(idx, 1))
+    }
     for (const m of arr) {
       await push(ref(db, 'partidos'), {
         numero: fechaSel, fase: 'liga',
         local: m.local, visitante: m.visitante,
-        fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null,
+        fechaHora: fechaDia ? `${fechaDia}T00:00` : null,
+        jugado: false, golesLocal: null, golesVisitante: null,
       })
     }
     setGenerando(false)
@@ -626,51 +640,79 @@ function TabPartidos({ data }) {
   return (
     <div className="pt-4 space-y-4">
 
-      {/* Selector de fecha + Generar */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Seleccioná la Fecha</p>
-            <select
-              value={fechaSel}
-              onChange={e => setFechaSel(Number(e.target.value))}
-              className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
-            >
-              {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
-                const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
-                return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
-              })}
-            </select>
-          </div>
-          <button
-            onClick={generarFecha}
-            disabled={generando || cantEquipos < 2}
-            className="bg-green-600 text-white rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all whitespace-nowrap flex-shrink-0"
+
+        {/* Fecha del torneo */}
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
+          <select
+            value={fechaSel}
+            onChange={e => setFechaSel(Number(e.target.value))}
+            className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
           >
-            {generando ? '⏳' : '🎲 Generar'}
-          </button>
+            {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+              const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
+              return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+            })}
+          </select>
         </div>
-        {/* Date picker compartido */}
+
+        {/* Día de partidos — botón que abre calendario nativo */}
         <div>
           <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Día de los partidos</p>
-          <div className="flex gap-2">
+          <div className="relative">
+            <button
+              className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 flex items-center gap-3 text-left active:scale-[0.98] transition-all"
+              onClick={() => dateInputRef.current?.click()}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 text-green-400 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+              <span className={`flex-1 text-sm font-semibold ${fechaDia ? 'text-white' : 'text-gray-500'}`}>
+                {fechaDia ? fmtDia(fechaDia) : 'Tocar para elegir fecha'}
+              </span>
+              {fechaDia && (
+                <span
+                  onClick={e => { e.stopPropagation(); setFechaDia('') }}
+                  className="text-gray-500 text-base px-1"
+                >✕</span>
+              )}
+            </button>
             <input
+              ref={dateInputRef}
               type="date"
               value={fechaDia}
               onChange={e => setFechaDia(e.target.value)}
-              className="flex-1 bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              style={{ fontSize: '16px' }}
             />
-            <button
-              onClick={aplicarFechaATodos}
-              disabled={!fechaDia || partidosFecha.length === 0}
-              className="bg-green-800 text-white rounded-xl px-3 py-2.5 text-xs font-bold disabled:opacity-30 whitespace-nowrap"
-            >
-              Aplicar a todos
-            </button>
           </div>
         </div>
+
+        {/* Botón Generar */}
+        <button
+          onClick={generarFecha}
+          disabled={generando || cantEquipos < 2}
+          className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
+        >
+          {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
+        </button>
+
+        {/* Aplicar fecha a partidos ya creados */}
+        {partidosFecha.length > 0 && fechaDia && (
+          <button
+            onClick={aplicarFechaATodos}
+            className="w-full bg-[#111] border border-green-700/30 text-green-400 rounded-xl py-2.5 text-sm font-semibold active:scale-95 transition-all"
+          >
+            📅 Aplicar {fmtDia(fechaDia)} a todos
+          </button>
+        )}
+
+        {cantEquipos < 2 && (
+          <p className="text-[11px] text-yellow-600 text-center">Necesitás al menos 2 equipos registrados</p>
+        )}
         {!masterFixture && cantEquipos >= 2 && (
-          <p className="text-[11px] text-gray-500 text-center">Primera vez: crea el fixture maestro para todas las fechas</p>
+          <p className="text-[11px] text-gray-500 text-center">Primera vez: se crea el fixture completo para todas las fechas</p>
         )}
       </div>
 
@@ -711,7 +753,7 @@ function TabPartidos({ data }) {
 
       {partidosFecha.length === 0 && (
         <p className="text-center text-gray-600 text-sm py-8">
-          Seleccioná una fecha y tocá "🎲 Generar" para crear los partidos
+          Elegí una fecha, el día, y tocá "Generar"
         </p>
       )}
     </div>
