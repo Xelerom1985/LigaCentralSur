@@ -25,6 +25,7 @@ import Home from './components/Home'
 import Fixture from './components/Fixture'
 import Tabla from './components/Tabla'
 import Copas from './components/Copas'
+import Equipos from './components/Equipos'
 import Stats from './components/Stats'
 import Admin from './components/Admin'
 
@@ -182,6 +183,7 @@ export default function App() {
       {seccion === 'fixture' && <Fixture data={data} />}
       {seccion === 'tabla' && <Tabla data={data} />}
       {seccion === 'copas' && <Copas data={data} />}
+      {seccion === 'equipos' && <Equipos data={data} />}
       {seccion === 'stats' && <Stats data={data} />}
       {seccion === 'admin' && authed && <Admin data={data} />}
 

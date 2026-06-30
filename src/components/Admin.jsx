@@ -155,15 +155,31 @@ function TabJugadores({ data }) {
   const [dni, setDni] = useState('')
   const [numero, setNumero] = useState('')
   const [loading, setLoading] = useState(false)
+  const [editId, setEditId] = useState(null)
 
   const lista = equipoSel ? Object.entries(jugadores[equipoSel] || {}) : []
 
-  const agregar = async () => {
+  const guardar = async () => {
     if (!equipoSel || !nombre.trim()) return
     setLoading(true)
-    await push(ref(db, `jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+    if (editId) {
+      await update(ref(db, `jugadores/${equipoSel}/${editId}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+      setEditId(null)
+    } else {
+      await push(ref(db, `jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+    }
     setNombre(''); setDni(''); setNumero(''); setLoading(false)
   }
+
+  const editar = (id, j) => {
+    setEditId(id)
+    setNombre(j.nombre || '')
+    setDni(j.dni || '')
+    setNumero(j.numero || '')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelar = () => { setEditId(null); setNombre(''); setDni(''); setNumero('') }
 
   const eliminar = async jugId => {
     if (!confirm('¿Eliminar jugador?')) return
@@ -172,9 +188,9 @@ function TabJugadores({ data }) {
 
   return (
     <div className="pt-4 space-y-4">
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">Agregar Jugador</p>
-        <select value={equipoSel} onChange={e => setEquipoSel(e.target.value)}
+      <div className={`bg-[#1a1a1a] rounded-xl p-4 border space-y-3 ${editId ? 'border-green-600/60' : 'border-green-900/30'}`}>
+        <p className="text-sm font-bold text-green-400">{editId ? '✏️ Editar Jugador' : 'Agregar Jugador'}</p>
+        <select value={equipoSel} onChange={e => { setEquipoSel(e.target.value); cancelar() }}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none">
           <option value="">— Seleccioná un equipo —</option>
           {Object.entries(equipos).map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)}
@@ -188,10 +204,17 @@ function TabJugadores({ data }) {
             <input value={dni} onChange={e => setDni(e.target.value)} placeholder="DNI (opcional)" inputMode="numeric"
               className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
           </div>
-          <button onClick={agregar} disabled={loading || !nombre.trim()}
-            className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
-            {loading ? 'Guardando...' : 'Agregar Jugador'}
-          </button>
+          <div className="flex gap-2">
+            {editId && (
+              <button onClick={cancelar} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-2.5 text-sm border border-green-900/20">
+                Cancelar
+              </button>
+            )}
+            <button onClick={guardar} disabled={loading || !nombre.trim()}
+              className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
+              {loading ? 'Guardando...' : editId ? 'Actualizar jugador' : 'Agregar Jugador'}
+            </button>
+          </div>
         </>}
       </div>
 
@@ -201,7 +224,7 @@ function TabJugadores({ data }) {
           {lista
             .sort((a, b) => (Number(a[1].numero) || 999) - (Number(b[1].numero) || 999))
             .map(([id, j]) => (
-            <div key={id} className="bg-[#1a1a1a] rounded-xl px-3 py-2.5 border border-green-900/20 flex items-center gap-2">
+            <div key={id} className={`bg-[#1a1a1a] rounded-xl px-3 py-2.5 border flex items-center gap-2 transition-all ${editId === id ? 'border-green-600/50' : 'border-green-900/20'}`}>
               {j.numero && (
                 <span className="w-8 text-center text-sm font-black text-green-400 flex-shrink-0">#{j.numero}</span>
               )}
@@ -209,6 +232,10 @@ function TabJugadores({ data }) {
                 <p className="text-sm font-semibold text-white truncate">{j.nombre}</p>
                 {j.dni && <p className="text-[11px] text-gray-500">DNI: {j.dni}</p>}
               </div>
+              <button onClick={() => editar(id, j)}
+                className="text-xs bg-green-900/40 text-green-400 border border-green-800/40 rounded-lg px-3 py-1.5 font-medium flex-shrink-0">
+                Editar
+              </button>
               <button onClick={() => eliminar(id)} className="text-xs text-red-400 px-2 flex-shrink-0">Borrar</button>
             </div>
           ))}
