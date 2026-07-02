@@ -250,10 +250,11 @@ function TabJugadores({ data }) {
 const GAME_SLOTS = [14, 15, 16]
 
 function slotPrefs(nombre) {
-  const n = (nombre || '').toLowerCase()
+  const n = (nombre || '').toLowerCase().trim()
   if (n.includes('antidoping')) return [14]
   if (n.includes('banda')) return [16]
   if (n.includes('tuca') || n.includes('resto')) return [14, 15]
+  if (n === 'san jose') return [15, 16]  // solo el San Jose original (no San Jose FC)
   if (n.includes('roma')) return [15, 16]
   return [14, 15, 16]
 }
@@ -262,11 +263,11 @@ function assignMatchSlots(matches, equipos) {
   const cap = { 14: 2, 15: 2, 16: 2 }
   const res = new Map()
   const prio = id => {
-    const n = (equipos[id]?.nombre || '').toLowerCase()
+    const n = (equipos[id]?.nombre || '').toLowerCase().trim()
     if (n.includes('antidoping')) return 1
     if (n.includes('banda')) return 2
     if (n.includes('tuca') || n.includes('resto')) return 3
-    if (n.includes('jose') || n.includes('roma')) return 4
+    if (n === 'san jose' || n.includes('roma')) return 4
     return 5
   }
   const sorted = [...matches].sort((a, b) =>
@@ -276,9 +277,13 @@ function assignMatchSlots(matches, equipos) {
     const hp = slotPrefs(equipos[m.local]?.nombre)
     const ap = slotPrefs(equipos[m.visitante]?.nombre)
     const perfect = GAME_SLOTS.filter(s => hp.includes(s) && ap.includes(s) && cap[s] > 0)
-    const oneOK   = GAME_SLOTS.filter(s => (hp.includes(s) || ap.includes(s)) && cap[s] > 0)
-    const any     = GAME_SLOTS.filter(s => cap[s] > 0)
-    const slot    = perfect[0] ?? oneOK[0] ?? any[0] ?? 14
+    // Cuando no hay overlap, priorizamos el slot del equipo con mayor restricción
+    const hl = prio(m.local), al = prio(m.visitante)
+    const primPrefs = hl <= al ? hp : ap
+    const primaryOK = GAME_SLOTS.filter(s => primPrefs.includes(s) && cap[s] > 0)
+    const oneOK     = GAME_SLOTS.filter(s => (hp.includes(s) || ap.includes(s)) && cap[s] > 0)
+    const any       = GAME_SLOTS.filter(s => cap[s] > 0)
+    const slot      = perfect[0] ?? primaryOK[0] ?? oneOK[0] ?? any[0] ?? 14
     res.set(m, slot)
     cap[slot]--
   }
@@ -287,24 +292,28 @@ function assignMatchSlots(matches, equipos) {
 
 /* ─── ROUND ROBIN (Berger determinístico) ─── */
 function buildRoundRobin(equiposIds, equipos) {
-  const find = pat => equiposIds.find(id => pat.test(equipos[id]?.nombre || ''))
-  const romaId  = find(/\broma\b/i)
-  const mirId   = find(/mirasol/i)
-  const antiId  = find(/antidoping/i)
-  const tucaId  = find(/tuca/i)
-  const bandaId = find(/banda/i)
-  const julioId = find(/\b25\b|julio/i)
-  const restoId = find(/resto/i)
-  const joseId  = find(/jose/i)
-  const pibesId = find(/pibes|trebol/i)
-  const milanId = find(/milan/i)
-  const candId  = find(/candelabro/i)
-  const la18Id  = find(/\b18\b/)
+  // El Mirasol es provisional (solo Fecha 1) → no va al Berger permanente
+  const mirId   = equiposIds.find(id => /mirasol/i.test(equipos[id]?.nombre || ''))
+  const permIds = equiposIds.filter(id => id !== mirId)
 
-  // LaRoma como ancla (pos 0), Mirasol al final (pos n-1) si existe
-  const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseId, pibesId, milanId, candId].filter(Boolean)
-  const known  = [romaId, ...middle, mirId].filter(Boolean)
-  const rest   = equiposIds.filter(id => !known.includes(id))
+  const find = pat => permIds.find(id => pat.test(equipos[id]?.nombre || ''))
+  const romaId   = find(/\broma\b/i)
+  const joseFCId = find(/san jose fc/i)                 // San Jose FC (sin restricción)
+  const joseId   = find(/^san jose$/i)                  // San Jose original (pos final = rival de La Roma en F1)
+  const antiId   = find(/antidoping/i)
+  const tucaId   = find(/tuca/i)
+  const bandaId  = find(/banda/i)
+  const julioId  = find(/\b25\b|julio/i)
+  const restoId  = find(/resto/i)
+  const pibesId  = find(/pibes|trebol/i)
+  const milanId  = find(/milan/i)
+  const candId   = find(/candelabro/i)
+  const la18Id   = find(/\b18\b/)
+
+  // LaRoma ancla (pos 0), SanJose original al final (pos n-1) → emparejado con LaRoma en F1
+  const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseFCId, pibesId, milanId, candId].filter(Boolean)
+  const known  = [romaId, ...middle, joseId].filter(Boolean)
+  const rest   = permIds.filter(id => !known.includes(id))
   const last   = known[known.length - 1]
   const ids    = [...known.slice(0, -1), ...rest, last].filter(Boolean)
   if (ids.length % 2 !== 0) ids.push('bye')
@@ -690,14 +699,19 @@ function TabPartidos({ data }) {
         return m
       }).filter(Boolean)
     }
-    // Fecha 1: La Roma queda LIBRE (El Mirasol aún no participa)
+    // Fecha 1: La Roma LIBRE; su rival Berger (San Jose) juega con El Mirasol (provisorio)
     if (fechaSel === 1) {
       const romaIdF1 = Object.entries(equipos).find(([, e]) => /\broma\b/i.test(e.nombre || ''))?.[0]
       const mirIdF1  = Object.entries(equipos).find(([, e]) => /mirasol/i.test(e.nombre || ''))?.[0]
       if (romaIdF1) {
-        arr = arr.filter(m => m.local !== romaIdF1 && m.visitante !== romaIdF1 &&
-                              m.local !== mirIdF1  && m.visitante !== mirIdF1)
+        const romaMtch = arr.find(m => m.local === romaIdF1 || m.visitante === romaIdF1)
+        const romaOpp  = romaMtch ? (romaMtch.local === romaIdF1 ? romaMtch.visitante : romaMtch.local) : null
+        arr = arr.filter(m => m.local !== romaIdF1 && m.visitante !== romaIdF1)
         arr.push({ local: romaIdF1, visitante: null, libre: true })
+        if (romaOpp) {
+          if (mirIdF1) arr.push({ local: romaOpp, visitante: mirIdF1 })
+          else         arr.push({ local: romaOpp, visitante: null, libre: true })
+        }
       }
     }
     // Separar LIBRE de activos y asignar franjas horarias automáticas
