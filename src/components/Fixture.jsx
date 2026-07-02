@@ -83,6 +83,20 @@ export default function Fixture({ data }) {
     const eqVisitante = equipos[p.visitante] || {}
     const fecha = formatFecha(p.fechaHora)
     const hora = formatHora(p.fechaHora)
+
+    if (p.libre) {
+      return (
+        <div className="bg-[#1a1a1a] rounded-xl p-3 border border-yellow-900/30 flex items-center gap-3">
+          {eqLocal.escudo && <img src={eqLocal.escudo} className="w-9 h-9 object-contain rounded flex-shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{eqLocal.nombre || '?'}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Sin rival esta fecha</p>
+          </div>
+          <span className="text-xs font-black text-yellow-400 bg-yellow-900/20 px-2.5 py-1 rounded-lg flex-shrink-0">LIBRE</span>
+        </div>
+      )
+    }
+
     return (
       <div className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/20">
         {(p.fechaHora || p.cancha) && (

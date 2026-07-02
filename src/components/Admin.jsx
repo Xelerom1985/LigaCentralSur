@@ -271,6 +271,17 @@ function buildRoundRobin(equiposIds) {
 
 /* ─── PARTIDO CARD (usado en TabPartidos) ─── */
 function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
+  if (p.libre) {
+    const eq = equipos[p.local] || {}
+    return (
+      <div className="bg-[#1a1a1a] rounded-xl px-4 py-3 border border-yellow-900/30 flex items-center gap-3">
+        {eq.escudo && <img src={eq.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
+        <span className="flex-1 text-sm font-semibold text-white">{eq.nombre || '?'}</span>
+        <span className="text-xs font-bold text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded-lg">LIBRE</span>
+      </div>
+    )
+  }
+
   const [gl, setGl] = useState(String(p.golesLocal ?? ''))
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
@@ -551,7 +562,14 @@ function TabPartidos({ data }) {
   const [fechaDia, setFechaDia] = useState('')
   const [generando, setGenerando] = useState(false)
   const [publicando, setPublicando] = useState(false)
+  const [suspendidos, setSuspendidos] = useState(new Set())
   const dateInputRef = useRef(null)
+
+  const toggleSuspendido = id => setSuspendidos(prev => {
+    const s = new Set(prev)
+    s.has(id) ? s.delete(id) : s.add(id)
+    return s
+  })
 
   useEffect(() => {
     const dias = [...new Set(
@@ -602,6 +620,17 @@ function TabPartidos({ data }) {
     }
     const ronda = fixture[fechaSel] || []
     let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    // Equipos suspendidos → su rival queda LIBRE
+    if (suspendidos.size > 0) {
+      arr = arr.map(m => {
+        const localSusp = suspendidos.has(m.local)
+        const visitSusp = suspendidos.has(m.visitante)
+        if (localSusp && visitSusp) return null
+        if (localSusp) return { local: m.visitante, visitante: null, libre: true }
+        if (visitSusp) return { local: m.local, visitante: null, libre: true }
+        return m
+      }).filter(Boolean)
+    }
     // Resto FC siempre primero (para que le toque el horario de 14:00)
     const restoId = Object.entries(equipos).find(([, e]) => /resto/i.test(e.nombre || ''))?.[0]
     if (restoId) {
@@ -611,11 +640,13 @@ function TabPartidos({ data }) {
     for (const m of arr) {
       await push(ref(db, 'partidos'), {
         numero: fechaSel, fase: 'liga',
-        local: m.local, visitante: m.visitante,
+        local: m.local, visitante: m.visitante ?? null,
+        libre: m.libre ?? false,
         fechaHora: fechaDia ? `${fechaDia}T00:00` : null,
         jugado: false, golesLocal: null, golesVisitante: null,
       })
     }
+    setSuspendidos(new Set())
     setGenerando(false)
   }
 
@@ -686,6 +717,24 @@ function TabPartidos({ data }) {
               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
               style={{ fontSize: '16px' }}
             />
+          </div>
+        </div>
+
+        {/* Equipos suspendidos esta fecha */}
+        <div>
+          <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Suspendidos esta fecha</p>
+          <div className="space-y-1.5">
+            {Object.entries(equipos).map(([id, eq]) => {
+              const susp = suspendidos.has(id)
+              return (
+                <label key={id} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${susp ? 'bg-red-900/20 border border-red-900/40' : 'bg-[#111] border border-green-900/10'}`}>
+                  <input type="checkbox" checked={susp} onChange={() => toggleSuspendido(id)} className="accent-red-500 w-4 h-4 flex-shrink-0" />
+                  {eq.escudo && <img src={eq.escudo} className="w-6 h-6 object-contain rounded flex-shrink-0" />}
+                  <span className={`text-sm font-medium flex-1 ${susp ? 'text-red-400 line-through' : 'text-white'}`}>{eq.nombre}</span>
+                  {susp && <span className="text-[10px] text-red-400 font-bold">SUSPENDIDO</span>}
+                </label>
+              )
+            })}
           </div>
         </div>
 
