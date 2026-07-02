@@ -246,25 +246,82 @@ function TabJugadores({ data }) {
   )
 }
 
-/* ─── ROUND ROBIN ─── */
-function buildRoundRobin(equiposIds) {
-  const ids = [...equiposIds].sort(() => Math.random() - 0.5)
+/* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
+const GAME_SLOTS = [14, 15, 16]
+
+function slotPrefs(nombre) {
+  const n = (nombre || '').toLowerCase()
+  if (n.includes('antidoping')) return [14]
+  if (n.includes('banda')) return [16]
+  if (n.includes('tuca') || n.includes('resto')) return [14, 15]
+  if (n.includes('jose') || n.includes('roma')) return [15, 16]
+  return [14, 15, 16]
+}
+
+function assignMatchSlots(matches, equipos) {
+  const cap = { 14: 2, 15: 2, 16: 2 }
+  const res = new Map()
+  const prio = id => {
+    const n = (equipos[id]?.nombre || '').toLowerCase()
+    if (n.includes('antidoping')) return 1
+    if (n.includes('banda')) return 2
+    if (n.includes('tuca') || n.includes('resto')) return 3
+    if (n.includes('jose') || n.includes('roma')) return 4
+    return 5
+  }
+  const sorted = [...matches].sort((a, b) =>
+    Math.min(prio(a.local), prio(a.visitante)) - Math.min(prio(b.local), prio(b.visitante))
+  )
+  for (const m of sorted) {
+    const hp = slotPrefs(equipos[m.local]?.nombre)
+    const ap = slotPrefs(equipos[m.visitante]?.nombre)
+    const perfect = GAME_SLOTS.filter(s => hp.includes(s) && ap.includes(s) && cap[s] > 0)
+    const oneOK   = GAME_SLOTS.filter(s => (hp.includes(s) || ap.includes(s)) && cap[s] > 0)
+    const any     = GAME_SLOTS.filter(s => cap[s] > 0)
+    const slot    = perfect[0] ?? oneOK[0] ?? any[0] ?? 14
+    res.set(m, slot)
+    cap[slot]--
+  }
+  return res
+}
+
+/* ─── ROUND ROBIN (Berger determinístico) ─── */
+function buildRoundRobin(equiposIds, equipos) {
+  const find = pat => equiposIds.find(id => pat.test(equipos[id]?.nombre || ''))
+  const romaId  = find(/\broma\b/i)
+  const mirId   = find(/mirasol/i)
+  const antiId  = find(/antidoping/i)
+  const tucaId  = find(/tuca/i)
+  const bandaId = find(/banda/i)
+  const julioId = find(/\b25\b|julio/i)
+  const restoId = find(/resto/i)
+  const joseId  = find(/jose/i)
+  const pibesId = find(/pibes|trebol/i)
+  const milanId = find(/milan/i)
+  const candId  = find(/candelabro/i)
+  const la18Id  = find(/\b18\b/)
+
+  // LaRoma como ancla (pos 0), Mirasol al final (pos n-1) si existe
+  const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseId, pibesId, milanId, candId].filter(Boolean)
+  const known  = [romaId, ...middle, mirId].filter(Boolean)
+  const rest   = equiposIds.filter(id => !known.includes(id))
+  const last   = known[known.length - 1]
+  const ids    = [...known.slice(0, -1), ...rest, last].filter(Boolean)
   if (ids.length % 2 !== 0) ids.push('bye')
+
   const n = ids.length
   const fixture = {}
   const t = [...ids]
   for (let ronda = 0; ronda < n - 1; ronda++) {
     const matches = []
     for (let i = 0; i < n / 2; i++) {
-      if (t[i] !== 'bye' && t[n - 1 - i] !== 'bye') {
-        const swap = Math.random() > 0.5
-        matches.push({ local: swap ? t[i] : t[n - 1 - i], visitante: swap ? t[n - 1 - i] : t[i] })
-      }
+      const h = t[i], a = t[n - 1 - i]
+      if (h !== 'bye' && a !== 'bye') matches.push({ local: h, visitante: a })
     }
     fixture[ronda + 1] = matches
-    const last = t[n - 1]
+    const lst = t[n - 1]
     for (let j = n - 1; j > 1; j--) t[j] = t[j - 1]
-    t[1] = last
+    t[1] = lst
   }
   return fixture
 }
@@ -284,7 +341,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 
   const [gl, setGl] = useState(String(p.golesLocal ?? ''))
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
-  const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
+  const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
   const [saving, setSaving] = useState(false)
   const [horaSaved, setHoraSaved] = useState(false)
   const [showTarj, setShowTarj] = useState(false)
@@ -297,8 +354,8 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
   // Separado: la hora se sincroniza siempre (puede cambiar con "Aplicar a todos")
   // Los goles NO se sincronizan cuando cambia la hora — evita resetear lo que el usuario está escribiendo
   useEffect(() => {
-    setHora(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : '')
-  }, [p.fechaHora])
+    setHora(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
+  }, [p.fechaHora, p.hora])
 
   useEffect(() => {
     setGl(String(p.golesLocal ?? ''))
@@ -327,9 +384,11 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
       .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
   const guardarHora = () => {
-    if (!hora) return update(ref(db, `partidos/${p.id}`), { fechaHora: null })
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
-    update(ref(db, `partidos/${p.id}`), { fechaHora: dia ? `${dia}T${hora}` : null })
+    update(ref(db, `partidos/${p.id}`), {
+      hora: hora || null,
+      fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
+    })
     setHoraSaved(true)
   }
 
@@ -596,7 +655,7 @@ function TabPartidos({ data }) {
   const aplicarFechaATodos = async () => {
     if (!fechaDia || partidosFecha.length === 0) return
     for (const partido of partidosFecha) {
-      const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : '00:00'
+      const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : (partido.hora || '00:00')
       await update(ref(db, `partidos/${partido.id}`), { fechaHora: `${fechaDia}T${horaExist}` })
     }
   }
@@ -608,7 +667,7 @@ function TabPartidos({ data }) {
     setGenerando(true)
     let fixture = masterFixture
     if (!fixture) {
-      fixture = buildRoundRobin(Object.keys(equipos))
+      fixture = buildRoundRobin(Object.keys(equipos), equipos)
       await set(ref(db, 'master_fixture'), fixture)
     }
     for (const [id, p] of Object.entries(partidos)) {
@@ -631,18 +690,37 @@ function TabPartidos({ data }) {
         return m
       }).filter(Boolean)
     }
-    // Resto FC siempre primero (para que le toque el horario de 14:00)
-    const restoId = Object.entries(equipos).find(([, e]) => /resto/i.test(e.nombre || ''))?.[0]
-    if (restoId) {
-      const idx = arr.findIndex(m => m.local === restoId || m.visitante === restoId)
-      if (idx > 0) arr.unshift(...arr.splice(idx, 1))
+    // Fecha 1: La Roma queda LIBRE (El Mirasol aún no participa)
+    if (fechaSel === 1) {
+      const romaIdF1 = Object.entries(equipos).find(([, e]) => /\broma\b/i.test(e.nombre || ''))?.[0]
+      const mirIdF1  = Object.entries(equipos).find(([, e]) => /mirasol/i.test(e.nombre || ''))?.[0]
+      if (romaIdF1) {
+        arr = arr.filter(m => m.local !== romaIdF1 && m.visitante !== romaIdF1 &&
+                              m.local !== mirIdF1  && m.visitante !== mirIdF1)
+        arr.push({ local: romaIdF1, visitante: null, libre: true })
+      }
     }
-    for (const m of arr) {
+    // Separar LIBRE de activos y asignar franjas horarias automáticas
+    const libres  = arr.filter(m => m.libre)
+    const activos = arr.filter(m => !m.libre)
+    const slotMap = assignMatchSlots(activos, equipos)
+    const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
+    for (const m of activosSorted) {
+      const slot = slotMap.get(m) ?? 14
+      const hs = `${String(slot).padStart(2, '0')}:00`
       await push(ref(db, 'partidos'), {
         numero: fechaSel, fase: 'liga',
-        local: m.local, visitante: m.visitante ?? null,
-        libre: m.libre ?? false,
-        fechaHora: fechaDia ? `${fechaDia}T00:00` : null,
+        local: m.local, visitante: m.visitante,
+        libre: false, hora: hs,
+        fechaHora: fechaDia ? `${fechaDia}T${hs}` : null,
+        jugado: false, golesLocal: null, golesVisitante: null,
+      })
+    }
+    for (const m of libres) {
+      await push(ref(db, 'partidos'), {
+        numero: fechaSel, fase: 'liga',
+        local: m.local, visitante: null,
+        libre: true, hora: null, fechaHora: null,
         jugado: false, golesLocal: null, golesVisitante: null,
       })
     }

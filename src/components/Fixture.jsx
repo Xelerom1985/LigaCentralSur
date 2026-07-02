@@ -82,7 +82,7 @@ export default function Fixture({ data }) {
     const eqLocal = equipos[p.local] || {}
     const eqVisitante = equipos[p.visitante] || {}
     const fecha = formatFecha(p.fechaHora)
-    const hora = formatHora(p.fechaHora)
+    const hora = formatHora(p.fechaHora) || p.hora || null
 
     if (p.libre) {
       return (
@@ -99,7 +99,7 @@ export default function Fixture({ data }) {
 
     return (
       <div className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/20">
-        {(p.fechaHora || p.cancha) && (
+        {(p.fechaHora || p.hora || p.cancha) && (
           <div className="text-center mb-3">
             <p className="text-[11px] text-gray-500 capitalize">
               {fecha || 'Fecha a confirmar'}
