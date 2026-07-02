@@ -254,7 +254,7 @@ function slotPrefs(nombre) {
   if (n.includes('antidoping')) return [14]
   if (n.includes('banda')) return [16]
   if (n.includes('tuca') || n.includes('resto')) return [14, 15]
-  if (n.includes('jose') || n.includes('roma')) return [15, 16]
+  if (n.includes('roma')) return [15, 16]
   return [14, 15, 16]
 }
 
