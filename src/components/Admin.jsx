@@ -631,6 +631,11 @@ function TabPartidos({ data }) {
   const [generando, setGenerando] = useState(false)
   const [publicando, setPublicando] = useState(false)
   const [suspendidos, setSuspendidos] = useState(new Set())
+  const [showManual, setShowManual] = useState(false)
+  const [manualLocal, setManualLocal] = useState('')
+  const [manualVisitante, setManualVisitante] = useState('')
+  const [manualHora, setManualHora] = useState('14:00')
+  const [agregando, setAgregando] = useState(false)
   const dateInputRef = useRef(null)
 
   const toggleSuspendido = id => setSuspendidos(prev => {
@@ -750,6 +755,27 @@ function TabPartidos({ data }) {
 
   const quitarDeHome = () => set(ref(db, 'home_fecha'), null)
 
+  const agregarManual = async () => {
+    if (!manualLocal) return alert('Elegí el equipo local')
+    if (!manualVisitante) return alert('Elegí el visitante (o LIBRE)')
+    if (manualLocal === manualVisitante) return alert('Local y visitante no pueden ser el mismo')
+    setAgregando(true)
+    const esLibre = manualVisitante === '__libre__'
+    await push(ref(db, 'partidos'), {
+      numero: fechaSel, fase: 'liga',
+      local: manualLocal,
+      visitante: esLibre ? null : manualVisitante,
+      libre: esLibre,
+      hora: esLibre ? null : manualHora,
+      fechaHora: (!esLibre && fechaDia) ? `${fechaDia}T${manualHora}` : null,
+      jugado: false, golesLocal: null, golesVisitante: null,
+    })
+    setManualLocal('')
+    setManualVisitante('')
+    setManualHora('14:00')
+    setAgregando(false)
+  }
+
   const eliminarFecha = async () => {
     if (!confirm(`¿Borrar todos los partidos de la Fecha ${fechaSel}?`)) return
     for (const p of partidosFecha) {
@@ -838,6 +864,76 @@ function TabPartidos({ data }) {
         >
           {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
         </button>
+
+        {/* Agregar partido manualmente */}
+        <div className="border border-dashed border-green-900/40 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowManual(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-400 active:scale-[0.98] transition-all"
+          >
+            <span>✏️ Agregar partido manual</span>
+            <span className="text-lg leading-none">{showManual ? '▲' : '▼'}</span>
+          </button>
+          {showManual && (
+            <div className="px-4 pb-4 space-y-3 border-t border-green-900/20">
+              <div className="grid grid-cols-2 gap-2 pt-3">
+                <div>
+                  <p className="text-[10px] text-gray-500 mb-1 font-semibold uppercase tracking-wider">Local</p>
+                  <select
+                    value={manualLocal}
+                    onChange={e => setManualLocal(e.target.value)}
+                    className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
+                  >
+                    <option value="">— elegir —</option>
+                    {Object.entries(equipos)
+                      .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
+                      .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
+                    }
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 mb-1 font-semibold uppercase tracking-wider">Visitante</p>
+                  <select
+                    value={manualVisitante}
+                    onChange={e => setManualVisitante(e.target.value)}
+                    className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
+                  >
+                    <option value="">— elegir —</option>
+                    <option value="__libre__">LIBRE (sin rival)</option>
+                    {Object.entries(equipos)
+                      .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
+                      .filter(([id]) => id !== manualLocal)
+                      .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
+                    }
+                  </select>
+                </div>
+              </div>
+              {manualVisitante && manualVisitante !== '__libre__' && (
+                <div>
+                  <p className="text-[10px] text-gray-500 mb-1 font-semibold uppercase tracking-wider">Horario</p>
+                  <div className="flex gap-2">
+                    {['14:00', '15:00', '16:00'].map(h => (
+                      <button
+                        key={h}
+                        onClick={() => setManualHora(h)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${manualHora === h ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-gray-400'}`}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={agregarManual}
+                disabled={agregando || !manualLocal || !manualVisitante}
+                className="w-full bg-green-700 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all"
+              >
+                {agregando ? 'Agregando...' : '➕ Agregar partido'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Aplicar fecha a partidos ya creados */}
         {partidosFecha.length > 0 && fechaDia && (
