@@ -73,7 +73,11 @@ export default function Home({ data }) {
     return Object.entries(partidos)
       .filter(([, p]) => p.fase === 'liga' && Number(p.numero) === Number(homeFecha))
       .map(([id, p]) => ({ id, ...p }))
-      .sort((a, b) => (a.fechaHora || '').localeCompare(b.fechaHora || ''))
+      .sort((a, b) => {
+        const ha = a.fechaHora ? a.fechaHora.split('T')[1]?.slice(0,5) : (a.hora || '99:99')
+        const hb = b.fechaHora ? b.fechaHora.split('T')[1]?.slice(0,5) : (b.hora || '99:99')
+        return ha.localeCompare(hb)
+      })
   }, [partidos, homeFecha])
 
   const novedadesList = useMemo(() =>
