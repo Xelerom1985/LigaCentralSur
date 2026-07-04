@@ -35,7 +35,7 @@ export default function Stats({ data }) {
         return { equipoId, jugadorId, nombre, numero, equipo, escudo, total }
       })
       .sort((a, b) => b.total - a.total)
-      .slice(0, 20)
+      .slice(0, 5)
   }, [golesValidos, jugadores, equipos])
 
   const valla = useMemo(() => {
@@ -55,7 +55,7 @@ export default function Stats({ data }) {
         golesRecibidos, pj: pj[id] || 0
       }))
       .sort((a, b) => a.golesRecibidos - b.golesRecibidos)
-      .slice(0, 10)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const amarillas = useMemo(() => {
@@ -68,7 +68,7 @@ export default function Stats({ data }) {
       const [equipoId, jugadorId] = key.split('___')
       const jug = jugadores[equipoId]?.[jugadorId] || {}
       return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
-    }).sort((a, b) => b.total - a.total).slice(0, 10)
+    }).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [tarjetasValidas, jugadores, equipos])
 
   const rojas = useMemo(() => {
@@ -81,7 +81,7 @@ export default function Stats({ data }) {
       const [equipoId, jugadorId] = key.split('___')
       const jug = jugadores[equipoId]?.[jugadorId] || {}
       return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
-    }).sort((a, b) => b.total - a.total).slice(0, 10)
+    }).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [tarjetasValidas, jugadores, equipos])
 
   const equipoGoleador = useMemo(() => {
@@ -97,6 +97,7 @@ export default function Stats({ data }) {
     return Object.entries(gf)
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const equipoGoleado = useMemo(() => {
@@ -112,6 +113,7 @@ export default function Stats({ data }) {
     return Object.entries(gc)
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const hatTricks = useMemo(() => {
@@ -141,7 +143,7 @@ export default function Stats({ data }) {
         }
       })
     })
-    return lista.sort((a, b) => b.goles - a.goles)
+    return lista.sort((a, b) => b.goles - a.goles).slice(0, 5)
   }, [golesValidos, jugadores, equipos, partidos])
 
   const Section = ({ title, emoji, children, empty }) => (
