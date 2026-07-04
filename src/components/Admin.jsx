@@ -492,16 +492,20 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 {/* Chips del equipo */}
                 {chipsEquipo.length > 0 && (
                   <div className={`flex flex-wrap gap-1 ${isRight ? 'justify-end' : ''}`}>
-                    {chipsEquipo.map(g => (
-                      <div key={`${g.equipoId}___${g.jugadorId}`}
-                        className="flex items-center gap-1 bg-green-900/30 border border-green-700/30 rounded-full px-2 py-0.5">
-                        <span className="text-green-300 text-[11px] font-semibold">
-                          {jugadores[g.equipoId]?.[g.jugadorId]?.nombre?.split(' ')[0] || '?'}
-                          {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
-                        </span>
-                        <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
-                      </div>
-                    ))}
+                    {chipsEquipo.map(g => {
+                      const jug = jugadores[g.equipoId]?.[g.jugadorId]
+                      return (
+                        <div key={`${g.equipoId}___${g.jugadorId}`}
+                          className="flex items-center gap-1 bg-green-900/30 border border-green-700/30 rounded-full px-2 py-0.5">
+                          <span className="text-green-300 text-[11px] font-semibold">
+                            {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                            {jug?.nombre?.split(' ')[0] || '?'}
+                            {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
+                          </span>
+                          <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
