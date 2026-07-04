@@ -565,16 +565,20 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 
         {showTarj && (
           <div className="mt-2 space-y-2">
-            {tarjetasPartido.map(([tid, t]) => (
-              <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
-                <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
-                <span className="flex-1 text-gray-300 truncate">
-                  {jugadores[t.equipoId]?.[t.jugadorId]?.nombre || '?'}
-                  <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
-                </span>
-                <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
-              </div>
-            ))}
+            {tarjetasPartido.map(([tid, t]) => {
+              const jug = jugadores[t.equipoId]?.[t.jugadorId]
+              return (
+                <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
+                  <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                  <span className="flex-1 text-gray-300 truncate">
+                    {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                    {jug?.nombre || '?'}
+                    <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
+                  </span>
+                  <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+                </div>
+              )
+            })}
 
             {/* Agregar tarjeta */}
             <div className="space-y-1.5 pt-1">
@@ -596,7 +600,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
                   className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
                   <option value="">Jugador</option>
-                  {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
+                  {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
                 </select>
                 <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
                   className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
@@ -1273,13 +1277,19 @@ function TabResultados({ data }) {
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
             <p className="text-sm font-bold text-green-400">Goles (por jugador)</p>
             <div className="space-y-2">
-              {golesPartido.map(([id, g]) => (
-                <div key={id} className="flex items-center gap-2 text-sm">
-                  <span className="text-green-400">⚽</span>
-                  <span className="flex-1 text-white">{jugadores[g.equipoId]?.[g.jugadorId]?.nombre || 'Jugador'} <span className="text-gray-500 text-xs">({equipos[g.equipoId]?.nombre})</span>{g.enContra ? <span className="text-red-400 text-xs ml-1">en contra</span> : ''}</span>
-                  <button onClick={() => remove(ref(db, `goles/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
+              {golesPartido.map(([id, g]) => {
+                const jug = jugadores[g.equipoId]?.[g.jugadorId]
+                return (
+                  <div key={id} className="flex items-center gap-2 text-sm">
+                    <span className="text-green-400">⚽</span>
+                    <span className="flex-1 text-white">
+                      {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                      {jug?.nombre || 'Jugador'} <span className="text-gray-500 text-xs">({equipos[g.equipoId]?.nombre})</span>{g.enContra ? <span className="text-red-400 text-xs ml-1">en contra</span> : ''}
+                    </span>
+                    <button onClick={() => remove(ref(db, `goles/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                  </div>
+                )
+              })}
             </div>
             <div className="flex gap-2">
               <select value={golEq} onChange={e => { setGolEq(e.target.value); setGolJug('') }}
@@ -1309,13 +1319,19 @@ function TabResultados({ data }) {
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
             <p className="text-sm font-bold text-green-400">Tarjetas</p>
             <div className="space-y-2">
-              {tarjetasPartido.map(([id, t]) => (
-                <div key={id} className="flex items-center gap-2 text-sm">
-                  <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
-                  <span className="flex-1 text-white">{jugadores[t.equipoId]?.[t.jugadorId]?.nombre || '?'} <span className="text-gray-500 text-xs">({equipos[t.equipoId]?.nombre})</span></span>
-                  <button onClick={() => remove(ref(db, `tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
+              {tarjetasPartido.map(([id, t]) => {
+                const jug = jugadores[t.equipoId]?.[t.jugadorId]
+                return (
+                  <div key={id} className="flex items-center gap-2 text-sm">
+                    <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                    <span className="flex-1 text-white">
+                      {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                      {jug?.nombre || '?'} <span className="text-gray-500 text-xs">({equipos[t.equipoId]?.nombre})</span>
+                    </span>
+                    <button onClick={() => remove(ref(db, `tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                  </div>
+                )
+              })}
             </div>
             <div className="flex gap-2">
               <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
