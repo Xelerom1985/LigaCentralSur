@@ -644,6 +644,7 @@ function TabPartidos({ data }) {
   const [manualVisitante, setManualVisitante] = useState('')
   const [manualHora, setManualHora] = useState('14:00')
   const [agregando, setAgregando] = useState(false)
+  const [showConfirmBorrar, setShowConfirmBorrar] = useState(false)
   const dateInputRef = useRef(null)
 
   const toggleSuspendido = id => setSuspendidos(prev => {
@@ -785,7 +786,7 @@ function TabPartidos({ data }) {
   }
 
   const eliminarFecha = async () => {
-    if (!confirm(`¿Borrar todos los partidos de la Fecha ${fechaSel}?`)) return
+    setShowConfirmBorrar(false)
     for (const p of partidosFecha) {
       await remove(ref(db, `partidos/${p.id}`))
       await remove(ref(db, `goles/${p.id}`))
@@ -796,6 +797,23 @@ function TabPartidos({ data }) {
 
   return (
     <div className="pt-4 space-y-4">
+
+      {/* Modal confirmar borrado de fecha */}
+      {showConfirmBorrar && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-red-800 shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-2">⚠️</div>
+              <p className="text-white font-bold text-lg">¿Borrar Fecha {fechaSel}?</p>
+              <p className="text-gray-400 text-sm mt-1">Realmente querés borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de la Fecha {fechaSel}. Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowConfirmBorrar(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
+              <button onClick={eliminarFecha} className="flex-1 bg-red-600 text-white rounded-xl py-3 font-semibold text-sm">Sí, borrar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
 
@@ -968,7 +986,7 @@ function TabPartidos({ data }) {
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
               Fecha {fechaSel} · {partidosFecha.length} partidos
             </p>
-            <button onClick={eliminarFecha} className="text-[11px] text-red-400">Borrar fecha</button>
+            <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
           </div>
 
           {partidosFecha.map(p => (
