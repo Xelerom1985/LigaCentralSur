@@ -716,17 +716,24 @@ function TabPartidos({ data }) {
     }
     const ronda = fixture[fechaSel] || []
     let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
-    // Equipos retirados → ya no juegan más, su rival queda LIBRE
+    // Equipos retirados → ya no juegan más; sus rivales ("huérfanos") se emparejan entre sí
     const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
     if (retirados.size > 0) {
-      arr = arr.map(m => {
+      const huerfanos = []
+      arr = arr.filter(m => {
         const localRet = retirados.has(m.local)
         const visitRet = retirados.has(m.visitante)
-        if (localRet && visitRet) return null
-        if (localRet) return { local: m.visitante, visitante: null, libre: true }
-        if (visitRet) return { local: m.local, visitante: null, libre: true }
-        return m
-      }).filter(Boolean)
+        if (localRet && visitRet) return false
+        if (localRet) { huerfanos.push(m.visitante); return false }
+        if (visitRet) { huerfanos.push(m.local); return false }
+        return true
+      })
+      while (huerfanos.length >= 2) {
+        arr.push({ local: huerfanos.shift(), visitante: huerfanos.shift() })
+      }
+      if (huerfanos.length === 1) {
+        arr.push({ local: huerfanos[0], visitante: null, libre: true })
+      }
     }
     // Equipos suspendidos → su rival queda LIBRE
     if (suspendidos.size > 0) {
