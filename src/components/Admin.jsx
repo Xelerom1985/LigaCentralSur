@@ -89,6 +89,12 @@ function TabEquipos({ data }) {
     await remove(ref(db, `jugadores/${id}`))
   }
 
+  const retirar = async (id, retirado) => {
+    const msg = retirado ? '¿Reactivar este equipo?' : '¿Retirar este equipo del torneo? No va a contar para generar nuevos partidos, pero sus resultados, goles y tarjetas ya jugados se mantienen.'
+    if (!confirm(msg)) return
+    await update(ref(db, `equipos/${id}`), { retirado: !retirado })
+  }
+
   return (
     <div className="pt-4 space-y-4">
       {/* Banner de edición */}
@@ -124,15 +130,22 @@ function TabEquipos({ data }) {
       <div className="space-y-2">
         {Object.entries(equipos).map(([id, eq]) => (
           <div key={id} className={`bg-[#1a1a1a] rounded-xl p-3 border flex items-center gap-3 transition-all
-            ${editId === id ? 'border-green-600/50' : 'border-green-900/20'}`}>
+            ${editId === id ? 'border-green-600/50' : eq.retirado ? 'border-red-900/40' : 'border-green-900/20'}`}>
             {eq.escudo
-              ? <img src={eq.escudo} className="w-10 h-10 object-contain rounded-lg flex-shrink-0" />
+              ? <img src={eq.escudo} className={`w-10 h-10 object-contain rounded-lg flex-shrink-0 ${eq.retirado ? 'opacity-40' : ''}`} />
               : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl flex-shrink-0">⚽</div>
             }
-            <p className="flex-1 font-semibold text-white min-w-0 truncate">{eq.nombre}</p>
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold min-w-0 truncate ${eq.retirado ? 'text-gray-500' : 'text-white'}`}>{eq.nombre}</p>
+              {eq.retirado && <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Retirado</p>}
+            </div>
             <button onClick={() => editar(id, eq)}
               className="text-xs bg-green-900/40 text-green-400 border border-green-800/40 rounded-lg px-3 py-1.5 font-medium flex-shrink-0">
               Editar
+            </button>
+            <button onClick={() => retirar(id, eq.retirado)}
+              className={`text-xs rounded-lg px-3 py-1.5 font-medium flex-shrink-0 border ${eq.retirado ? 'bg-green-900/40 text-green-400 border-green-800/40' : 'bg-yellow-900/30 text-yellow-400 border-yellow-800/40'}`}>
+              {eq.retirado ? 'Reactivar' : 'Retirar'}
             </button>
             <button onClick={() => eliminar(id)}
               className="text-xs text-red-400 px-2 py-1 flex-shrink-0">
@@ -624,6 +637,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 /* ─── PARTIDOS ─── */
 function TabPartidos({ data }) {
   const equipos = data.equipos || {}
+  const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
   const partidos = data.partidos || {}
   const jugadores = data.jugadores || {}
   const goles = data.goles || {}
@@ -631,7 +645,7 @@ function TabPartidos({ data }) {
   const masterFixture = data.master_fixture || null
   const homeFecha = data.home_fecha || null
 
-  const cantEquipos = Object.keys(equipos).length
+  const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
 
   const [fechaSel, setFechaSel] = useState(1)
@@ -690,7 +704,7 @@ function TabPartidos({ data }) {
     setGenerando(true)
     let fixture = masterFixture
     if (!fixture) {
-      fixture = buildRoundRobin(Object.keys(equipos), equipos)
+      fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(ref(db, 'master_fixture'), fixture)
     }
     for (const [id, p] of Object.entries(partidos)) {
@@ -868,7 +882,7 @@ function TabPartidos({ data }) {
         <div>
           <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Suspendidos esta fecha</p>
           <div className="space-y-1.5">
-            {Object.entries(equipos).map(([id, eq]) => {
+            {Object.entries(equiposActivos).map(([id, eq]) => {
               const susp = suspendidos.has(id)
               return (
                 <label key={id} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${susp ? 'bg-red-900/20 border border-red-900/40' : 'bg-[#111] border border-green-900/10'}`}>
@@ -911,7 +925,7 @@ function TabPartidos({ data }) {
                     className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
                   >
                     <option value="">— elegir —</option>
-                    {Object.entries(equipos)
+                    {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
                       .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
                     }
@@ -926,7 +940,7 @@ function TabPartidos({ data }) {
                   >
                     <option value="">— elegir —</option>
                     <option value="__libre__">LIBRE (sin rival)</option>
-                    {Object.entries(equipos)
+                    {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
                       .filter(([id]) => id !== manualLocal)
                       .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)

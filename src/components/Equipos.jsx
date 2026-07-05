@@ -62,7 +62,7 @@ export default function Equipos({ data }) {
     )
   }
 
-  const lista = Object.entries(equipos).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
+  const lista = Object.entries(equipos).filter(([, eq]) => !eq.retirado).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
 
   return (
     <div className="min-h-screen">
