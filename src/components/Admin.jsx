@@ -716,6 +716,18 @@ function TabPartidos({ data }) {
     }
     const ronda = fixture[fechaSel] || []
     let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    // Equipos retirados → ya no juegan más, su rival queda LIBRE
+    const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
+    if (retirados.size > 0) {
+      arr = arr.map(m => {
+        const localRet = retirados.has(m.local)
+        const visitRet = retirados.has(m.visitante)
+        if (localRet && visitRet) return null
+        if (localRet) return { local: m.visitante, visitante: null, libre: true }
+        if (visitRet) return { local: m.local, visitante: null, libre: true }
+        return m
+      }).filter(Boolean)
+    }
     // Equipos suspendidos → su rival queda LIBRE
     if (suspendidos.size > 0) {
       arr = arr.map(m => {
