@@ -349,7 +349,7 @@ function buildRoundRobin(equiposIds, equipos) {
 }
 
 /* ─── PARTIDO CARD (usado en TabPartidos) ─── */
-function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
+function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
   if (p.libre) {
     const eq = equipos[p.local] || {}
     return (
@@ -464,15 +464,17 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
           </div>
           {/* Marcador grande */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)}
-              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
+            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)} disabled={cerrada}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
             <span className="text-gray-600 font-black text-lg">-</span>
-            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)}
-              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
-            <button onClick={guardarResultado}
-              className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
-              {saving ? '⏳' : '✓'}
-            </button>
+            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)} disabled={cerrada}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
+            {!cerrada && (
+              <button onClick={guardarResultado}
+                className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
+                {saving ? '⏳' : '✓'}
+              </button>
+            )}
           </div>
           <div className="flex-1 flex items-center gap-1.5 min-w-0">
             {equipos[p.visitante]?.escudo && <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
@@ -481,11 +483,13 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
         </div>
 
         {/* Solo hora */}
-        <div className="flex gap-2">
-          <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
-            className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
-          <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
-        </div>
+        {!cerrada && (
+          <div className="flex gap-2">
+            <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
+              className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
+            <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
+          </div>
+        )}
       </div>
 
       {/* Goleadores — 2 columnas por equipo */}
@@ -515,7 +519,9 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                             {jug?.nombre?.split(' ')[0] || '?'}
                             {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
                           </span>
-                          <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                          {!cerrada && (
+                            <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                          )}
                         </div>
                       )
                     })}
@@ -523,7 +529,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 )}
 
                 {/* Select jugador registrado */}
-                {jugs.length > 0 && (
+                {!cerrada && jugs.length > 0 && (
                   <div className="flex gap-1">
                     <select
                       value={selGol[eqId] || ''}
@@ -542,21 +548,23 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 )}
 
                 {/* Entrada rápida */}
-                <div className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder={jugs.length > 0 ? '+ Nuevo' : '+ Jugador'}
-                    value={quickNames[eqId] || ''}
-                    onChange={e => setQuickNames(prev => ({ ...prev, [eqId]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && addGoalManual(eqId)}
-                    className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none placeholder:text-gray-700 min-w-0"
-                  />
-                  <button
-                    onClick={() => addGoalManual(eqId)}
-                    disabled={!quickNames[eqId]?.trim()}
-                    className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
-                  >⚽</button>
-                </div>
+                {!cerrada && (
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder={jugs.length > 0 ? '+ Nuevo' : '+ Jugador'}
+                      value={quickNames[eqId] || ''}
+                      onChange={e => setQuickNames(prev => ({ ...prev, [eqId]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && addGoalManual(eqId)}
+                      className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none placeholder:text-gray-700 min-w-0"
+                    />
+                    <button
+                      onClick={() => addGoalManual(eqId)}
+                      disabled={!quickNames[eqId]?.trim()}
+                      className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
+                    >⚽</button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -588,46 +596,51 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                     {jug?.nombre || '?'}
                     <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
                   </span>
-                  <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+                  {!cerrada && (
+                    <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+                  )}
                 </div>
               )
             })}
 
             {/* Agregar tarjeta */}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex gap-1.5">
-                <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
-                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="">Equipo</option>
-                  {[p.local, p.visitante].map(id => (
-                    <option key={id} value={id}>{equipos[id]?.nombre || id}</option>
-                  ))}
-                </select>
-                <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
-                  className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="amarilla">🟨 Amarilla</option>
-                  <option value="roja">🟥 Roja</option>
-                </select>
+            {!cerrada && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex gap-1.5">
+                  <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
+                    className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="">Equipo</option>
+                    {[p.local, p.visitante].map(id => (
+                      <option key={id} value={id}>{equipos[id]?.nombre || id}</option>
+                    ))}
+                  </select>
+                  <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
+                    className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="amarilla">🟨 Amarilla</option>
+                    <option value="roja">🟥 Roja</option>
+                  </select>
+                </div>
+                <div className="flex gap-1.5">
+                  <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
+                    className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="">Jugador</option>
+                    {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                  </select>
+                  <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
+                    className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
+                    + Tarjeta
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-1.5">
-                <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
-                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="">Jugador</option>
-                  {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
-                </select>
-                <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
-                  className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
-                  + Tarjeta
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
 
       {p.jugado && (
-        <div className="bg-green-900/20 px-3 py-1">
+        <div className="bg-green-900/20 px-3 py-1 flex items-center justify-between">
           <span className="text-[11px] text-green-400">✓ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
+          {cerrada && <span className="text-[10px] text-gray-500 font-bold">🔒 CERRADA</span>}
         </div>
       )}
     </div>
@@ -644,6 +657,7 @@ function TabPartidos({ data }) {
   const tarjetas = data.tarjetas || {}
   const masterFixture = data.master_fixture || null
   const homeFecha = data.home_fecha || null
+  const fechasCerradas = data.fechas_cerradas || {}
 
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
@@ -660,6 +674,14 @@ function TabPartidos({ data }) {
   const [agregando, setAgregando] = useState(false)
   const [showConfirmBorrar, setShowConfirmBorrar] = useState(false)
   const dateInputRef = useRef(null)
+
+  const cerrada = !!fechasCerradas[fechaSel]
+
+  const toggleCerrada = () => {
+    const msg = cerrada ? '¿Reabrir esta fecha para poder editar resultados?' : '¿Cerrar esta fecha? Los resultados, goles y tarjetas quedan bloqueados y no se van a poder editar hasta reabrirla.'
+    if (!confirm(msg)) return
+    set(ref(db, `fechas_cerradas/${fechaSel}`), cerrada ? null : true)
+  }
 
   const toggleSuspendido = id => setSuspendidos(prev => {
     const s = new Set(prev)
@@ -915,16 +937,27 @@ function TabPartidos({ data }) {
           </div>
         </div>
 
+        {/* Aviso fecha cerrada */}
+        {cerrada && (
+          <div className="bg-gray-900/40 border border-gray-700/40 rounded-xl px-4 py-3 flex items-center gap-2">
+            <span className="text-lg">🔒</span>
+            <p className="flex-1 text-xs text-gray-400">Esta fecha está <span className="font-bold text-gray-300">cerrada</span>. Los resultados, goles y tarjetas no se pueden editar.</p>
+          </div>
+        )}
+
         {/* Botón Generar */}
-        <button
-          onClick={generarFecha}
-          disabled={generando || cantEquipos < 2}
-          className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
-        >
-          {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
-        </button>
+        {!cerrada && (
+          <button
+            onClick={generarFecha}
+            disabled={generando || cantEquipos < 2}
+            className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
+          >
+            {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
+          </button>
+        )}
 
         {/* Agregar partido manualmente */}
+        {!cerrada && (
         <div className="border border-dashed border-green-900/40 rounded-xl overflow-hidden">
           <button
             onClick={() => setShowManual(v => !v)}
@@ -993,9 +1026,10 @@ function TabPartidos({ data }) {
             </div>
           )}
         </div>
+        )}
 
         {/* Aplicar fecha a partidos ya creados */}
-        {partidosFecha.length > 0 && fechaDia && (
+        {!cerrada && partidosFecha.length > 0 && fechaDia && (
           <button
             onClick={aplicarFechaATodos}
             className="w-full bg-[#111] border border-green-700/30 text-green-400 rounded-xl py-2.5 text-sm font-semibold active:scale-95 transition-all"
@@ -1019,7 +1053,14 @@ function TabPartidos({ data }) {
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
               Fecha {fechaSel} · {partidosFecha.length} partidos
             </p>
-            <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
+            <div className="flex items-center gap-3">
+              <button onClick={toggleCerrada} className={`text-[11px] font-bold ${cerrada ? 'text-green-400' : 'text-gray-400'}`}>
+                {cerrada ? '🔓 Reabrir' : '🔒 Cerrar fecha'}
+              </button>
+              {!cerrada && (
+                <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
+              )}
+            </div>
           </div>
 
           {partidosFecha.map(p => (
@@ -1031,6 +1072,7 @@ function TabPartidos({ data }) {
               goles={goles}
               tarjetas={tarjetas}
               fechaDia={fechaDia}
+              cerrada={cerrada}
             />
           ))}
 
