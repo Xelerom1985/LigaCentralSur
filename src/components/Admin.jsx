@@ -262,44 +262,11 @@ function TabJugadores({ data }) {
 /* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
 const GAME_SLOTS = [14, 15, 16]
 
-function slotPrefs(nombre) {
-  const n = (nombre || '').toLowerCase().trim()
-  if (n.includes('antidoping')) return [14]
-  if (n.includes('banda')) return [16]
-  if (n.includes('tuca') || n.includes('resto')) return [14, 15]
-  if (n === 'san jose') return [15, 16]  // solo el San Jose original (no San Jose FC)
-  if (n.includes('roma')) return [15, 16]
-  return [14, 15, 16]
-}
-
-function assignMatchSlots(matches, equipos) {
-  const cap = { 14: 2, 15: 2, 16: 2 }
+// Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
+function assignMatchSlots(matches) {
   const res = new Map()
-  const prio = id => {
-    const n = (equipos[id]?.nombre || '').toLowerCase().trim()
-    if (n.includes('antidoping')) return 1
-    if (n.includes('banda')) return 2
-    if (n.includes('tuca') || n.includes('resto')) return 3
-    if (n === 'san jose' || n.includes('roma')) return 4
-    return 5
-  }
-  const sorted = [...matches].sort((a, b) =>
-    Math.min(prio(a.local), prio(a.visitante)) - Math.min(prio(b.local), prio(b.visitante))
-  )
-  for (const m of sorted) {
-    const hp = slotPrefs(equipos[m.local]?.nombre)
-    const ap = slotPrefs(equipos[m.visitante]?.nombre)
-    const perfect = GAME_SLOTS.filter(s => hp.includes(s) && ap.includes(s) && cap[s] > 0)
-    // Cuando no hay overlap, priorizamos el slot del equipo con mayor restricción
-    const hl = prio(m.local), al = prio(m.visitante)
-    const primPrefs = hl <= al ? hp : ap
-    const primaryOK = GAME_SLOTS.filter(s => primPrefs.includes(s) && cap[s] > 0)
-    const oneOK     = GAME_SLOTS.filter(s => (hp.includes(s) || ap.includes(s)) && cap[s] > 0)
-    const any       = GAME_SLOTS.filter(s => cap[s] > 0)
-    const slot      = perfect[0] ?? primaryOK[0] ?? oneOK[0] ?? any[0] ?? 14
-    res.set(m, slot)
-    cap[slot]--
-  }
+  const shuffled = [...matches].sort(() => Math.random() - 0.5)
+  shuffled.forEach((m, i) => res.set(m, GAME_SLOTS[Math.floor(i / 2) % GAME_SLOTS.length]))
   return res
 }
 
@@ -797,7 +764,7 @@ function TabPartidos({ data }) {
     // Separar LIBRE de activos y asignar franjas horarias automáticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
-    const slotMap = assignMatchSlots(activos, equipos)
+    const slotMap = assignMatchSlots(activos)
     const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
