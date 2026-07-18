@@ -35,16 +35,22 @@ export default function Equipos({ data }) {
           </div>
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 relative">
+          {equipo.escudo && (
+            <div
+              className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-[0.08] pointer-events-none"
+              style={{ backgroundImage: `url(${equipo.escudo})` }}
+            />
+          )}
           {jugs.length === 0
-            ? <p className="text-gray-600 text-sm text-center py-8 bg-[#1a1a1a] rounded-xl">Sin jugadores cargados</p>
+            ? <p className="relative text-gray-600 text-sm text-center py-8 bg-[#1a1a1a] rounded-xl">Sin jugadores cargados</p>
             : (
-              <div className="overflow-hidden rounded-xl">
+              <div className="relative overflow-hidden rounded-xl">
                 {jugs.map((j, i) => (
                   <div
                     key={j.id}
                     className={`flex items-center gap-3 px-4 py-3
-                      ${i % 2 === 0 ? 'bg-[#161616]' : 'bg-[#1a1a1a]'}
+                      ${i % 2 === 0 ? 'bg-[#161616]/90' : 'bg-[#1a1a1a]/90'}
                       ${i === 0 ? 'rounded-t-xl' : ''}
                       last:rounded-b-xl border-b border-green-900/10 last:border-0`}
                   >
