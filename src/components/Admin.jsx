@@ -839,7 +839,7 @@ function TabPartidos({ data }) {
     }
     const allSlots=[...slotOrder.filter(s=>bySlot[s]),...Object.keys(bySlot).filter(s=>!slotOrder.includes(s)).sort()]
     // alturas
-    const HDR=190, PILL=62, MATCH=110, LIBRE_H=70, GAP=14, FTR=72
+    const HDR=190, PILL=62, MATCH=148, LIBRE_H=70, GAP=14, FTR=72
     let totalH = HDR
     for(const s of allSlots) totalH += PILL + bySlot[s].length*MATCH + GAP
     if(libres.length) totalH += PILL + libres.length*LIBRE_H + GAP
@@ -879,16 +879,16 @@ function TabPartidos({ data }) {
         ctx.fillStyle='#1a1a1a'; rr(ctx,PAD,y,INNER,MATCH-8,12); ctx.fill()
         ctx.strokeStyle='#16a34a44'; ctx.lineWidth=1; rr(ctx,PAD,y,INNER,MATCH-8,12); ctx.stroke()
         const cy=y+(MATCH-8)/2
-        const ESC=42, ESCX=PAD+14
+        const ESC=70, ESCX=PAD+14
         if(imgs[p.local]) ctx.drawImage(imgs[p.local],ESCX,cy-ESC/2,ESC,ESC)
         if(imgs[p.visitante]) ctx.drawImage(imgs[p.visitante],W-PAD-14-ESC,cy-ESC/2,ESC,ESC)
-        const MX=INNER/2-80
-        ctx.fillStyle='#ffffff'; ctx.font='bold 24px Arial'
+        const MX=INNER/2-120
+        ctx.fillStyle='#ffffff'; ctx.font='bold 32px Arial'
         ctx.textAlign='right'
-        ctx.fillText(trunc(ctx,eqL.nombre||'?',MX),W/2-44,cy+9)
+        ctx.fillText(trunc(ctx,eqL.nombre||'?',MX),W/2-56,cy+11)
         ctx.textAlign='left'
-        ctx.fillText(trunc(ctx,eqV.nombre||'?',MX),W/2+44,cy+9)
-        ctx.fillStyle='#4b5563'; ctx.font='bold 18px Arial'; ctx.textAlign='center'
+        ctx.fillText(trunc(ctx,eqV.nombre||'?',MX),W/2+56,cy+11)
+        ctx.fillStyle='#4b5563'; ctx.font='bold 20px Arial'; ctx.textAlign='center'
         ctx.fillText('VS',W/2,cy+9)
         y+=MATCH
       }
