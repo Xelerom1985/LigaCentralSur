@@ -38,7 +38,7 @@ export default function Equipos({ data }) {
         <div className="px-4 pb-4 relative">
           {equipo.escudo && (
             <div
-              className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-[0.08] pointer-events-none"
+              className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-20 pointer-events-none"
               style={{ backgroundImage: `url(${equipo.escudo})` }}
             />
           )}
