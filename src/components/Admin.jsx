@@ -636,6 +636,7 @@ function TabPartidos({ data }) {
   const [manualVisitante, setManualVisitante] = useState('')
   const [manualHora, setManualHora] = useState('14:00')
   const [agregando, setAgregando] = useState(false)
+  const [descargando, setDescargando] = useState(false)
   const dateInputRef = useRef(null)
 
   const toggleSuspendido = id => setSuspendidos(prev => {
@@ -754,6 +755,130 @@ function TabPartidos({ data }) {
   }
 
   const quitarDeHome = () => set(ref(db, 'home_fecha'), null)
+
+  const descargarFixture = async () => {
+    if (!partidosFecha.length) return
+    setDescargando(true)
+    const W = 1080, PAD = 48, INNER = W - PAD * 2
+    const rr = (ctx, x, y, w, h, r) => {
+      ctx.beginPath()
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r)
+      ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h)
+      ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r)
+      ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath()
+    }
+    const trunc = (ctx, txt, max) => {
+      if (ctx.measureText(txt).width <= max) return txt
+      let t = txt
+      while (ctx.measureText(t+'…').width > max && t.length > 1) t = t.slice(0,-1)
+      return t+'…'
+    }
+    // cargar escudos
+    const imgs = {}
+    await Promise.all(Object.entries(equipos).map(([id,eq]) => {
+      if (!eq.escudo) return Promise.resolve()
+      return new Promise(res => {
+        const i = new Image(); i.onload=()=>{imgs[id]=i;res()}; i.onerror=res; i.src=eq.escudo
+      })
+    }))
+    // agrupar por hora
+    const slotOrder = ['14:00','15:00','16:00']
+    const bySlot = {}, libres = []
+    const sorted = [...partidosFecha].sort((a,b)=>{
+      const ha=a.fechaHora?a.fechaHora.split('T')[1]?.slice(0,5):(a.hora||'99:99')
+      const hb=b.fechaHora?b.fechaHora.split('T')[1]?.slice(0,5):(b.hora||'99:99')
+      return ha.localeCompare(hb)
+    })
+    for (const p of sorted) {
+      if (p.libre){libres.push(p);continue}
+      const h=p.fechaHora?p.fechaHora.split('T')[1]?.slice(0,5):(p.hora||'S/H')
+      if(!bySlot[h])bySlot[h]=[]
+      bySlot[h].push(p)
+    }
+    const allSlots=[...slotOrder.filter(s=>bySlot[s]),...Object.keys(bySlot).filter(s=>!slotOrder.includes(s)).sort()]
+    // alturas
+    const HDR=190, PILL=62, MATCH=110, LIBRE_H=70, GAP=14, FTR=72
+    let totalH = HDR
+    for(const s of allSlots) totalH += PILL + bySlot[s].length*MATCH + GAP
+    if(libres.length) totalH += PILL + libres.length*LIBRE_H + GAP
+    totalH += FTR
+    // canvas
+    const canvas = document.createElement('canvas')
+    canvas.width=W; canvas.height=totalH
+    const ctx = canvas.getContext('2d')
+    // fondo
+    ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,W,totalH)
+    const g=ctx.createLinearGradient(0,0,0,HDR)
+    g.addColorStop(0,'#052e16'); g.addColorStop(1,'#0a0a0a')
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,HDR)
+    // header
+    ctx.textAlign='center'
+    ctx.fillStyle='#16a34a'; ctx.font='bold 18px Arial'
+    ctx.fillText('1ª EDICIÓN 2026',W/2,44)
+    ctx.fillStyle='#ffffff'; ctx.font='bold 42px Arial'
+    ctx.fillText('LIGA CENTRAL SUR',W/2,98)
+    ctx.fillStyle='#16a34a'; ctx.font='bold 56px Arial'
+    ctx.fillText(`FECHA ${fechaSel}`,W/2,158)
+    if(fechaDia){
+      ctx.fillStyle='#9ca3af'; ctx.font='22px Arial'
+      ctx.fillText(fmtDia(fechaDia),W/2,186)
+    }
+    ctx.strokeStyle='#16a34a55'; ctx.lineWidth=1
+    ctx.beginPath(); ctx.moveTo(PAD,HDR-8); ctx.lineTo(W-PAD,HDR-8); ctx.stroke()
+    let y=HDR+GAP
+    // slots
+    for(const slot of allSlots){
+      ctx.fillStyle='#16a34a'; rr(ctx,PAD,y,INNER,PILL,14); ctx.fill()
+      ctx.fillStyle='#ffffff'; ctx.font='bold 28px Arial'; ctx.textAlign='center'
+      ctx.fillText(`${slot} hs`,W/2,y+PILL/2+10)
+      y+=PILL+8
+      for(const p of bySlot[slot]){
+        const eqL=equipos[p.local]||{}, eqV=equipos[p.visitante]||{}
+        ctx.fillStyle='#1a1a1a'; rr(ctx,PAD,y,INNER,MATCH-8,12); ctx.fill()
+        ctx.strokeStyle='#16a34a44'; ctx.lineWidth=1; rr(ctx,PAD,y,INNER,MATCH-8,12); ctx.stroke()
+        const cy=y+(MATCH-8)/2
+        const ESC=42, ESCX=PAD+14
+        if(imgs[p.local]) ctx.drawImage(imgs[p.local],ESCX,cy-ESC/2,ESC,ESC)
+        if(imgs[p.visitante]) ctx.drawImage(imgs[p.visitante],W-PAD-14-ESC,cy-ESC/2,ESC,ESC)
+        const MX=INNER/2-80
+        ctx.fillStyle='#ffffff'; ctx.font='bold 24px Arial'
+        ctx.textAlign='right'
+        ctx.fillText(trunc(ctx,eqL.nombre||'?',MX),W/2-44,cy+9)
+        ctx.textAlign='left'
+        ctx.fillText(trunc(ctx,eqV.nombre||'?',MX),W/2+44,cy+9)
+        ctx.fillStyle='#4b5563'; ctx.font='bold 18px Arial'; ctx.textAlign='center'
+        ctx.fillText('VS',W/2,cy+9)
+        y+=MATCH
+      }
+      y+=GAP
+    }
+    // libres
+    if(libres.length){
+      ctx.fillStyle='#78350f'; rr(ctx,PAD,y,INNER,PILL,14); ctx.fill()
+      ctx.fillStyle='#fbbf24'; ctx.font='bold 26px Arial'; ctx.textAlign='center'
+      ctx.fillText('LIBRE',W/2,y+PILL/2+10)
+      y+=PILL+8
+      for(const p of libres){
+        const eq=equipos[p.local]||{}
+        ctx.fillStyle='#1a1a1a'; rr(ctx,PAD,y,INNER,LIBRE_H-8,12); ctx.fill()
+        ctx.strokeStyle='#78350f55'; ctx.lineWidth=1; rr(ctx,PAD,y,INNER,LIBRE_H-8,12); ctx.stroke()
+        if(imgs[p.local]) ctx.drawImage(imgs[p.local],PAD+14,y+(LIBRE_H-8)/2-21,42,42)
+        ctx.fillStyle='#fbbf24'; ctx.font='bold 22px Arial'; ctx.textAlign='center'
+        ctx.fillText((eq.nombre||'?')+' — sin rival esta fecha',W/2,y+(LIBRE_H-8)/2+8)
+        y+=LIBRE_H
+      }
+      y+=GAP
+    }
+    // footer
+    ctx.fillStyle='#374151'; ctx.font='18px Arial'; ctx.textAlign='center'
+    ctx.fillText('ligacentralsur-30b99.web.app',W/2,y+40)
+    // descargar
+    const url=canvas.toDataURL('image/png')
+    const a=document.createElement('a')
+    a.href=url; a.download=`LCS-Fecha${fechaSel}.png`
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    setDescargando(false)
+  }
 
   const agregarManual = async () => {
     if (!manualLocal) return alert('Elegí el equipo local')
@@ -985,6 +1110,10 @@ function TabPartidos({ data }) {
               <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
             </div>
           )}
+          <button onClick={descargarFixture} disabled={descargando}
+            className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+            {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
+          </button>
         </div>
       )}
 
