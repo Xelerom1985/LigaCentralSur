@@ -89,6 +89,12 @@ function TabEquipos({ data }) {
     await remove(ref(db, `jugadores/${id}`))
   }
 
+  const retirar = async (id, retirado) => {
+    const msg = retirado ? '¿Reactivar este equipo?' : '¿Retirar este equipo del torneo? No va a contar para generar nuevos partidos, pero sus resultados, goles y tarjetas ya jugados se mantienen.'
+    if (!confirm(msg)) return
+    await update(ref(db, `equipos/${id}`), { retirado: !retirado })
+  }
+
   return (
     <div className="pt-4 space-y-4">
       {/* Banner de edición */}
@@ -124,15 +130,22 @@ function TabEquipos({ data }) {
       <div className="space-y-2">
         {Object.entries(equipos).map(([id, eq]) => (
           <div key={id} className={`bg-[#1a1a1a] rounded-xl p-3 border flex items-center gap-3 transition-all
-            ${editId === id ? 'border-green-600/50' : 'border-green-900/20'}`}>
+            ${editId === id ? 'border-green-600/50' : eq.retirado ? 'border-red-900/40' : 'border-green-900/20'}`}>
             {eq.escudo
-              ? <img src={eq.escudo} className="w-10 h-10 object-contain rounded-lg flex-shrink-0" />
+              ? <img src={eq.escudo} className={`w-10 h-10 object-contain rounded-lg flex-shrink-0 ${eq.retirado ? 'opacity-40' : ''}`} />
               : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl flex-shrink-0">⚽</div>
             }
-            <p className="flex-1 font-semibold text-white min-w-0 truncate">{eq.nombre}</p>
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold min-w-0 truncate ${eq.retirado ? 'text-gray-500' : 'text-white'}`}>{eq.nombre}</p>
+              {eq.retirado && <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Retirado</p>}
+            </div>
             <button onClick={() => editar(id, eq)}
               className="text-xs bg-green-900/40 text-green-400 border border-green-800/40 rounded-lg px-3 py-1.5 font-medium flex-shrink-0">
               Editar
+            </button>
+            <button onClick={() => retirar(id, eq.retirado)}
+              className={`text-xs rounded-lg px-3 py-1.5 font-medium flex-shrink-0 border ${eq.retirado ? 'bg-green-900/40 text-green-400 border-green-800/40' : 'bg-yellow-900/30 text-yellow-400 border-yellow-800/40'}`}>
+              {eq.retirado ? 'Reactivar' : 'Retirar'}
             </button>
             <button onClick={() => eliminar(id)}
               className="text-xs text-red-400 px-2 py-1 flex-shrink-0">
@@ -249,44 +262,11 @@ function TabJugadores({ data }) {
 /* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
 const GAME_SLOTS = [14, 15, 16]
 
-function slotPrefs(nombre) {
-  const n = (nombre || '').toLowerCase().trim()
-  if (n.includes('antidoping')) return [14]
-  if (n.includes('banda')) return [16]
-  if (n.includes('tuca') || n.includes('resto')) return [14, 15]
-  if (n === 'san jose') return [15, 16]  // solo el San Jose original (no San Jose FC)
-  if (n.includes('roma')) return [15, 16]
-  return [14, 15, 16]
-}
-
-function assignMatchSlots(matches, equipos) {
-  const cap = { 14: 2, 15: 2, 16: 2 }
+// Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
+function assignMatchSlots(matches) {
   const res = new Map()
-  const prio = id => {
-    const n = (equipos[id]?.nombre || '').toLowerCase().trim()
-    if (n.includes('antidoping')) return 1
-    if (n.includes('banda')) return 2
-    if (n.includes('tuca') || n.includes('resto')) return 3
-    if (n === 'san jose' || n.includes('roma')) return 4
-    return 5
-  }
-  const sorted = [...matches].sort((a, b) =>
-    Math.min(prio(a.local), prio(a.visitante)) - Math.min(prio(b.local), prio(b.visitante))
-  )
-  for (const m of sorted) {
-    const hp = slotPrefs(equipos[m.local]?.nombre)
-    const ap = slotPrefs(equipos[m.visitante]?.nombre)
-    const perfect = GAME_SLOTS.filter(s => hp.includes(s) && ap.includes(s) && cap[s] > 0)
-    // Cuando no hay overlap, priorizamos el slot del equipo con mayor restricción
-    const hl = prio(m.local), al = prio(m.visitante)
-    const primPrefs = hl <= al ? hp : ap
-    const primaryOK = GAME_SLOTS.filter(s => primPrefs.includes(s) && cap[s] > 0)
-    const oneOK     = GAME_SLOTS.filter(s => (hp.includes(s) || ap.includes(s)) && cap[s] > 0)
-    const any       = GAME_SLOTS.filter(s => cap[s] > 0)
-    const slot      = perfect[0] ?? primaryOK[0] ?? oneOK[0] ?? any[0] ?? 14
-    res.set(m, slot)
-    cap[slot]--
-  }
+  const shuffled = [...matches].sort(() => Math.random() - 0.5)
+  shuffled.forEach((m, i) => res.set(m, GAME_SLOTS[Math.floor(i / 2) % GAME_SLOTS.length]))
   return res
 }
 
@@ -336,7 +316,7 @@ function buildRoundRobin(equiposIds, equipos) {
 }
 
 /* ─── PARTIDO CARD (usado en TabPartidos) ─── */
-function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
+function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
   if (p.libre) {
     const eq = equipos[p.local] || {}
     return (
@@ -451,15 +431,17 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
           </div>
           {/* Marcador grande */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)}
-              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
+            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)} disabled={cerrada}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
             <span className="text-gray-600 font-black text-lg">-</span>
-            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)}
-              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1" />
-            <button onClick={guardarResultado}
-              className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
-              {saving ? '⏳' : '✓'}
-            </button>
+            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)} disabled={cerrada}
+              className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
+            {!cerrada && (
+              <button onClick={guardarResultado}
+                className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
+                {saving ? '⏳' : '✓'}
+              </button>
+            )}
           </div>
           <div className="flex-1 flex items-center gap-1.5 min-w-0">
             {equipos[p.visitante]?.escudo && <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
@@ -468,11 +450,13 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
         </div>
 
         {/* Solo hora */}
-        <div className="flex gap-2">
-          <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
-            className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
-          <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
-        </div>
+        {!cerrada && (
+          <div className="flex gap-2">
+            <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
+              className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
+            <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
+          </div>
+        )}
       </div>
 
       {/* Goleadores — 2 columnas por equipo */}
@@ -492,21 +476,27 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 {/* Chips del equipo */}
                 {chipsEquipo.length > 0 && (
                   <div className={`flex flex-wrap gap-1 ${isRight ? 'justify-end' : ''}`}>
-                    {chipsEquipo.map(g => (
-                      <div key={`${g.equipoId}___${g.jugadorId}`}
-                        className="flex items-center gap-1 bg-green-900/30 border border-green-700/30 rounded-full px-2 py-0.5">
-                        <span className="text-green-300 text-[11px] font-semibold">
-                          {jugadores[g.equipoId]?.[g.jugadorId]?.nombre?.split(' ')[0] || '?'}
-                          {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
-                        </span>
-                        <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
-                      </div>
-                    ))}
+                    {chipsEquipo.map(g => {
+                      const jug = jugadores[g.equipoId]?.[g.jugadorId]
+                      return (
+                        <div key={`${g.equipoId}___${g.jugadorId}`}
+                          className="flex items-center gap-1 bg-green-900/30 border border-green-700/30 rounded-full px-2 py-0.5">
+                          <span className="text-green-300 text-[11px] font-semibold">
+                            {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                            {jug?.nombre?.split(' ')[0] || '?'}
+                            {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
+                          </span>
+                          {!cerrada && (
+                            <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
                 {/* Select jugador registrado */}
-                {jugs.length > 0 && (
+                {!cerrada && jugs.length > 0 && (
                   <div className="flex gap-1">
                     <select
                       value={selGol[eqId] || ''}
@@ -525,21 +515,23 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
                 )}
 
                 {/* Entrada rápida */}
-                <div className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder={jugs.length > 0 ? '+ Nuevo' : '+ Jugador'}
-                    value={quickNames[eqId] || ''}
-                    onChange={e => setQuickNames(prev => ({ ...prev, [eqId]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && addGoalManual(eqId)}
-                    className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none placeholder:text-gray-700 min-w-0"
-                  />
-                  <button
-                    onClick={() => addGoalManual(eqId)}
-                    disabled={!quickNames[eqId]?.trim()}
-                    className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
-                  >⚽</button>
-                </div>
+                {!cerrada && (
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder={jugs.length > 0 ? '+ Nuevo' : '+ Jugador'}
+                      value={quickNames[eqId] || ''}
+                      onChange={e => setQuickNames(prev => ({ ...prev, [eqId]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && addGoalManual(eqId)}
+                      className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none placeholder:text-gray-700 min-w-0"
+                    />
+                    <button
+                      onClick={() => addGoalManual(eqId)}
+                      disabled={!quickNames[eqId]?.trim()}
+                      className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
+                    >⚽</button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -561,52 +553,61 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 
         {showTarj && (
           <div className="mt-2 space-y-2">
-            {tarjetasPartido.map(([tid, t]) => (
-              <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
-                <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
-                <span className="flex-1 text-gray-300 truncate">
-                  {jugadores[t.equipoId]?.[t.jugadorId]?.nombre || '?'}
-                  <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
-                </span>
-                <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
-              </div>
-            ))}
+            {tarjetasPartido.map(([tid, t]) => {
+              const jug = jugadores[t.equipoId]?.[t.jugadorId]
+              return (
+                <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
+                  <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                  <span className="flex-1 text-gray-300 truncate">
+                    {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                    {jug?.nombre || '?'}
+                    <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
+                  </span>
+                  {!cerrada && (
+                    <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+                  )}
+                </div>
+              )
+            })}
 
             {/* Agregar tarjeta */}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex gap-1.5">
-                <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
-                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="">Equipo</option>
-                  {[p.local, p.visitante].map(id => (
-                    <option key={id} value={id}>{equipos[id]?.nombre || id}</option>
-                  ))}
-                </select>
-                <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
-                  className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="amarilla">🟨 Amarilla</option>
-                  <option value="roja">🟥 Roja</option>
-                </select>
+            {!cerrada && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex gap-1.5">
+                  <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
+                    className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="">Equipo</option>
+                    {[p.local, p.visitante].map(id => (
+                      <option key={id} value={id}>{equipos[id]?.nombre || id}</option>
+                    ))}
+                  </select>
+                  <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
+                    className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="amarilla">🟨 Amarilla</option>
+                    <option value="roja">🟥 Roja</option>
+                  </select>
+                </div>
+                <div className="flex gap-1.5">
+                  <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
+                    className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                    <option value="">Jugador</option>
+                    {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                  </select>
+                  <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
+                    className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
+                    + Tarjeta
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-1.5">
-                <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
-                  className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                  <option value="">Jugador</option>
-                  {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.nombre}</option>)}
-                </select>
-                <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
-                  className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
-                  + Tarjeta
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
 
       {p.jugado && (
-        <div className="bg-green-900/20 px-3 py-1">
+        <div className="bg-green-900/20 px-3 py-1 flex items-center justify-between">
           <span className="text-[11px] text-green-400">✓ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
+          {cerrada && <span className="text-[10px] text-gray-500 font-bold">🔒 CERRADA</span>}
         </div>
       )}
     </div>
@@ -616,14 +617,16 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia }) {
 /* ─── PARTIDOS ─── */
 function TabPartidos({ data }) {
   const equipos = data.equipos || {}
+  const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
   const partidos = data.partidos || {}
   const jugadores = data.jugadores || {}
   const goles = data.goles || {}
   const tarjetas = data.tarjetas || {}
   const masterFixture = data.master_fixture || null
   const homeFecha = data.home_fecha || null
+  const fechasCerradas = data.fechas_cerradas || {}
 
-  const cantEquipos = Object.keys(equipos).length
+  const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
 
   const [fechaSel, setFechaSel] = useState(1)
@@ -637,7 +640,27 @@ function TabPartidos({ data }) {
   const [manualHora, setManualHora] = useState('14:00')
   const [agregando, setAgregando] = useState(false)
   const [descargando, setDescargando] = useState(false)
+  const [showConfirmBorrar, setShowConfirmBorrar] = useState(false)
   const dateInputRef = useRef(null)
+  const fechaInicializada = useRef(false)
+
+  // Al cargar, abrir directo en la última fecha con partidos generados (no siempre Fecha 1)
+  useEffect(() => {
+    if (fechaInicializada.current) return
+    const numeros = Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero)
+    if (numeros.length > 0) {
+      setFechaSel(Math.max(...numeros))
+      fechaInicializada.current = true
+    }
+  }, [partidos])
+
+  const cerrada = !!fechasCerradas[fechaSel]
+
+  const toggleCerrada = () => {
+    const msg = cerrada ? '¿Reabrir esta fecha para poder editar resultados?' : '¿Cerrar esta fecha? Los resultados, goles y tarjetas quedan bloqueados y no se van a poder editar hasta reabrirla.'
+    if (!confirm(msg)) return
+    set(ref(db, `fechas_cerradas/${fechaSel}`), cerrada ? null : true)
+  }
 
   const toggleSuspendido = id => setSuspendidos(prev => {
     const s = new Set(prev)
@@ -682,7 +705,7 @@ function TabPartidos({ data }) {
     setGenerando(true)
     let fixture = masterFixture
     if (!fixture) {
-      fixture = buildRoundRobin(Object.keys(equipos), equipos)
+      fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(ref(db, 'master_fixture'), fixture)
     }
     for (const [id, p] of Object.entries(partidos)) {
@@ -694,6 +717,25 @@ function TabPartidos({ data }) {
     }
     const ronda = fixture[fechaSel] || []
     let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    // Equipos retirados → ya no juegan más; sus rivales ("huérfanos") se emparejan entre sí
+    const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
+    if (retirados.size > 0) {
+      const huerfanos = []
+      arr = arr.filter(m => {
+        const localRet = retirados.has(m.local)
+        const visitRet = retirados.has(m.visitante)
+        if (localRet && visitRet) return false
+        if (localRet) { huerfanos.push(m.visitante); return false }
+        if (visitRet) { huerfanos.push(m.local); return false }
+        return true
+      })
+      while (huerfanos.length >= 2) {
+        arr.push({ local: huerfanos.shift(), visitante: huerfanos.shift() })
+      }
+      if (huerfanos.length === 1) {
+        arr.push({ local: huerfanos[0], visitante: null, libre: true })
+      }
+    }
     // Equipos suspendidos → su rival queda LIBRE
     if (suspendidos.size > 0) {
       arr = arr.map(m => {
@@ -723,7 +765,7 @@ function TabPartidos({ data }) {
     // Separar LIBRE de activos y asignar franjas horarias automáticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
-    const slotMap = assignMatchSlots(activos, equipos)
+    const slotMap = assignMatchSlots(activos)
     const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
@@ -902,7 +944,7 @@ function TabPartidos({ data }) {
   }
 
   const eliminarFecha = async () => {
-    if (!confirm(`¿Borrar todos los partidos de la Fecha ${fechaSel}?`)) return
+    setShowConfirmBorrar(false)
     for (const p of partidosFecha) {
       await remove(ref(db, `partidos/${p.id}`))
       await remove(ref(db, `goles/${p.id}`))
@@ -913,6 +955,23 @@ function TabPartidos({ data }) {
 
   return (
     <div className="pt-4 space-y-4">
+
+      {/* Modal confirmar borrado de fecha */}
+      {showConfirmBorrar && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-red-800 shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-2">⚠️</div>
+              <p className="text-white font-bold text-lg">¿Borrar Fecha {fechaSel}?</p>
+              <p className="text-gray-400 text-sm mt-1">Realmente querés borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de la Fecha {fechaSel}. Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowConfirmBorrar(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
+              <button onClick={eliminarFecha} className="flex-1 bg-red-600 text-white rounded-xl py-3 font-semibold text-sm">Sí, borrar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
 
@@ -967,7 +1026,7 @@ function TabPartidos({ data }) {
         <div>
           <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Suspendidos esta fecha</p>
           <div className="space-y-1.5">
-            {Object.entries(equipos).map(([id, eq]) => {
+            {Object.entries(equiposActivos).map(([id, eq]) => {
               const susp = suspendidos.has(id)
               return (
                 <label key={id} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${susp ? 'bg-red-900/20 border border-red-900/40' : 'bg-[#111] border border-green-900/10'}`}>
@@ -981,16 +1040,27 @@ function TabPartidos({ data }) {
           </div>
         </div>
 
+        {/* Aviso fecha cerrada */}
+        {cerrada && (
+          <div className="bg-gray-900/40 border border-gray-700/40 rounded-xl px-4 py-3 flex items-center gap-2">
+            <span className="text-lg">🔒</span>
+            <p className="flex-1 text-xs text-gray-400">Esta fecha está <span className="font-bold text-gray-300">cerrada</span>. Los resultados, goles y tarjetas no se pueden editar.</p>
+          </div>
+        )}
+
         {/* Botón Generar */}
-        <button
-          onClick={generarFecha}
-          disabled={generando || cantEquipos < 2}
-          className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
-        >
-          {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
-        </button>
+        {!cerrada && (
+          <button
+            onClick={generarFecha}
+            disabled={generando || cantEquipos < 2}
+            className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
+          >
+            {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
+          </button>
+        )}
 
         {/* Agregar partido manualmente */}
+        {!cerrada && (
         <div className="border border-dashed border-green-900/40 rounded-xl overflow-hidden">
           <button
             onClick={() => setShowManual(v => !v)}
@@ -1010,7 +1080,7 @@ function TabPartidos({ data }) {
                     className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
                   >
                     <option value="">— elegir —</option>
-                    {Object.entries(equipos)
+                    {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
                       .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
                     }
@@ -1025,7 +1095,7 @@ function TabPartidos({ data }) {
                   >
                     <option value="">— elegir —</option>
                     <option value="__libre__">LIBRE (sin rival)</option>
-                    {Object.entries(equipos)
+                    {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
                       .filter(([id]) => id !== manualLocal)
                       .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
@@ -1059,9 +1129,10 @@ function TabPartidos({ data }) {
             </div>
           )}
         </div>
+        )}
 
         {/* Aplicar fecha a partidos ya creados */}
-        {partidosFecha.length > 0 && fechaDia && (
+        {!cerrada && partidosFecha.length > 0 && fechaDia && (
           <button
             onClick={aplicarFechaATodos}
             className="w-full bg-[#111] border border-green-700/30 text-green-400 rounded-xl py-2.5 text-sm font-semibold active:scale-95 transition-all"
@@ -1085,7 +1156,14 @@ function TabPartidos({ data }) {
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
               Fecha {fechaSel} · {partidosFecha.length} partidos
             </p>
-            <button onClick={eliminarFecha} className="text-[11px] text-red-400">Borrar fecha</button>
+            <div className="flex items-center gap-3">
+              <button onClick={toggleCerrada} className={`text-[11px] font-bold ${cerrada ? 'text-green-400' : 'text-gray-400'}`}>
+                {cerrada ? '🔓 Reabrir' : '🔒 Cerrar fecha'}
+              </button>
+              {!cerrada && (
+                <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
+              )}
+            </div>
           </div>
 
           {partidosFecha.map(p => (
@@ -1097,6 +1175,7 @@ function TabPartidos({ data }) {
               goles={goles}
               tarjetas={tarjetas}
               fechaDia={fechaDia}
+              cerrada={cerrada}
             />
           ))}
 
@@ -1398,13 +1477,19 @@ function TabResultados({ data }) {
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
             <p className="text-sm font-bold text-green-400">Goles (por jugador)</p>
             <div className="space-y-2">
-              {golesPartido.map(([id, g]) => (
-                <div key={id} className="flex items-center gap-2 text-sm">
-                  <span className="text-green-400">⚽</span>
-                  <span className="flex-1 text-white">{jugadores[g.equipoId]?.[g.jugadorId]?.nombre || 'Jugador'} <span className="text-gray-500 text-xs">({equipos[g.equipoId]?.nombre})</span>{g.enContra ? <span className="text-red-400 text-xs ml-1">en contra</span> : ''}</span>
-                  <button onClick={() => remove(ref(db, `goles/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
+              {golesPartido.map(([id, g]) => {
+                const jug = jugadores[g.equipoId]?.[g.jugadorId]
+                return (
+                  <div key={id} className="flex items-center gap-2 text-sm">
+                    <span className="text-green-400">⚽</span>
+                    <span className="flex-1 text-white">
+                      {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                      {jug?.nombre || 'Jugador'} <span className="text-gray-500 text-xs">({equipos[g.equipoId]?.nombre})</span>{g.enContra ? <span className="text-red-400 text-xs ml-1">en contra</span> : ''}
+                    </span>
+                    <button onClick={() => remove(ref(db, `goles/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                  </div>
+                )
+              })}
             </div>
             <div className="flex gap-2">
               <select value={golEq} onChange={e => { setGolEq(e.target.value); setGolJug('') }}
@@ -1434,13 +1519,19 @@ function TabResultados({ data }) {
           <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
             <p className="text-sm font-bold text-green-400">Tarjetas</p>
             <div className="space-y-2">
-              {tarjetasPartido.map(([id, t]) => (
-                <div key={id} className="flex items-center gap-2 text-sm">
-                  <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
-                  <span className="flex-1 text-white">{jugadores[t.equipoId]?.[t.jugadorId]?.nombre || '?'} <span className="text-gray-500 text-xs">({equipos[t.equipoId]?.nombre})</span></span>
-                  <button onClick={() => remove(ref(db, `tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
-                </div>
-              ))}
+              {tarjetasPartido.map(([id, t]) => {
+                const jug = jugadores[t.equipoId]?.[t.jugadorId]
+                return (
+                  <div key={id} className="flex items-center gap-2 text-sm">
+                    <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                    <span className="flex-1 text-white">
+                      {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
+                      {jug?.nombre || '?'} <span className="text-gray-500 text-xs">({equipos[t.equipoId]?.nombre})</span>
+                    </span>
+                    <button onClick={() => remove(ref(db, `tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                  </div>
+                )
+              })}
             </div>
             <div className="flex gap-2">
               <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}

@@ -51,7 +51,11 @@ export default function Fixture({ data }) {
     } else {
       list = Object.entries(partidos).filter(([, p]) => BRONCE_FASES.includes(p.fase))
     }
-    return list.map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    const horaDe = p => {
+      const t = p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : p.hora
+      return t ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : Infinity
+    }
+    return list.map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.numero || 0) - (b.numero || 0) || horaDe(a) - horaDe(b))
   }, [partidos, fase, fechaMostrada])
 
   // Agrupar copa por sub-fase

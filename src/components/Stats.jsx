@@ -25,6 +25,7 @@ export default function Stats({ data }) {
       }
     })
     return Object.entries(cnt)
+      .filter(([key]) => !equipos[key.split('___')[0]]?.retirado)
       .map(([key, total]) => {
         const [equipoId, jugadorId] = key.split('___')
         const jug = jugadores[equipoId]?.[jugadorId] || {}
@@ -35,7 +36,7 @@ export default function Stats({ data }) {
         return { equipoId, jugadorId, nombre, numero, equipo, escudo, total }
       })
       .sort((a, b) => b.total - a.total)
-      .slice(0, 20)
+      .slice(0, 5)
   }, [golesValidos, jugadores, equipos])
 
   const valla = useMemo(() => {
@@ -50,12 +51,13 @@ export default function Stats({ data }) {
         pj[p.visitante] = (pj[p.visitante] || 0) + 1
       })
     return Object.entries(gc)
+      .filter(([id]) => !equipos[id]?.retirado)
       .map(([id, golesRecibidos]) => ({
         id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo,
         golesRecibidos, pj: pj[id] || 0
       }))
       .sort((a, b) => a.golesRecibidos - b.golesRecibidos)
-      .slice(0, 10)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const amarillas = useMemo(() => {
@@ -64,11 +66,13 @@ export default function Stats({ data }) {
       const key = `${t.equipoId}___${t.jugadorId}`
       cnt[key] = (cnt[key] || 0) + 1
     })
-    return Object.entries(cnt).map(([key, total]) => {
-      const [equipoId, jugadorId] = key.split('___')
-      const jug = jugadores[equipoId]?.[jugadorId] || {}
-      return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
-    }).sort((a, b) => b.total - a.total).slice(0, 10)
+    return Object.entries(cnt)
+      .filter(([key]) => !equipos[key.split('___')[0]]?.retirado)
+      .map(([key, total]) => {
+        const [equipoId, jugadorId] = key.split('___')
+        const jug = jugadores[equipoId]?.[jugadorId] || {}
+        return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
+      }).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [tarjetasValidas, jugadores, equipos])
 
   const rojas = useMemo(() => {
@@ -77,11 +81,13 @@ export default function Stats({ data }) {
       const key = `${t.equipoId}___${t.jugadorId}`
       cnt[key] = (cnt[key] || 0) + 1
     })
-    return Object.entries(cnt).map(([key, total]) => {
-      const [equipoId, jugadorId] = key.split('___')
-      const jug = jugadores[equipoId]?.[jugadorId] || {}
-      return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
-    }).sort((a, b) => b.total - a.total).slice(0, 10)
+    return Object.entries(cnt)
+      .filter(([key]) => !equipos[key.split('___')[0]]?.retirado)
+      .map(([key, total]) => {
+        const [equipoId, jugadorId] = key.split('___')
+        const jug = jugadores[equipoId]?.[jugadorId] || {}
+        return { nombre: jug.nombre || '?', numero: jug.numero || '', equipo: equipos[equipoId]?.nombre || '', escudo: equipos[equipoId]?.escudo, total }
+      }).sort((a, b) => b.total - a.total).slice(0, 5)
   }, [tarjetasValidas, jugadores, equipos])
 
   const equipoGoleador = useMemo(() => {
@@ -95,8 +101,10 @@ export default function Stats({ data }) {
         pj[p.visitante] = (pj[p.visitante] || 0) + 1
       })
     return Object.entries(gf)
+      .filter(([id]) => !equipos[id]?.retirado)
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const equipoGoleado = useMemo(() => {
@@ -110,8 +118,10 @@ export default function Stats({ data }) {
         pj[p.visitante] = (pj[p.visitante] || 0) + 1
       })
     return Object.entries(gc)
+      .filter(([id]) => !equipos[id]?.retirado)
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
+      .slice(0, 5)
   }, [partidos, equipos])
 
   const hatTricks = useMemo(() => {
@@ -125,8 +135,8 @@ export default function Stats({ data }) {
         }
       })
       Object.entries(cnt).forEach(([key, total]) => {
-        if (total >= 3) {
-          const [equipoId, jugadorId] = key.split('___')
+        const [equipoId, jugadorId] = key.split('___')
+        if (total >= 3 && !equipos[equipoId]?.retirado) {
           const p = partidos[partidoId]
           const rival = p ? (p.local === equipoId ? p.visitante : p.local) : null
           const jugHT = jugadores[equipoId]?.[jugadorId] || {}
@@ -141,7 +151,7 @@ export default function Stats({ data }) {
         }
       })
     })
-    return lista.sort((a, b) => b.goles - a.goles)
+    return lista.sort((a, b) => b.goles - a.goles).slice(0, 5)
   }, [golesValidos, jugadores, equipos, partidos])
 
   const Section = ({ title, emoji, children, empty }) => (

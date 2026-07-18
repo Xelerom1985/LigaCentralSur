@@ -26,6 +26,7 @@ function calcTabla(partidos, equipos) {
   })
 
   return Object.entries(stats)
+    .filter(([id]) => !equipos[id]?.retirado)
     .map(([id, s]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, dif: s.gf - s.gc, ...s }))
     .sort((a, b) => b.pts - a.pts || b.dif - a.dif || b.gf - a.gf || a.nombre.localeCompare(b.nombre))
 }
