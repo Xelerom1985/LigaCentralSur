@@ -14,7 +14,7 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Analytics']
+const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades']
 
 export default function Admin({ data }) {
   const [tab, setTab] = useState('Equipos')
@@ -41,7 +41,6 @@ export default function Admin({ data }) {
         {tab === 'Copas'      && <TabCopas data={data} />}
         {tab === 'Resultados' && <TabResultados data={data} />}
         {tab === 'Novedades'  && <TabNovedades data={data} />}
-        {tab === 'Analytics'  && <TabAnalytics data={data} />}
       </div>
     </div>
   )
@@ -1565,82 +1564,6 @@ function TabResultados({ data }) {
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-/* ─── ANALYTICS ─── */
-function TabAnalytics({ data }) {
-  const analytics = data.analytics || {}
-  const secciones = analytics.secciones || {}
-  const visitas = analytics.visitas || {}
-
-  const total = Object.keys(visitas).length
-
-  const LABEL = { home: 'Inicio', fixture: 'Fixture', tabla: 'Tabla', copas: 'Copas', stats: 'Estadísticas' }
-  const ICON  = { home: '🏠', fixture: '📅', tabla: '📊', copas: '🏆', stats: '⚽' }
-
-  const seccionesOrdenadas = Object.entries(secciones)
-    .map(([id, count]) => ({ id, count }))
-    .sort((a, b) => b.count - a.count)
-
-  const visitasRecientes = Object.entries(visitas)
-    .map(([id, v]) => ({ id, ...v }))
-    .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-    .slice(0, 50)
-
-  const fmtFecha = iso => {
-    try { return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
-    catch { return iso }
-  }
-
-  const maxCount = seccionesOrdenadas[0]?.count || 1
-
-  return (
-    <div className="pt-4 space-y-4">
-
-      {/* Total */}
-      <div className="bg-[#1a1a1a] rounded-xl p-5 border border-green-900/30 text-center">
-        <p className="text-5xl font-black text-green-400">{total}</p>
-        <p className="text-xs text-gray-500 mt-1 uppercase tracking-widest">Visitas totales</p>
-      </div>
-
-      {/* Secciones */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">Secciones más visitadas</p>
-        {seccionesOrdenadas.length === 0
-          ? <p className="text-gray-600 text-sm text-center py-2">Sin datos aún</p>
-          : seccionesOrdenadas.map(({ id, count }) => (
-            <div key={id}>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-white font-semibold">{ICON[id] || '•'} {LABEL[id] || id}</span>
-                <span className="text-green-400 font-black">{count}</span>
-              </div>
-              <div className="h-1.5 bg-[#111] rounded-full overflow-hidden">
-                <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${(count / maxCount) * 100}%` }} />
-              </div>
-            </div>
-          ))
-        }
-      </div>
-
-      {/* Visitas recientes */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-1">
-        <p className="text-sm font-bold text-green-400 mb-3">Últimas visitas</p>
-        {visitasRecientes.length === 0
-          ? <p className="text-gray-600 text-sm text-center py-2">Sin datos aún</p>
-          : visitasRecientes.map(v => (
-            <div key={v.id} className="flex items-center gap-3 py-2 border-b border-green-900/10 last:border-0">
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-xs font-semibold truncate">{v.modelo}</p>
-                <p className="text-gray-500 text-[10px]">{v.so} · {v.browser}</p>
-              </div>
-              <p className="text-gray-600 text-[10px] flex-shrink-0">{fmtFecha(v.fecha)}</p>
-            </div>
-          ))
-        }
-      </div>
-
     </div>
   )
 }
