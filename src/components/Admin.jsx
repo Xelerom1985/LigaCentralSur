@@ -644,15 +644,16 @@ function TabPartidos({ data }) {
   const dateInputRef = useRef(null)
   const fechaInicializada = useRef(false)
 
-  // Al cargar, abrir directo en la última fecha con partidos generados (no siempre Fecha 1)
+  // Al cargar, abrir directo en la fecha en curso: la primera que todavía no está cerrada
   useEffect(() => {
     if (fechaInicializada.current) return
-    const numeros = Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero)
+    const numeros = [...new Set(Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero))].sort((a, b) => a - b)
     if (numeros.length > 0) {
-      setFechaSel(Math.max(...numeros))
+      const enCurso = numeros.find(n => !fechasCerradas[n])
+      setFechaSel(enCurso ?? numeros[numeros.length - 1])
       fechaInicializada.current = true
     }
-  }, [partidos])
+  }, [partidos, fechasCerradas])
 
   const cerrada = !!fechasCerradas[fechaSel]
 
