@@ -677,10 +677,15 @@ function TabPartidos({ data }) {
     setFechaDia(dias.length === 1 ? dias[0] : '')
   }, [fechaSel])
 
+  const horaDe = p => {
+    const t = p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : p.hora
+    return t ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : Infinity
+  }
+
   const partidosFecha = Object.entries(partidos)
     .filter(([, p]) => p.fase === 'liga' && p.numero === fechaSel)
     .map(([id, p]) => ({ id, ...p }))
-    .sort((a, b) => a.id.localeCompare(b.id))
+    .sort((a, b) => horaDe(a) - horaDe(b) || a.id.localeCompare(b.id))
 
   const fmtDia = iso => {
     if (!iso) return null
