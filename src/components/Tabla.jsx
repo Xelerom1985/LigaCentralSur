@@ -65,7 +65,6 @@ export default function Tabla({ data }) {
             <span className="w-7 text-center">PP</span>
             <span className="w-8 text-center">GF</span>
             <span className="w-8 text-center">GC</span>
-            <span className="w-8 text-center">DIF</span>
             <span className="w-9 text-center font-black text-green-400">PTS</span>
           </div>
         </div>
@@ -92,7 +91,6 @@ export default function Tabla({ data }) {
                 <span className="w-7 text-center text-xs text-gray-400">{eq.pp}</span>
                 <span className="w-8 text-center text-xs text-gray-400">{eq.gf}</span>
                 <span className="w-8 text-center text-xs text-gray-400">{eq.gc}</span>
-                <span className={`w-8 text-center text-xs font-medium ${eq.dif > 0 ? 'text-green-400' : eq.dif < 0 ? 'text-red-400' : 'text-gray-400'}`}>{eq.dif > 0 ? `+${eq.dif}` : eq.dif}</span>
                 <span className="w-9 text-center text-sm font-black text-green-400">{eq.pts}</span>
               </div>
             )
@@ -101,7 +99,7 @@ export default function Tabla({ data }) {
 
         {/* Clasificación */}
         <div className="mt-4 space-y-1 text-[11px] text-gray-500">
-          <p>PG=ganados · PE=empatados · PP=perdidos · DIF=diferencia de gol</p>
+          <p>PG=ganados · PE=empatados · PP=perdidos</p>
         </div>
       </div>
     </div>
