@@ -16,17 +16,172 @@ const FASES_OPT = [
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
 
+const FINANZAS_PIN = '200514687'
+const FINANZAS_CRED_KEY = 'lcs_finanzas_cred'
+const FINANZAS_SESSION_KEY = 'lcs_finanzas_session'
+
 export default function Admin({ data }) {
   const [tab, setTab] = useState('Equipos')
 
+  const [finanzasAuthed, setFinanzasAuthed] = useState(() => sessionStorage.getItem(FINANZAS_SESSION_KEY) === '1')
+  const [showFinanzasPin, setShowFinanzasPin] = useState(false)
+  const [finanzasPinInput, setFinanzasPinInput] = useState('')
+  const [finanzasPinError, setFinanzasPinError] = useState(false)
+  const [finBioAvail, setFinBioAvail] = useState(false)
+  const [finHasCred, setFinHasCred] = useState(false)
+  const [finBioError, setFinBioError] = useState(false)
+  const [showFinBioPrompt, setShowFinBioPrompt] = useState(false)
+
+  useEffect(() => {
+    const checkBio = async () => {
+      if (!window.PublicKeyCredential) return
+      try {
+        const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        setFinBioAvail(ok)
+        if (ok && localStorage.getItem(FINANZAS_CRED_KEY)) setFinHasCred(true)
+      } catch {}
+    }
+    checkBio()
+  }, [])
+
+  const entrarFinanzas = () => {
+    sessionStorage.setItem(FINANZAS_SESSION_KEY, '1')
+    setFinanzasAuthed(true); setShowFinanzasPin(false); setFinanzasPinInput(''); setFinanzasPinError(false)
+    setTab('Finanzas')
+  }
+
+  const intentarFinanzasPin = () => {
+    if (finanzasPinInput === FINANZAS_PIN) {
+      entrarFinanzas()
+      if (finBioAvail && !finHasCred) setShowFinBioPrompt(true)
+    } else {
+      setFinanzasPinError(true); setTimeout(() => setFinanzasPinError(false), 1200)
+    }
+  }
+
+  const registrarHuellaFinanzas = async () => {
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32))
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'Liga Central Sur' },
+          user: { id: new TextEncoder().encode('lcs-finanzas'), name: 'finanzas', displayName: 'Finanzas' },
+          pubKeyCredParams: [
+            { alg: -7, type: 'public-key' },
+            { alg: -257, type: 'public-key' },
+          ],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000,
+        }
+      })
+      localStorage.setItem(FINANZAS_CRED_KEY, JSON.stringify(Array.from(new Uint8Array(cred.rawId))))
+      setFinHasCred(true)
+      setShowFinBioPrompt(false)
+    } catch {
+      setShowFinBioPrompt(false)
+    }
+  }
+
+  const autenticarHuellaFinanzas = async () => {
+    setFinBioError(false)
+    try {
+      const stored = localStorage.getItem(FINANZAS_CRED_KEY)
+      if (!stored) return
+      const credId = new Uint8Array(JSON.parse(stored))
+      const challenge = crypto.getRandomValues(new Uint8Array(32))
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{ id: credId, type: 'public-key' }],
+          userVerification: 'required',
+          timeout: 60000,
+        }
+      })
+      entrarFinanzas()
+    } catch {
+      setFinBioError(true)
+      setTimeout(() => setFinBioError(false), 2000)
+    }
+  }
+
+  const abrirTab = t => {
+    if (t === 'Finanzas' && !finanzasAuthed) {
+      setShowFinanzasPin(true)
+      setFinanzasPinInput('')
+      setFinanzasPinError(false)
+      setFinBioError(false)
+      return
+    }
+    setTab(t)
+  }
+
   return (
     <div className="min-h-screen">
+
+      {/* Modal PIN Finanzas */}
+      {showFinanzasPin && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-green-800 shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-2">💰</div>
+              <p className="text-white font-bold text-lg">Finanzas</p>
+              <p className="text-gray-400 text-sm">Ingresá el PIN de acceso</p>
+            </div>
+            <input
+              type="password" inputMode="numeric" maxLength={12}
+              value={finanzasPinInput} onChange={e => setFinanzasPinInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && intentarFinanzasPin()}
+              placeholder="• • • •"
+              className={`w-full bg-[#111] border-2 ${finanzasPinError ? 'border-red-500' : 'border-green-800'} rounded-xl px-4 py-3 text-center text-white text-2xl tracking-[0.3em] outline-none mb-2 transition-colors`}
+              autoFocus
+            />
+            {finanzasPinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">PIN incorrecto</p>}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setShowFinanzasPin(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
+              <button onClick={intentarFinanzasPin} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Entrar</button>
+            </div>
+
+            {finHasCred && finBioAvail && (
+              <button
+                onClick={autenticarHuellaFinanzas}
+                className="w-full mt-3 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-[#111] border border-green-900/40 active:scale-95 transition-all"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={`w-7 h-7 ${finBioError ? 'text-red-400' : 'text-green-400'}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+                </svg>
+                <span className={`text-xs font-semibold ${finBioError ? 'text-red-400' : 'text-green-400'}`}>
+                  {finBioError ? 'No se reconoció' : 'Entrar con huella'}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal activar huella para Finanzas */}
+      {showFinBioPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-green-800 shadow-2xl text-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 text-green-400 mx-auto mb-3">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+            </svg>
+            <p className="text-white font-bold text-lg">¿Activar huella para Finanzas?</p>
+            <p className="text-gray-400 text-sm mt-1 mb-4">La próxima vez entrás sin escribir el PIN</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowFinBioPrompt(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Ahora no</button>
+              <button onClick={registrarHuellaFinanzas} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Activar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-3">
         <h1 className="text-xl font-black text-white mb-3">Panel Admin</h1>
         {/* Tabs en 2 renglones si no entran todos */}
         <div className="flex flex-wrap gap-2">
           {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => abrirTab(t)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                 ${tab === t ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
               {t}
@@ -41,7 +196,7 @@ export default function Admin({ data }) {
         {tab === 'Copas'      && <TabCopas data={data} />}
         {tab === 'Resultados' && <TabResultados data={data} />}
         {tab === 'Novedades'  && <TabNovedades data={data} />}
-        {tab === 'Finanzas'   && <TabFinanzas data={data} />}
+        {tab === 'Finanzas'   && finanzasAuthed && <TabFinanzas data={data} />}
       </div>
     </div>
   )
@@ -1633,20 +1788,26 @@ function TabNovedades({ data }) {
 }
 
 /* ─── FINANZAS ─── */
-const fmtMoney = n => `$${Number(n || 0).toLocaleString('es-AR')}`
+const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
+const PRIMERA_FECHA_FINANZAS = 4
+const GASTOS_FIJOS = [
+  { key: 'cancha', label: 'Cancha' },
+  { key: 'arbitros', label: 'Árbitros' },
+  { key: 'bebidas', label: 'Bebidas' },
+]
 
 function TabFinanzas({ data }) {
   const equipos = data.equipos || {}
   const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
   const partidos = data.partidos || {}
   const finanzas = data.finanzas || {}
+  const config = finanzas.config || {}
+  const deudaInicial = config.deudaInicial || {}
 
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
 
-  const [fechaSel, setFechaSel] = useState(1)
-  const [concepto, setConcepto] = useState('')
-  const [montoGasto, setMontoGasto] = useState('')
+  const [fechaSel, setFechaSel] = useState(PRIMERA_FECHA_FINANZAS)
 
   const fFecha = finanzas[fechaSel] || {}
   const pagos = fFecha.pagos || {}
@@ -1656,30 +1817,40 @@ function TabFinanzas({ data }) {
 
   const [cuotaInput, setCuotaInput] = useState(String(cuota))
   const [cajaInput, setCajaInput] = useState(String(cajaAhorro))
+  const [gastoInputs, setGastoInputs] = useState({})
+  const [cajaBaseInput, setCajaBaseInput] = useState(String(config.cajaBase ?? ''))
+  const [objetivoInput, setObjetivoInput] = useState(String(config.objetivo ?? ''))
   useEffect(() => { setCuotaInput(String(cuota)) }, [fechaSel, cuota])
   useEffect(() => { setCajaInput(String(cajaAhorro)) }, [fechaSel, cajaAhorro])
+  useEffect(() => {
+    setGastoInputs(Object.fromEntries(GASTOS_FIJOS.map(g => [g.key, String(gastos[g.key] ?? '')])))
+  }, [fechaSel, JSON.stringify(gastos)])
+  useEffect(() => { setCajaBaseInput(String(config.cajaBase ?? '')) }, [config.cajaBase])
+  useEffect(() => { setObjetivoInput(String(config.objetivo ?? '')) }, [config.objetivo])
 
   const guardarCuota = () => update(ref(db, `finanzas/${fechaSel}`), { cuota: cuotaInput === '' ? null : Number(cuotaInput) })
   const guardarCaja = () => update(ref(db, `finanzas/${fechaSel}`), { cajaAhorro: cajaInput === '' ? null : Number(cajaInput) })
+  const guardarGasto = key => update(ref(db, `finanzas/${fechaSel}/gastos`), { [key]: gastoInputs[key] === '' ? null : Number(gastoInputs[key]) })
+  const guardarCajaBase = () => update(ref(db, 'finanzas/config'), { cajaBase: cajaBaseInput === '' ? null : Number(cajaBaseInput) })
+  const guardarObjetivo = () => update(ref(db, 'finanzas/config'), { objetivo: objetivoInput === '' ? null : Number(objetivoInput) })
 
   const guardarPago = (equipoId, campo, valor) =>
     update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { [campo]: valor === '' ? null : Number(valor) })
 
-  const agregarGasto = async () => {
-    if (!concepto.trim() || montoGasto === '') return
-    await push(ref(db, `finanzas/${fechaSel}/gastos`), { concepto: concepto.trim(), monto: Number(montoGasto) })
-    setConcepto(''); setMontoGasto('')
-  }
+  const toggleConfirmado = equipoId =>
+    update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { confirmado: !pagos[equipoId]?.confirmado })
 
   const recaudadoFecha = Object.values(pagos).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
-  const gastosFecha = Object.values(gastos).reduce((s, g) => s + Number(g.monto || 0), 0)
+  const gastosFecha = Object.values(gastos).reduce((s, m) => s + Number(m || 0), 0)
   const gananciaFecha = recaudadoFecha - gastosFecha
   const repartoFecha = gananciaFecha - Number(cajaAhorro || 0)
 
-  // Resumen de toda la temporada
-  const resumenGeneral = Object.entries(finanzas).reduce((acc, [n, f]) => {
+  // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante)
+  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && Number(n) >= PRIMERA_FECHA_FINANZAS)
+
+  const resumenGeneral = fechasFinanzas.reduce((acc, [, f]) => {
     const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
-    const gas = Object.values(f.gastos || {}).reduce((s, g) => s + Number(g.monto || 0), 0)
+    const gas = Object.values(f.gastos || {}).reduce((s, m) => s + Number(m || 0), 0)
     acc.recaudado += rec
     acc.gastos += gas
     acc.caja += Number(f.cajaAhorro || 0)
@@ -1687,19 +1858,23 @@ function TabFinanzas({ data }) {
   }, { recaudado: 0, gastos: 0, caja: 0 })
   const gananciaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos
   const repartoGeneral = gananciaGeneral - resumenGeneral.caja
+  const cajaTotal = Number(config.cajaBase || 0) + resumenGeneral.caja
+  const objetivo = Number(config.objetivo || 0)
+  const progresoObjetivo = objetivo > 0 ? Math.min(100, (cajaTotal / objetivo) * 100) : 0
 
-  // Deudores acumulados en toda la temporada
-  const deudaPorEquipo = {}
-  Object.values(finanzas).forEach(f => {
-    const c = Number(f.cuota || 0)
-    if (!c) return
-    Object.keys(equiposActivos).forEach(eqId => {
+  // Deuda total acumulada por equipo: deuda inicial + cuotas - pagos, desde la Fecha 4
+  const calcularDeudaTotal = eqId => {
+    let total = Number(deudaInicial[eqId] || 0)
+    fechasFinanzas.forEach(([, f]) => {
+      const c = Number(f.cuota || 0)
       const p = (f.pagos || {})[eqId] || {}
-      const debe = c - (Number(p.efectivo || 0) + Number(p.transferencia || 0))
-      if (debe > 0) deudaPorEquipo[eqId] = (deudaPorEquipo[eqId] || 0) + debe
+      total += c - (Number(p.efectivo || 0) + Number(p.transferencia || 0))
     })
-  })
-  const deudores = Object.entries(deudaPorEquipo)
+    return total
+  }
+
+  const deudores = Object.keys(equiposActivos)
+    .map(eqId => [eqId, calcularDeudaTotal(eqId)])
     .filter(([, monto]) => monto > 0)
     .sort((a, b) => b[1] - a[1])
 
@@ -1723,13 +1898,39 @@ function TabFinanzas({ data }) {
             <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaGeneral)}</p>
           </div>
           <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Caja de ahorro</p>
-            <p className="text-blue-400 font-bold text-sm">{fmtMoney(resumenGeneral.caja)}</p>
+            <p className="text-gray-500">Reparto acumulado</p>
+            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
           </div>
         </div>
-        <div className="bg-[#111] rounded-lg p-2.5 text-xs">
-          <p className="text-gray-500">Reparto acumulado (ganancia − caja de ahorro)</p>
-          <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
+
+        {/* Caja de ahorro + objetivo premios */}
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <span className="text-gray-500 text-xs">Caja de ahorro (premios)</span>
+            <span className="text-blue-400 font-bold text-sm">{fmtMoney(cajaTotal)}</span>
+          </div>
+          {objetivo > 0 && (
+            <>
+              <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progresoObjetivo}%` }} />
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">{progresoObjetivo.toFixed(0)}% del objetivo ({fmtMoney(objetivo)})</p>
+            </>
+          )}
+          <div className="flex gap-1.5 mt-2">
+            <div className="flex-1">
+              <p className="text-[9px] text-gray-500 mb-0.5">Caja inicial</p>
+              <input type="number" min="0" value={cajaBaseInput} onChange={e => setCajaBaseInput(e.target.value)}
+                onBlur={guardarCajaBase} placeholder="0"
+                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[9px] text-gray-500 mb-0.5">Objetivo premios</p>
+              <input type="number" min="0" value={objetivoInput} onChange={e => setObjetivoInput(e.target.value)}
+                onBlur={guardarObjetivo} placeholder="0"
+                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+            </div>
+          </div>
         </div>
 
         {deudores.length > 0 && (
@@ -1756,7 +1957,7 @@ function TabFinanzas({ data }) {
             onChange={e => setFechaSel(Number(e.target.value))}
             className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
           >
-            {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+            {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
               const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
               return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
             })}
@@ -1780,17 +1981,14 @@ function TabFinanzas({ data }) {
           .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
           .map(([id, eq]) => {
             const p = pagos[id] || {}
-            const pagado = Number(p.efectivo || 0) + Number(p.transferencia || 0)
-            const debe = Number(cuota || 0) - pagado
+            const deudaTotal = calcularDeudaTotal(id)
             return (
               <div key={id} className="bg-[#111] rounded-xl p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
-                  {cuota !== '' && (
-                    debe > 0
-                      ? <span className="text-[10px] font-bold text-red-400 bg-red-900/20 px-2 py-0.5 rounded-full flex-shrink-0">Debe {fmtMoney(debe)}</span>
-                      : <span className="text-[10px] font-bold text-green-400 bg-green-900/20 px-2 py-0.5 rounded-full flex-shrink-0">{debe < 0 ? `A favor ${fmtMoney(-debe)}` : 'Al día'}</span>
-                  )}
+                  <button onClick={() => toggleConfirmado(id)} className="flex-shrink-0 text-base leading-none" title="Marcar operación cerrada">
+                    {p.confirmado ? '🔒' : '🔓'}
+                  </button>
                 </div>
                 <div className="flex gap-1.5">
                   <div className="flex-1">
@@ -1806,29 +2004,31 @@ function TabFinanzas({ data }) {
                       className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
                   </div>
                 </div>
+                <p className="text-xs">
+                  <span className="text-gray-500">Debe: </span>
+                  <span className={`font-bold ${deudaTotal > 0 ? 'text-red-400' : deudaTotal < 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                    {deudaTotal > 0 ? fmtMoney(deudaTotal) : deudaTotal < 0 ? `A favor ${fmtMoney(-deudaTotal)}` : 'Al día'}
+                  </span>
+                </p>
               </div>
             )
           })}
       </div>
 
       {/* Gastos */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
         <p className="text-sm font-bold text-green-400">Gastos — Fecha {fechaSel}</p>
-        {Object.entries(gastos).map(([gid, g]) => (
-          <div key={gid} className="flex items-center gap-2 bg-[#111] rounded-lg px-3 py-2">
-            <span className="flex-1 text-xs text-white truncate">{g.concepto}</span>
-            <span className="text-xs font-bold text-red-400 flex-shrink-0">{fmtMoney(g.monto)}</span>
-            <button onClick={() => remove(ref(db, `finanzas/${fechaSel}/gastos/${gid}`))} className="text-red-400 text-xs flex-shrink-0">✕</button>
+        {GASTOS_FIJOS.map(g => (
+          <div key={g.key} className="flex items-center gap-2">
+            <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
+            <input type="number" min="0" value={gastoInputs[g.key] ?? ''}
+              onChange={e => setGastoInputs(prev => ({ ...prev, [g.key]: e.target.value }))}
+              placeholder="0"
+              className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+            <button onClick={() => guardarGasto(g.key)}
+              className="bg-green-700 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center flex-shrink-0">✓</button>
           </div>
         ))}
-        <div className="flex gap-1.5">
-          <input value={concepto} onChange={e => setConcepto(e.target.value)} placeholder="Concepto (ej. Cancha)"
-            className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          <input type="number" min="0" value={montoGasto} onChange={e => setMontoGasto(e.target.value)} placeholder="Monto"
-            className="w-24 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          <button onClick={agregarGasto} disabled={!concepto.trim() || montoGasto === ''}
-            className="bg-green-700 text-white rounded-xl px-3 text-sm font-bold disabled:opacity-40 flex-shrink-0">+</button>
-        </div>
       </div>
 
       {/* Caja de ahorro + resumen de la fecha */}
