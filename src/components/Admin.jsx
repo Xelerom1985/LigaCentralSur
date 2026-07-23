@@ -14,7 +14,7 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades']
+const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
 
 export default function Admin({ data }) {
   const [tab, setTab] = useState('Equipos')
@@ -41,6 +41,7 @@ export default function Admin({ data }) {
         {tab === 'Copas'      && <TabCopas data={data} />}
         {tab === 'Resultados' && <TabResultados data={data} />}
         {tab === 'Novedades'  && <TabNovedades data={data} />}
+        {tab === 'Finanzas'   && <TabFinanzas data={data} />}
       </div>
     </div>
   )
@@ -1626,6 +1627,235 @@ function TabNovedades({ data }) {
           </div>
         ))}
         {lista.length === 0 && <p className="text-gray-600 text-sm text-center py-4">Sin novedades</p>}
+      </div>
+    </div>
+  )
+}
+
+/* ─── FINANZAS ─── */
+const fmtMoney = n => `$${Number(n || 0).toLocaleString('es-AR')}`
+
+function TabFinanzas({ data }) {
+  const equipos = data.equipos || {}
+  const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
+  const partidos = data.partidos || {}
+  const finanzas = data.finanzas || {}
+
+  const cantEquipos = Object.keys(equiposActivos).length
+  const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
+
+  const [fechaSel, setFechaSel] = useState(1)
+  const [concepto, setConcepto] = useState('')
+  const [montoGasto, setMontoGasto] = useState('')
+
+  const fFecha = finanzas[fechaSel] || {}
+  const pagos = fFecha.pagos || {}
+  const gastos = fFecha.gastos || {}
+  const cuota = fFecha.cuota ?? ''
+  const cajaAhorro = fFecha.cajaAhorro ?? ''
+
+  const [cuotaInput, setCuotaInput] = useState(String(cuota))
+  const [cajaInput, setCajaInput] = useState(String(cajaAhorro))
+  useEffect(() => { setCuotaInput(String(cuota)) }, [fechaSel, cuota])
+  useEffect(() => { setCajaInput(String(cajaAhorro)) }, [fechaSel, cajaAhorro])
+
+  const guardarCuota = () => update(ref(db, `finanzas/${fechaSel}`), { cuota: cuotaInput === '' ? null : Number(cuotaInput) })
+  const guardarCaja = () => update(ref(db, `finanzas/${fechaSel}`), { cajaAhorro: cajaInput === '' ? null : Number(cajaInput) })
+
+  const guardarPago = (equipoId, campo, valor) =>
+    update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { [campo]: valor === '' ? null : Number(valor) })
+
+  const agregarGasto = async () => {
+    if (!concepto.trim() || montoGasto === '') return
+    await push(ref(db, `finanzas/${fechaSel}/gastos`), { concepto: concepto.trim(), monto: Number(montoGasto) })
+    setConcepto(''); setMontoGasto('')
+  }
+
+  const recaudadoFecha = Object.values(pagos).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
+  const gastosFecha = Object.values(gastos).reduce((s, g) => s + Number(g.monto || 0), 0)
+  const gananciaFecha = recaudadoFecha - gastosFecha
+  const repartoFecha = gananciaFecha - Number(cajaAhorro || 0)
+
+  // Resumen de toda la temporada
+  const resumenGeneral = Object.entries(finanzas).reduce((acc, [n, f]) => {
+    const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
+    const gas = Object.values(f.gastos || {}).reduce((s, g) => s + Number(g.monto || 0), 0)
+    acc.recaudado += rec
+    acc.gastos += gas
+    acc.caja += Number(f.cajaAhorro || 0)
+    return acc
+  }, { recaudado: 0, gastos: 0, caja: 0 })
+  const gananciaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos
+  const repartoGeneral = gananciaGeneral - resumenGeneral.caja
+
+  // Deudores acumulados en toda la temporada
+  const deudaPorEquipo = {}
+  Object.values(finanzas).forEach(f => {
+    const c = Number(f.cuota || 0)
+    if (!c) return
+    Object.keys(equiposActivos).forEach(eqId => {
+      const p = (f.pagos || {})[eqId] || {}
+      const debe = c - (Number(p.efectivo || 0) + Number(p.transferencia || 0))
+      if (debe > 0) deudaPorEquipo[eqId] = (deudaPorEquipo[eqId] || 0) + debe
+    })
+  })
+  const deudores = Object.entries(deudaPorEquipo)
+    .filter(([, monto]) => monto > 0)
+    .sort((a, b) => b[1] - a[1])
+
+  return (
+    <div className="pt-4 space-y-4">
+
+      {/* Resumen general de la temporada */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-2">
+        <p className="text-sm font-bold text-green-400">Resumen general del torneo</p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Recaudado</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.recaudado)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Gastos</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.gastos)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Ganancia neta</p>
+            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaGeneral)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Caja de ahorro</p>
+            <p className="text-blue-400 font-bold text-sm">{fmtMoney(resumenGeneral.caja)}</p>
+          </div>
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5 text-xs">
+          <p className="text-gray-500">Reparto acumulado (ganancia − caja de ahorro)</p>
+          <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
+        </div>
+
+        {deudores.length > 0 && (
+          <div className="pt-1">
+            <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest mb-1.5">Equipos que deben (todo el torneo)</p>
+            <div className="space-y-1">
+              {deudores.map(([eqId, monto]) => (
+                <div key={eqId} className="flex items-center justify-between bg-red-900/10 border border-red-900/30 rounded-lg px-2.5 py-1.5">
+                  <span className="text-xs text-white truncate">{equipos[eqId]?.nombre || eqId}</span>
+                  <span className="text-xs font-bold text-red-400 flex-shrink-0">{fmtMoney(monto)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Selector de fecha */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
+          <select
+            value={fechaSel}
+            onChange={e => setFechaSel(Number(e.target.value))}
+            className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
+          >
+            {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+              const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
+              return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+            })}
+          </select>
+        </div>
+
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Cuota por equipo esta fecha</p>
+          <div className="flex gap-2">
+            <input type="number" min="0" value={cuotaInput} onChange={e => setCuotaInput(e.target.value)}
+              onBlur={guardarCuota} placeholder="0"
+              className="flex-1 bg-[#111] border border-green-600/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* Pagos por equipo */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
+        <p className="text-sm font-bold text-green-400">Pagos — Fecha {fechaSel}</p>
+        {Object.entries(equiposActivos)
+          .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
+          .map(([id, eq]) => {
+            const p = pagos[id] || {}
+            const pagado = Number(p.efectivo || 0) + Number(p.transferencia || 0)
+            const debe = Number(cuota || 0) - pagado
+            return (
+              <div key={id} className="bg-[#111] rounded-xl p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
+                  {cuota !== '' && (
+                    debe > 0
+                      ? <span className="text-[10px] font-bold text-red-400 bg-red-900/20 px-2 py-0.5 rounded-full flex-shrink-0">Debe {fmtMoney(debe)}</span>
+                      : <span className="text-[10px] font-bold text-green-400 bg-green-900/20 px-2 py-0.5 rounded-full flex-shrink-0">{debe < 0 ? `A favor ${fmtMoney(-debe)}` : 'Al día'}</span>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="flex-1">
+                    <p className="text-[9px] text-gray-500 mb-0.5">Efectivo</p>
+                    <input type="number" min="0" defaultValue={p.efectivo || ''} placeholder="0"
+                      onBlur={e => guardarPago(id, 'efectivo', e.target.value)}
+                      className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[9px] text-gray-500 mb-0.5">Transferencia</p>
+                    <input type="number" min="0" defaultValue={p.transferencia || ''} placeholder="0"
+                      onBlur={e => guardarPago(id, 'transferencia', e.target.value)}
+                      className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+      </div>
+
+      {/* Gastos */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
+        <p className="text-sm font-bold text-green-400">Gastos — Fecha {fechaSel}</p>
+        {Object.entries(gastos).map(([gid, g]) => (
+          <div key={gid} className="flex items-center gap-2 bg-[#111] rounded-lg px-3 py-2">
+            <span className="flex-1 text-xs text-white truncate">{g.concepto}</span>
+            <span className="text-xs font-bold text-red-400 flex-shrink-0">{fmtMoney(g.monto)}</span>
+            <button onClick={() => remove(ref(db, `finanzas/${fechaSel}/gastos/${gid}`))} className="text-red-400 text-xs flex-shrink-0">✕</button>
+          </div>
+        ))}
+        <div className="flex gap-1.5">
+          <input value={concepto} onChange={e => setConcepto(e.target.value)} placeholder="Concepto (ej. Cancha)"
+            className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
+          <input type="number" min="0" value={montoGasto} onChange={e => setMontoGasto(e.target.value)} placeholder="Monto"
+            className="w-24 bg-[#111] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
+          <button onClick={agregarGasto} disabled={!concepto.trim() || montoGasto === ''}
+            className="bg-green-700 text-white rounded-xl px-3 text-sm font-bold disabled:opacity-40 flex-shrink-0">+</button>
+        </div>
+      </div>
+
+      {/* Caja de ahorro + resumen de la fecha */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
+        <p className="text-sm font-bold text-green-400">Caja de ahorro — Fecha {fechaSel}</p>
+        <input type="number" min="0" value={cajaInput} onChange={e => setCajaInput(e.target.value)}
+          onBlur={guardarCaja} placeholder="0 (a mano, según decidas esta fecha)"
+          className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+
+        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Recaudado</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoFecha)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Gastos</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(gastosFecha)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Ganancia neta</p>
+            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaFecha)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Reparto</p>
+            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoFecha)}</p>
+          </div>
+        </div>
       </div>
     </div>
   )
