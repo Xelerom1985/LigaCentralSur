@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getDatabase, ref, onValue, set, update, push, remove, runTransaction, increment } from 'firebase/database'
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: "AIzaSyBKNJdbVGe6ceIWu5b656RpemU668pQVO4",
@@ -13,4 +14,11 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 export const db = getDatabase(app)
-export { ref, onValue, set, update, push, remove, runTransaction, increment }
+export const auth = getAuth(app)
+export { ref, onValue, set, update, push, remove, runTransaction, increment, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD
+
+export const adminSignIn = () => signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD)
+export const adminSignOut = () => signOut(auth)

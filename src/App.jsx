@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { db, ref, onValue, push, update, increment } from './firebase'
+import { db, ref, onValue, push, update, increment, adminSignIn, adminSignOut } from './firebase'
 
 const parseDevice = () => {
   const ua = navigator.userAgent
@@ -32,6 +32,7 @@ import Admin from './components/Admin'
 const PIN = '2041'
 const CRED_KEY = 'lcs_admin_cred'
 const SESSION_KEY = 'lcs_admin_session'
+const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'analytics']
 
 export default function App() {
   const [data, setData] = useState({})
@@ -51,10 +52,21 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [showInstall, setShowInstall] = useState(false)
 
+  // Datos públicos: se leen nodo por nodo (no la raíz completa) para poder
+  // dejar 'finanzas' protegido por Firebase Auth sin bloquear el resto del sitio
   useEffect(() => {
-    const unsub = onValue(ref(db, '/'), snap => setData(snap.val() || {}))
-    return () => unsub()
+    const unsubs = PUBLIC_PATHS.map(path =>
+      onValue(ref(db, path), snap => setData(prev => ({ ...prev, [path]: snap.val() })))
+    )
+    return () => unsubs.forEach(u => u())
   }, [])
+
+  // Finanzas: privado, solo se escucha estando autenticado
+  useEffect(() => {
+    if (!authed) return
+    const unsub = onValue(ref(db, 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
+    return () => unsub()
+  }, [authed])
 
   // Registrar visita al abrir la app
   useEffect(() => {
@@ -110,10 +122,17 @@ export default function App() {
   useEffect(() => {
     if (localStorage.getItem(SESSION_KEY) === '1') {
       setAuthed(true)
+      adminSignIn().catch(() => {})
     }
   }, [])
 
-  const entrarAdmin = () => {
+  const entrarAdmin = async () => {
+    try {
+      await adminSignIn()
+    } catch {
+      setPinError(true); setTimeout(() => setPinError(false), 1200)
+      return
+    }
     localStorage.setItem(SESSION_KEY, '1')
     setAuthed(true); setShowPin(false); setPinInput(''); setPinError(false); setSeccion('admin')
   }
@@ -139,6 +158,7 @@ export default function App() {
 
   const handleLockClick = () => {
     if (authed) {
+      adminSignOut().catch(() => {})
       localStorage.removeItem(SESSION_KEY)
       setAuthed(false)
       setSeccion('home')
