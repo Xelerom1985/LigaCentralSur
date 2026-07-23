@@ -1881,98 +1881,43 @@ function TabFinanzas({ data }) {
   return (
     <div className="pt-4 space-y-4">
 
-      {/* Resumen general de la temporada */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-2">
-        <p className="text-sm font-bold text-green-400">Resumen general del torneo</p>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Recaudado</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.recaudado)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Gastos</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.gastos)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Ganancia neta</p>
-            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaGeneral)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Reparto acumulado</p>
-            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
-          </div>
-        </div>
+      {/* Fecha del torneo */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
+        <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
+        <select
+          value={fechaSel}
+          onChange={e => setFechaSel(Number(e.target.value))}
+          className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
+        >
+          {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
+            const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
+            return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+          })}
+        </select>
+      </div>
 
-        {/* Caja de ahorro + objetivo premios */}
-        <div className="bg-[#111] rounded-lg p-2.5">
-          <div className="flex justify-between items-baseline mb-1.5">
-            <span className="text-gray-500 text-xs">Caja de ahorro (premios)</span>
-            <span className="text-blue-400 font-bold text-sm">{fmtMoney(cajaTotal)}</span>
-          </div>
-          {objetivo > 0 && (
-            <>
-              <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progresoObjetivo}%` }} />
+      {/* Cuota por equipo */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
+        <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Cuota por equipo esta fecha</p>
+        <input type="number" min="0" value={cuotaInput} onChange={e => setCuotaInput(e.target.value)}
+          onBlur={guardarCuota} placeholder="0"
+          className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
+      </div>
+
+      {/* Equipos que deben */}
+      {deudores.length > 0 && (
+        <div className="bg-[#1a1a1a] rounded-xl p-4 border border-red-900/40">
+          <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest mb-1.5">Equipos que deben (todo el torneo)</p>
+          <div className="space-y-1">
+            {deudores.map(([eqId, monto]) => (
+              <div key={eqId} className="flex items-center justify-between bg-red-900/10 border border-red-900/30 rounded-lg px-2.5 py-1.5">
+                <span className="text-xs text-white truncate">{equipos[eqId]?.nombre || eqId}</span>
+                <span className="text-xs font-bold text-red-400 flex-shrink-0">{fmtMoney(monto)}</span>
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">{progresoObjetivo.toFixed(0)}% del objetivo ({fmtMoney(objetivo)})</p>
-            </>
-          )}
-          <div className="flex gap-1.5 mt-2">
-            <div className="flex-1">
-              <p className="text-[9px] text-gray-500 mb-0.5">Caja inicial</p>
-              <input type="number" min="0" value={cajaBaseInput} onChange={e => setCajaBaseInput(e.target.value)}
-                onBlur={guardarCajaBase} placeholder="0"
-                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[9px] text-gray-500 mb-0.5">Objetivo premios</p>
-              <input type="number" min="0" value={objetivoInput} onChange={e => setObjetivoInput(e.target.value)}
-                onBlur={guardarObjetivo} placeholder="0"
-                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
-            </div>
+            ))}
           </div>
         </div>
-
-        {deudores.length > 0 && (
-          <div className="pt-1">
-            <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest mb-1.5">Equipos que deben (todo el torneo)</p>
-            <div className="space-y-1">
-              {deudores.map(([eqId, monto]) => (
-                <div key={eqId} className="flex items-center justify-between bg-red-900/10 border border-red-900/30 rounded-lg px-2.5 py-1.5">
-                  <span className="text-xs text-white truncate">{equipos[eqId]?.nombre || eqId}</span>
-                  <span className="text-xs font-bold text-red-400 flex-shrink-0">{fmtMoney(monto)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Selector de fecha */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-3">
-        <div>
-          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
-          <select
-            value={fechaSel}
-            onChange={e => setFechaSel(Number(e.target.value))}
-            className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
-          >
-            {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
-              const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
-              return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
-            })}
-          </select>
-        </div>
-
-        <div>
-          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Cuota por equipo esta fecha</p>
-          <div className="flex gap-2">
-            <input type="number" min="0" value={cuotaInput} onChange={e => setCuotaInput(e.target.value)}
-              onBlur={guardarCuota} placeholder="0"
-              className="flex-1 bg-[#111] border border-green-600/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Pagos por equipo */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
@@ -2054,6 +1999,59 @@ function TabFinanzas({ data }) {
           <div className="bg-[#111] rounded-lg p-2.5">
             <p className="text-gray-500">Reparto</p>
             <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoFecha)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumen general del torneo */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40 space-y-2">
+        <p className="text-sm font-bold text-green-400">Resumen general del torneo</p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Recaudado</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.recaudado)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Gastos</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.gastos)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Ganancia neta</p>
+            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaGeneral)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Reparto acumulado</p>
+            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
+          </div>
+        </div>
+
+        {/* Caja de ahorro + objetivo premios */}
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <span className="text-gray-500 text-xs">Caja de ahorro (premios)</span>
+            <span className="text-blue-400 font-bold text-sm">{fmtMoney(cajaTotal)}</span>
+          </div>
+          {objetivo > 0 && (
+            <>
+              <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progresoObjetivo}%` }} />
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">{progresoObjetivo.toFixed(0)}% del objetivo ({fmtMoney(objetivo)})</p>
+            </>
+          )}
+          <div className="flex gap-1.5 mt-2">
+            <div className="flex-1">
+              <p className="text-[9px] text-gray-500 mb-0.5">Caja inicial</p>
+              <input type="number" min="0" value={cajaBaseInput} onChange={e => setCajaBaseInput(e.target.value)}
+                onBlur={guardarCajaBase} placeholder="0"
+                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[9px] text-gray-500 mb-0.5">Objetivo premios</p>
+              <input type="number" min="0" value={objetivoInput} onChange={e => setObjetivoInput(e.target.value)}
+                onBlur={guardarObjetivo} placeholder="0"
+                className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
+            </div>
           </div>
         </div>
       </div>
