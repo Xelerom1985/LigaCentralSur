@@ -1800,7 +1800,7 @@ const GASTOS_FIJOS = [
 ]
 
 // Input de monto: muestra "$ 55.000" mientras se escribe, guarda solo dígitos
-function MoneyInput({ value, onChange, onBlur, placeholder, className }) {
+function MoneyInput({ value, onChange, onBlur, placeholder, className, disabled }) {
   return (
     <input
       type="text" inputMode="numeric"
@@ -1808,7 +1808,8 @@ function MoneyInput({ value, onChange, onBlur, placeholder, className }) {
       onChange={e => onChange(soloDigitos(e.target.value))}
       onBlur={onBlur}
       placeholder={placeholder || '$ 0'}
-      className={className}
+      disabled={disabled}
+      className={`${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     />
   )
 }
@@ -1971,6 +1972,7 @@ function TabFinanzas({ data }) {
                     <MoneyInput value={pagoInputs[`${id}_efectivo`] ?? ''}
                       onChange={v => setPagoInputs(prev => ({ ...prev, [`${id}_efectivo`]: v }))}
                       onBlur={() => guardarPago(id, 'efectivo', pagoInputs[`${id}_efectivo`] ?? '')}
+                      disabled={p.confirmado}
                       className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
                   </div>
                   <div className="flex-1">
@@ -1978,6 +1980,7 @@ function TabFinanzas({ data }) {
                     <MoneyInput value={pagoInputs[`${id}_transferencia`] ?? ''}
                       onChange={v => setPagoInputs(prev => ({ ...prev, [`${id}_transferencia`]: v }))}
                       onBlur={() => guardarPago(id, 'transferencia', pagoInputs[`${id}_transferencia`] ?? '')}
+                      disabled={p.confirmado}
                       className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
                   </div>
                 </div>
