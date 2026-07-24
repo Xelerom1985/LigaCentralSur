@@ -1789,12 +1789,27 @@ function TabNovedades({ data }) {
 
 /* ─── FINANZAS ─── */
 const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
+const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
 const GASTOS_FIJOS = [
   { key: 'cancha', label: 'Cancha' },
   { key: 'arbitros', label: 'Árbitros' },
   { key: 'bebidas', label: 'Bebidas' },
 ]
+
+// Input de monto: muestra "$ 55.000" mientras se escribe, guarda solo dígitos
+function MoneyInput({ value, onChange, onBlur, placeholder, className }) {
+  return (
+    <input
+      type="text" inputMode="numeric"
+      value={value === '' ? '' : fmtMoney(value)}
+      onChange={e => onChange(soloDigitos(e.target.value))}
+      onBlur={onBlur}
+      placeholder={placeholder || '$ 0'}
+      className={className}
+    />
+  )
+}
 
 function TabFinanzas({ data }) {
   const equipos = data.equipos || {}
@@ -1820,8 +1835,18 @@ function TabFinanzas({ data }) {
   const [gastoInputs, setGastoInputs] = useState({})
   const [cajaBaseInput, setCajaBaseInput] = useState(String(config.cajaBase ?? ''))
   const [objetivoInput, setObjetivoInput] = useState(String(config.objetivo ?? ''))
+  const [pagoInputs, setPagoInputs] = useState({})
   useEffect(() => { setCuotaInput(String(cuota)) }, [fechaSel, cuota])
   useEffect(() => { setCajaInput(String(cajaAhorro)) }, [fechaSel, cajaAhorro])
+  useEffect(() => {
+    const init = {}
+    Object.keys(equiposActivos).forEach(id => {
+      init[`${id}_efectivo`] = String(pagos[id]?.efectivo ?? '')
+      init[`${id}_transferencia`] = String(pagos[id]?.transferencia ?? '')
+    })
+    setPagoInputs(init)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaSel, JSON.stringify(pagos)])
   useEffect(() => {
     setGastoInputs(Object.fromEntries(GASTOS_FIJOS.map(g => [g.key, String(gastos[g.key] ?? '')])))
   }, [fechaSel, JSON.stringify(gastos)])
@@ -1899,8 +1924,8 @@ function TabFinanzas({ data }) {
       {/* Cuota por equipo */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
         <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Cuota por equipo esta fecha</p>
-        <input type="number" min="0" value={cuotaInput} onChange={e => setCuotaInput(e.target.value)}
-          onBlur={guardarCuota} placeholder="0"
+        <MoneyInput value={cuotaInput} onChange={setCuotaInput}
+          onBlur={guardarCuota}
           className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
       </div>
 
@@ -1938,14 +1963,16 @@ function TabFinanzas({ data }) {
                 <div className="flex gap-1.5">
                   <div className="flex-1">
                     <p className="text-[9px] text-gray-500 mb-0.5">Efectivo</p>
-                    <input type="number" min="0" defaultValue={p.efectivo || ''} placeholder="0"
-                      onBlur={e => guardarPago(id, 'efectivo', e.target.value)}
+                    <MoneyInput value={pagoInputs[`${id}_efectivo`] ?? ''}
+                      onChange={v => setPagoInputs(prev => ({ ...prev, [`${id}_efectivo`]: v }))}
+                      onBlur={() => guardarPago(id, 'efectivo', pagoInputs[`${id}_efectivo`] ?? '')}
                       className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
                   </div>
                   <div className="flex-1">
                     <p className="text-[9px] text-gray-500 mb-0.5">Transferencia</p>
-                    <input type="number" min="0" defaultValue={p.transferencia || ''} placeholder="0"
-                      onBlur={e => guardarPago(id, 'transferencia', e.target.value)}
+                    <MoneyInput value={pagoInputs[`${id}_transferencia`] ?? ''}
+                      onChange={v => setPagoInputs(prev => ({ ...prev, [`${id}_transferencia`]: v }))}
+                      onBlur={() => guardarPago(id, 'transferencia', pagoInputs[`${id}_transferencia`] ?? '')}
                       className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
                   </div>
                 </div>
@@ -1966,9 +1993,8 @@ function TabFinanzas({ data }) {
         {GASTOS_FIJOS.map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
-            <input type="number" min="0" value={gastoInputs[g.key] ?? ''}
-              onChange={e => setGastoInputs(prev => ({ ...prev, [g.key]: e.target.value }))}
-              placeholder="0"
+            <MoneyInput value={gastoInputs[g.key] ?? ''}
+              onChange={v => setGastoInputs(prev => ({ ...prev, [g.key]: v }))}
               className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-3 py-2 text-white text-sm outline-none" />
             <button onClick={() => guardarGasto(g.key)}
               className="bg-green-700 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center flex-shrink-0">✓</button>
@@ -1979,8 +2005,8 @@ function TabFinanzas({ data }) {
       {/* Caja de ahorro + resumen de la fecha */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
         <p className="text-sm font-bold text-green-400">Caja de ahorro — Fecha {fechaSel}</p>
-        <input type="number" min="0" value={cajaInput} onChange={e => setCajaInput(e.target.value)}
-          onBlur={guardarCaja} placeholder="0 (a mano, según decidas esta fecha)"
+        <MoneyInput value={cajaInput} onChange={setCajaInput}
+          onBlur={guardarCaja} placeholder="$ 0 (a mano, según decidas esta fecha)"
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
 
         <div className="grid grid-cols-2 gap-2 text-xs pt-1">
@@ -2042,14 +2068,14 @@ function TabFinanzas({ data }) {
           <div className="flex gap-1.5 mt-2">
             <div className="flex-1">
               <p className="text-[9px] text-gray-500 mb-0.5">Caja inicial</p>
-              <input type="number" min="0" value={cajaBaseInput} onChange={e => setCajaBaseInput(e.target.value)}
-                onBlur={guardarCajaBase} placeholder="0"
+              <MoneyInput value={cajaBaseInput} onChange={setCajaBaseInput}
+                onBlur={guardarCajaBase}
                 className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
             </div>
             <div className="flex-1">
               <p className="text-[9px] text-gray-500 mb-0.5">Objetivo premios</p>
-              <input type="number" min="0" value={objetivoInput} onChange={e => setObjetivoInput(e.target.value)}
-                onBlur={guardarObjetivo} placeholder="0"
+              <MoneyInput value={objetivoInput} onChange={setObjetivoInput}
+                onBlur={guardarObjetivo}
                 className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
             </div>
           </div>
