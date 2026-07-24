@@ -1395,7 +1395,8 @@ function TabCopas({ data }) {
       { fase: 'plata_final', label: 'Final',        minEq: 2 },
     ],
     bronce: [
-      { fase: 'bronce_final', label: 'Final', minEq: 2 },
+      { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
+      { fase: 'bronce_final', label: 'Final',      minEq: 2 },
     ],
   }
 

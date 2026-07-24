@@ -135,10 +135,50 @@ export default function Copas({ data }) {
     )
   }
 
+  const EsquemaCopas = () => (
+    <div className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/30 mb-4">
+      <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest mb-2">Cómo se juegan las copas</p>
+      <table className="w-full text-center border-collapse table-fixed">
+        <thead>
+          <tr>
+            <th className="text-[9px] text-gray-600 font-semibold pb-1.5 w-[19%]"></th>
+            <th className="text-[9px] text-gray-400 font-bold uppercase pb-1.5">Fecha 1</th>
+            <th className="text-[9px] text-gray-400 font-bold uppercase pb-1.5">Fecha 2</th>
+            <th className="text-[9px] text-gray-400 font-bold uppercase pb-1.5">Fecha 3</th>
+          </tr>
+        </thead>
+        <tbody className="text-[10px]">
+          <tr>
+            <td className="text-yellow-400 font-bold text-left pr-0.5">🥇 Oro</td>
+            <td className="bg-yellow-900/20 rounded-lg py-2 px-0.5 text-white">4tos<br />de Final</td>
+            <td className="bg-yellow-900/20 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
+            <td className="bg-yellow-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
+          </tr>
+          <tr><td colSpan={4} className="h-1.5"></td></tr>
+          <tr>
+            <td className="text-gray-300 font-bold text-left pr-0.5">🥈 Plata</td>
+            <td className="text-gray-600 py-2 px-0.5">No juega</td>
+            <td className="bg-gray-500/10 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
+            <td className="bg-gray-500/10 rounded-lg py-2 px-0.5 text-white">Final</td>
+          </tr>
+          <tr><td colSpan={4} className="h-1.5"></td></tr>
+          <tr>
+            <td className="text-orange-400 font-bold text-left pr-0.5">🥉 Bronce</td>
+            <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
+            <td className="text-gray-600 py-2 px-0.5">No juega</td>
+            <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. Copa Bronce: los últimos 4 de la Liga.</p>
+    </div>
+  )
+
   return (
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
         <h1 className="text-xl font-black text-white mb-4">Copas</h1>
+        <EsquemaCopas />
         <div className="flex gap-2 overflow-x-auto pb-1">
           {TABS_COPA.map(t => (
             <button
