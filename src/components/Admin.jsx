@@ -1815,7 +1815,8 @@ function MoneyInput({ value, onChange, onBlur, placeholder, className }) {
 
 function TabFinanzas({ data }) {
   const equipos = data.equipos || {}
-  const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
+  // Los equipos con pago 100% bonificado no participan del control de cuotas/deudas
+  const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado && !eq.exentoPago))
   const partidos = data.partidos || {}
   const finanzas = data.finanzas || {}
   const config = finanzas.config || {}
