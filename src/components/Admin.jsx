@@ -183,7 +183,9 @@ export default function Admin({ data }) {
           {TABS.map(t => (
             <button key={t} onClick={() => abrirTab(t)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
-                ${tab === t ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
+                ${tab === t
+                  ? (t === 'Finanzas' ? 'bg-red-600 text-white' : 'bg-green-600 text-white')
+                  : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
               {t}
             </button>
           ))}
@@ -1865,7 +1867,9 @@ function TabFinanzas({ data }) {
   const toggleConfirmado = equipoId =>
     update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { confirmado: !pagos[equipoId]?.confirmado })
 
-  const recaudadoFecha = Object.values(pagos).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
+  const recaudadoEfectivoFecha = Object.values(pagos).reduce((s, p) => s + Number(p.efectivo || 0), 0)
+  const recaudadoTransferenciaFecha = Object.values(pagos).reduce((s, p) => s + Number(p.transferencia || 0), 0)
+  const recaudadoFecha = recaudadoEfectivoFecha + recaudadoTransferenciaFecha
   const gastosFecha = Object.values(gastos).reduce((s, m) => s + Number(m || 0), 0)
   const gananciaFecha = recaudadoFecha - gastosFecha
   const repartoFecha = gananciaFecha - Number(cajaAhorro || 0)
@@ -1996,8 +2000,14 @@ function TabFinanzas({ data }) {
             <MoneyInput value={gastoInputs[g.key] ?? ''}
               onChange={v => setGastoInputs(prev => ({ ...prev, [g.key]: v }))}
               className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-3 py-2 text-white text-sm outline-none" />
-            <button onClick={() => guardarGasto(g.key)}
-              className="bg-green-700 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center flex-shrink-0">✓</button>
+            {(() => {
+              const confirmado = (gastoInputs[g.key] ?? '') !== '' && (gastoInputs[g.key] ?? '') === String(gastos[g.key] ?? '')
+              return (
+                <button onClick={() => guardarGasto(g.key)}
+                  className={`rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center flex-shrink-0 transition-all
+                    ${confirmado ? 'bg-green-900/40 text-green-600 scale-90' : 'bg-green-700 text-white'}`}>✓</button>
+              )
+            })()}
           </div>
         ))}
       </div>
@@ -2011,8 +2021,12 @@ function TabFinanzas({ data }) {
 
         <div className="grid grid-cols-2 gap-2 text-xs pt-1">
           <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Recaudado</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoFecha)}</p>
+            <p className="text-gray-500">Recaudado Efectivo</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoEfectivoFecha)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-gray-500">Recaudado Transferencia</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoTransferenciaFecha)}</p>
           </div>
           <div className="bg-[#111] rounded-lg p-2.5">
             <p className="text-gray-500">Gastos</p>
@@ -2022,8 +2036,8 @@ function TabFinanzas({ data }) {
             <p className="text-gray-500">Ganancia neta</p>
             <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaFecha)}</p>
           </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Reparto</p>
+          <div className="bg-[#111] rounded-lg p-2.5 col-span-2">
+            <p className="text-gray-500">Reparto <span className="text-gray-600">(ganancia neta − caja de ahorro)</span></p>
             <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoFecha)}</p>
           </div>
         </div>
