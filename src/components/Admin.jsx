@@ -1794,6 +1794,12 @@ function TabNovedades({ data }) {
 const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
 const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
+// Jornadas de la fase de copas, para seguir cobrando cuota una vez terminada la liga
+const COPA_JORNADAS = {
+  copa_1: ['oro_4tos', 'bronce_semi'],
+  copa_2: ['oro_semi', 'plata_semi'],
+  copa_3: ['oro_final', 'plata_final', 'bronce_final'],
+}
 const GASTOS_FIJOS = [
   { key: 'cancha', label: 'Cancha' },
   { key: 'arbitros', label: 'Árbitros' },
@@ -1827,7 +1833,26 @@ function TabFinanzas({ data }) {
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
 
-  const [fechaSel, setFechaSel] = useState(PRIMERA_FECHA_FINANZAS)
+  const [fechaSel, setFechaSel] = useState(String(PRIMERA_FECHA_FINANZAS))
+
+  // Equipos que efectivamente juegan en una fecha (liga o copa) — solo esos pagan cuota
+  const equiposQueJuegan = (fechaKey) => {
+    const ids = new Set()
+    if (COPA_JORNADAS[fechaKey]) {
+      const fases = COPA_JORNADAS[fechaKey]
+      Object.values(partidos).forEach(p => {
+        if (fases.includes(p.fase) && p.local && p.visitante) { ids.add(p.local); ids.add(p.visitante) }
+      })
+    } else {
+      const n = Number(fechaKey)
+      Object.values(partidos).forEach(p => {
+        if (p.fase === 'liga' && Number(p.numero) === n && !p.libre && p.local && p.visitante) {
+          ids.add(p.local); ids.add(p.visitante)
+        }
+      })
+    }
+    return ids
+  }
 
   const fFecha = finanzas[fechaSel] || {}
   const pagos = fFecha.pagos || {}
@@ -1877,8 +1902,8 @@ function TabFinanzas({ data }) {
   const gananciaFecha = recaudadoFecha - gastosFecha
   const repartoFecha = gananciaFecha - Number(cajaAhorro || 0)
 
-  // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante)
-  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && Number(n) >= PRIMERA_FECHA_FINANZAS)
+  // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante) + las jornadas de copas
+  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= PRIMERA_FECHA_FINANZAS || COPA_JORNADAS[n]))
 
   const resumenGeneral = fechasFinanzas.reduce((acc, [, f]) => {
     const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
@@ -1895,9 +1920,11 @@ function TabFinanzas({ data }) {
   const progresoObjetivo = objetivo > 0 ? Math.min(100, (cajaTotal / objetivo) * 100) : 0
 
   // Deuda total acumulada por equipo: deuda inicial + cuotas - pagos, desde la Fecha 4
+  // Solo se suma la cuota de las fechas donde el equipo efectivamente jugó
   const calcularDeudaTotal = eqId => {
     let total = Number(deudaInicial[eqId] || 0)
-    fechasFinanzas.forEach(([, f]) => {
+    fechasFinanzas.forEach(([n, f]) => {
+      if (!equiposQueJuegan(n).has(eqId)) return
       const c = Number(f.cuota || 0)
       const p = (f.pagos || {})[eqId] || {}
       total += c - (Number(p.efectivo || 0) + Number(p.transferencia || 0))
@@ -1910,6 +1937,9 @@ function TabFinanzas({ data }) {
     .filter(([, monto]) => monto > 0)
     .sort((a, b) => b[1] - a[1])
 
+  const idsQueJuegan = equiposQueJuegan(fechaSel)
+  const labelFecha = COPA_JORNADAS[fechaSel] ? `Copa · Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+
   return (
     <div className="pt-4 space-y-4">
 
@@ -1918,12 +1948,16 @@ function TabFinanzas({ data }) {
         <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
         <select
           value={fechaSel}
-          onChange={e => setFechaSel(Number(e.target.value))}
+          onChange={e => setFechaSel(e.target.value)}
           className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
         >
           {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
             const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
             return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+          })}
+          {Object.entries(COPA_JORNADAS).map(([key, fases], i) => {
+            const tiene = Object.values(partidos).some(p => fases.includes(p.fase))
+            return <option key={key} value={key}>Copa · Fecha {i + 1}{tiene ? '  ✓' : ''}</option>
           })}
         </select>
       </div>
@@ -1953,8 +1987,12 @@ function TabFinanzas({ data }) {
 
       {/* Pagos por equipo */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
-        <p className="text-sm font-bold text-green-400">Pagos — Fecha {fechaSel}</p>
+        <p className="text-sm font-bold text-green-400">Pagos — {labelFecha}</p>
+        {idsQueJuegan.size === 0 && (
+          <p className="text-gray-600 text-xs text-center py-3">Todavía no hay cruces cargados para esta fecha</p>
+        )}
         {Object.entries(equiposActivos)
+          .filter(([id]) => idsQueJuegan.has(id))
           .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
           .map(([id, eq]) => {
             const p = pagos[id] || {}
@@ -1998,7 +2036,7 @@ function TabFinanzas({ data }) {
 
       {/* Gastos */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
-        <p className="text-sm font-bold text-green-400">Gastos — Fecha {fechaSel}</p>
+        <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
         {GASTOS_FIJOS.map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
@@ -2019,7 +2057,7 @@ function TabFinanzas({ data }) {
 
       {/* Caja de ahorro + resumen de la fecha */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">Caja de ahorro — Fecha {fechaSel}</p>
+        <p className="text-sm font-bold text-green-400">Caja de ahorro — {labelFecha}</p>
         <MoneyInput value={cajaInput} onChange={setCajaInput}
           onBlur={guardarCaja} placeholder="$ 0 (a mano, según decidas esta fecha)"
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
