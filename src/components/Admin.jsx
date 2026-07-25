@@ -1858,16 +1858,16 @@ function TabFinanzas({ data }) {
   const pagos = fFecha.pagos || {}
   const gastos = fFecha.gastos || {}
   const cuota = fFecha.cuota ?? ''
-  const cajaAhorro = fFecha.cajaAhorro ?? ''
+  const gananciaOrg = fFecha.gananciaOrganizadores ?? ''
 
   const [cuotaInput, setCuotaInput] = useState(String(cuota))
-  const [cajaInput, setCajaInput] = useState(String(cajaAhorro))
+  const [orgInput, setOrgInput] = useState(String(gananciaOrg))
   const [gastoInputs, setGastoInputs] = useState({})
   const [cajaBaseInput, setCajaBaseInput] = useState(String(config.cajaBase ?? ''))
   const [objetivoInput, setObjetivoInput] = useState(String(config.objetivo ?? ''))
   const [pagoInputs, setPagoInputs] = useState({})
   useEffect(() => { setCuotaInput(String(cuota)) }, [fechaSel, cuota])
-  useEffect(() => { setCajaInput(String(cajaAhorro)) }, [fechaSel, cajaAhorro])
+  useEffect(() => { setOrgInput(String(gananciaOrg)) }, [fechaSel, gananciaOrg])
   useEffect(() => {
     const init = {}
     Object.keys(equiposActivos).forEach(id => {
@@ -1884,7 +1884,7 @@ function TabFinanzas({ data }) {
   useEffect(() => { setObjetivoInput(String(config.objetivo ?? '')) }, [config.objetivo])
 
   const guardarCuota = () => update(ref(db, `finanzas/${fechaSel}`), { cuota: cuotaInput === '' ? null : Number(cuotaInput) })
-  const guardarCaja = () => update(ref(db, `finanzas/${fechaSel}`), { cajaAhorro: cajaInput === '' ? null : Number(cajaInput) })
+  const guardarGananciaOrg = () => update(ref(db, `finanzas/${fechaSel}`), { gananciaOrganizadores: orgInput === '' ? null : Number(orgInput) })
   const guardarGasto = key => update(ref(db, `finanzas/${fechaSel}/gastos`), { [key]: gastoInputs[key] === '' ? null : Number(gastoInputs[key]) })
   const guardarCajaBase = () => update(ref(db, 'finanzas/config'), { cajaBase: cajaBaseInput === '' ? null : Number(cajaBaseInput) })
   const guardarObjetivo = () => update(ref(db, 'finanzas/config'), { objetivo: objetivoInput === '' ? null : Number(objetivoInput) })
@@ -1899,8 +1899,7 @@ function TabFinanzas({ data }) {
   const recaudadoTransferenciaFecha = Object.values(pagos).reduce((s, p) => s + Number(p.transferencia || 0), 0)
   const recaudadoFecha = recaudadoEfectivoFecha + recaudadoTransferenciaFecha
   const gastosFecha = Object.values(gastos).reduce((s, m) => s + Number(m || 0), 0)
-  const gananciaFecha = recaudadoFecha - gastosFecha
-  const repartoFecha = gananciaFecha - Number(cajaAhorro || 0)
+  const ingresoCajaFecha = recaudadoFecha - gastosFecha - Number(gananciaOrg || 0)
 
   // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante) + las jornadas de copas
   const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= PRIMERA_FECHA_FINANZAS || COPA_JORNADAS[n]))
@@ -1910,12 +1909,11 @@ function TabFinanzas({ data }) {
     const gas = Object.values(f.gastos || {}).reduce((s, m) => s + Number(m || 0), 0)
     acc.recaudado += rec
     acc.gastos += gas
-    acc.caja += Number(f.cajaAhorro || 0)
+    acc.gananciaOrg += Number(f.gananciaOrganizadores || 0)
     return acc
-  }, { recaudado: 0, gastos: 0, caja: 0 })
-  const gananciaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos
-  const repartoGeneral = gananciaGeneral - resumenGeneral.caja
-  const cajaTotal = Number(config.cajaBase || 0) + resumenGeneral.caja
+  }, { recaudado: 0, gastos: 0, gananciaOrg: 0 })
+  const ingresoCajaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos - resumenGeneral.gananciaOrg
+  const cajaTotal = Number(config.cajaBase || 0) + ingresoCajaGeneral
   const objetivo = Number(config.objetivo || 0)
   const progresoObjetivo = objetivo > 0 ? Math.min(100, (cajaTotal / objetivo) * 100) : 0
 
@@ -2056,33 +2054,33 @@ function TabFinanzas({ data }) {
       </div>
 
       {/* Caja de ahorro + resumen de la fecha */}
-      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
-        <p className="text-sm font-bold text-green-400">Caja de ahorro — {labelFecha}</p>
-        <MoneyInput value={cajaInput} onChange={setCajaInput}
-          onBlur={guardarCaja} placeholder="$ 0 (a mano, según decidas esta fecha)"
-          className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
-
-        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Recaudado Efectivo</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoEfectivoFecha)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Recaudado Transferencia</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(recaudadoTransferenciaFecha)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Gastos</p>
-            <p className="text-white font-bold text-sm">{fmtMoney(gastosFecha)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Ganancia neta</p>
-            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaFecha)}</p>
-          </div>
-          <div className="bg-[#111] rounded-lg p-2.5 col-span-2">
-            <p className="text-gray-500">Ingreso de $$$ a Caja de Ahorro</p>
-            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoFecha)}</p>
-          </div>
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
+        <p className="text-sm font-bold text-green-400 mb-1">Resumen — {labelFecha}</p>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs">Recaudado en Efectivo</p>
+          <p className="text-white font-bold text-sm">{fmtMoney(recaudadoEfectivoFecha)}</p>
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs">Recaudado en Transferencias</p>
+          <p className="text-white font-bold text-sm">{fmtMoney(recaudadoTransferenciaFecha)}</p>
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs">Total Recaudado</p>
+          <p className="text-white font-bold text-sm">{fmtMoney(recaudadoFecha)}</p>
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs">Gastos</p>
+          <p className="text-white font-bold text-sm">{fmtMoney(gastosFecha)}</p>
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs mb-1">Ganancia de los Organizadores</p>
+          <MoneyInput value={orgInput} onChange={setOrgInput}
+            onBlur={guardarGananciaOrg} placeholder="$ 0 (a mano, según decidas esta fecha)"
+            className="w-full bg-[#1a1a1a] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
+        </div>
+        <div className="bg-[#111] rounded-lg p-2.5">
+          <p className="text-gray-500 text-xs">Ingreso de $$$ a Caja de ahorro <span className="text-gray-600">(Ahorro para los premios)</span></p>
+          <p className="text-yellow-400 font-bold text-sm">{fmtMoney(ingresoCajaFecha)}</p>
         </div>
       </div>
 
@@ -2099,12 +2097,12 @@ function TabFinanzas({ data }) {
             <p className="text-white font-bold text-sm">{fmtMoney(resumenGeneral.gastos)}</p>
           </div>
           <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Ganancia neta</p>
-            <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaGeneral)}</p>
+            <p className="text-gray-500">Ganancia de los Organizadores</p>
+            <p className="text-green-400 font-bold text-sm">{fmtMoney(resumenGeneral.gananciaOrg)}</p>
           </div>
           <div className="bg-[#111] rounded-lg p-2.5">
-            <p className="text-gray-500">Reparto acumulado</p>
-            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoGeneral)}</p>
+            <p className="text-gray-500">Ingreso $$$ a Caja de ahorro</p>
+            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(ingresoCajaGeneral)}</p>
           </div>
         </div>
 
