@@ -187,10 +187,10 @@ export default function Home({ data }) {
       {/* Footer: Redes + Contacto — siempre visible */}
       <div className="absolute bottom-[72px] inset-x-0 px-4 pb-3">
 
-        {/* Fila 1: labels — cols 1-2 "Nuestras Redes", cols 3-4 "Contáctanos · Organizadores" */}
+        {/* Fila 1: labels — cols 1-2 "Nuestras Redes", cols 3-4 "Organizadores" */}
         <div className="grid grid-cols-4 mb-2">
           <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Nuestras Redes</div>
-          <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Contáctanos · Organizadores</div>
+          <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Organizadores</div>
         </div>
 
         {/* Fila 2: íconos — misma fila de grid = mismo nivel */}
