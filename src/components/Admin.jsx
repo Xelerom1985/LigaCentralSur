@@ -2080,7 +2080,7 @@ function TabFinanzas({ data }) {
             <p className="text-green-400 font-bold text-sm">{fmtMoney(gananciaFecha)}</p>
           </div>
           <div className="bg-[#111] rounded-lg p-2.5 col-span-2">
-            <p className="text-gray-500">Reparto <span className="text-gray-600">(ganancia neta − caja de ahorro)</span></p>
+            <p className="text-gray-500">Ingreso de $$$ a Caja de Ahorro</p>
             <p className="text-yellow-400 font-bold text-sm">{fmtMoney(repartoFecha)}</p>
           </div>
         </div>
