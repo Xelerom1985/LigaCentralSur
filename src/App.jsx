@@ -32,10 +32,16 @@ import Admin from './components/Admin'
 const PIN = '2041'
 const CRED_KEY = 'lcs_admin_cred'
 const SESSION_KEY = 'lcs_admin_session'
+const DATA_CACHE_KEY = 'lcs_data_cache'
 const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'analytics']
 
 export default function App() {
   const [data, setData] = useState({})
+  // Última copia de los datos públicos guardada en el dispositivo, para poder
+  // ver Inicio/Fixture/Tabla/Stats sin conexión (Equipos y Copas quedan afuera)
+  const [cachedData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DATA_CACHE_KEY) || '{}') } catch { return {} }
+  })
   const [seccion, setSeccion] = useState('home')
   const [authed, setAuthed] = useState(false)
   const [showPin, setShowPin] = useState(false)
@@ -60,6 +66,17 @@ export default function App() {
     )
     return () => unsubs.forEach(u => u())
   }, [])
+
+  // Guardar en el dispositivo cada actualización de los datos públicos (nunca finanzas)
+  useEffect(() => {
+    const publicos = Object.fromEntries(PUBLIC_PATHS.map(k => [k, data[k]]).filter(([, v]) => v !== undefined))
+    if (Object.keys(publicos).length === 0) return
+    try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(publicos)) } catch {}
+  }, [data])
+
+  // Datos con respaldo offline: si todavía no llegó nada de Firebase, se usa
+  // la última copia guardada. Solo se usa en Inicio/Fixture/Tabla/Stats.
+  const offlineData = { ...cachedData, ...data }
 
   // Finanzas: privado, solo se escucha estando autenticado
   useEffect(() => {
@@ -311,12 +328,12 @@ export default function App() {
       )}
 
       {/* Secciones */}
-      {seccion === 'home' && <Home data={data} />}
-      {seccion === 'fixture' && <Fixture data={data} />}
-      {seccion === 'tabla' && <Tabla data={data} />}
+      {seccion === 'home' && <Home data={offlineData} />}
+      {seccion === 'fixture' && <Fixture data={offlineData} />}
+      {seccion === 'tabla' && <Tabla data={offlineData} />}
       {seccion === 'copas' && <Copas data={data} />}
       {seccion === 'equipos' && <Equipos data={data} />}
-      {seccion === 'stats' && <Stats data={data} />}
+      {seccion === 'stats' && <Stats data={offlineData} />}
       {seccion === 'admin' && authed && <Admin data={data} />}
 
       <Navbar seccion={seccion} navegar={navegar} />
