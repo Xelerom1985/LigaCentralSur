@@ -1997,8 +1997,11 @@ function TabFinanzas({ data }) {
           .map(([id, eq]) => {
             const p = pagos[id] || {}
             const deudaTotal = calcularDeudaTotal(id)
+            const tarjetaClase = p.confirmado
+              ? (deudaTotal > 0 ? 'bg-red-900/20 border border-red-700/40' : 'bg-green-900/20 border border-green-700/40')
+              : 'bg-[#111]'
             return (
-              <div key={id} className="bg-[#111] rounded-xl p-2.5 space-y-1.5">
+              <div key={id} className={`rounded-xl p-2.5 space-y-1.5 ${tarjetaClase}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
                   <button onClick={() => toggleConfirmado(id)} className="flex-shrink-0 text-base leading-none" title="Marcar operación cerrada">
