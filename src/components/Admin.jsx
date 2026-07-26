@@ -489,7 +489,6 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
   const [saving, setSaving] = useState(false)
-  const [horaSaved, setHoraSaved] = useState(false)
   const [showTarj, setShowTarj] = useState(false)
   const [tarjEq, setTarjEq] = useState('')
   const [tarjJug, setTarjJug] = useState('')
@@ -529,22 +528,6 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
       .map(([jid, j]) => ({ jid, nombre: j.nombre, numero: j.numero || '' }))
       .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
-  const guardarHora = () => {
-    const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
-    update(ref(db, `partidos/${p.id}`), {
-      hora: hora || null,
-      fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
-    })
-    setHoraSaved(true)
-  }
-
-  const guardarResultado = async () => {
-    if (gl === '' || gv === '') return
-    setSaving(true)
-    await update(ref(db, `partidos/${p.id}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
-    setSaving(false)
-  }
-
   // Un toque en el botón del jugador = +1 gol
   const tapGol = (equipoId, jugadorId) =>
     push(ref(db, `goles/${p.id}`), { equipoId, jugadorId, enContra: false })
@@ -575,8 +558,25 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
     setTarjEq(''); setTarjJug(''); setTarjTipo('amarilla')
   }
 
+  // Cerrar partido: guarda resultado + hora de una y bloquea la tarjeta (reemplaza los dos tildes sueltos)
+  const cerrarPartido = async () => {
+    setSaving(true)
+    const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
+    await update(ref(db, `partidos/${p.id}`), {
+      golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true,
+      hora: hora || null,
+      fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
+      cerrado: true,
+    })
+    setSaving(false)
+  }
+  const reabrirPartido = () => update(ref(db, `partidos/${p.id}`), { cerrado: false })
+
+  const partidoCerrado = !!p.cerrado
+  const bloqueado = cerrada || partidoCerrado
+
   return (
-    <div className={`rounded-xl border overflow-hidden transition-all ${p.jugado ? 'border-green-700/50 bg-[#1a1a1a]' : 'border-green-900/20 bg-[#1a1a1a]'}`}>
+    <div className={`rounded-xl border overflow-hidden transition-all ${partidoCerrado ? 'border-green-600 bg-green-900/20' : p.jugado ? 'border-green-700/50 bg-[#1a1a1a]' : 'border-green-900/20 bg-[#1a1a1a]'}`}>
 
       {/* Header: equipos + resultado */}
       <div className={`px-3 py-2.5 ${p.jugado ? 'bg-green-900/20' : ''}`}>
@@ -588,17 +588,11 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
           </div>
           {/* Marcador grande */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)} disabled={cerrada}
+            <input type="number" min="0" value={gl} onChange={e => setGl(e.target.value)} disabled={bloqueado}
               className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
             <span className="text-gray-600 font-black text-lg">-</span>
-            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)} disabled={cerrada}
+            <input type="number" min="0" value={gv} onChange={e => setGv(e.target.value)} disabled={bloqueado}
               className="w-10 bg-[#111] border border-green-900/30 rounded-lg text-white text-xl font-black text-center outline-none py-1 disabled:opacity-50" />
-            {!cerrada && (
-              <button onClick={guardarResultado}
-                className="bg-green-600 text-white rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center ml-1">
-                {saving ? '⏳' : '✓'}
-              </button>
-            )}
           </div>
           <div className="flex-1 flex items-center gap-1.5 min-w-0">
             {equipos[p.visitante]?.escudo && <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
@@ -607,14 +601,30 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
         </div>
 
         {/* Solo hora */}
-        {!cerrada && (
+        {!bloqueado && (
           <div className="flex gap-2">
-            <input type="time" value={hora} onChange={e => { setHora(e.target.value); setHoraSaved(false) }}
+            <input type="time" value={hora} onChange={e => setHora(e.target.value)}
               className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
-            <button onClick={guardarHora} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${horaSaved ? 'bg-green-600 text-white border border-green-600' : 'bg-[#222] border border-green-900/30 text-green-400'}`}>✓</button>
           </div>
         )}
       </div>
+
+      {/* Cerrar partido: un solo botón que guarda resultado + hora y bloquea todo */}
+      {!cerrada && (
+        <div className="px-3 pb-2.5">
+          {!partidoCerrado ? (
+            <button onClick={cerrarPartido} disabled={saving || gl === '' || gv === ''}
+              className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all">
+              {saving ? '⏳ Cerrando...' : '🔒 CERRAR PARTIDO'}
+            </button>
+          ) : (
+            <button onClick={reabrirPartido}
+              className="w-full bg-[#111] border border-green-700/40 text-green-400 rounded-xl py-2 text-xs font-semibold active:scale-95 transition-all">
+              🔓 Reabrir partido
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Goleadores — 2 columnas por equipo */}
       <div className="px-3 py-2 border-t border-green-900/10">
@@ -643,7 +653,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                             {jug?.nombre?.split(' ')[0] || '?'}
                             {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
                           </span>
-                          {!cerrada && (
+                          {!bloqueado && (
                             <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
                           )}
                         </div>
@@ -653,7 +663,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                 )}
 
                 {/* Select jugador registrado */}
-                {!cerrada && jugs.length > 0 && (
+                {!bloqueado && jugs.length > 0 && (
                   <div className="flex gap-1">
                     <select
                       value={selGol[eqId] || ''}
@@ -672,7 +682,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                 )}
 
                 {/* Entrada rápida */}
-                {!cerrada && (
+                {!bloqueado && (
                   <div className="flex gap-1">
                     <input
                       type="text"
@@ -720,7 +730,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                     {jug?.nombre || '?'}
                     <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
                   </span>
-                  {!cerrada && (
+                  {!bloqueado && (
                     <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
                   )}
                 </div>
@@ -728,7 +738,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
             })}
 
             {/* Agregar tarjeta */}
-            {!cerrada && (
+            {!bloqueado && (
               <div className="space-y-1.5 pt-1">
                 <div className="flex gap-1.5">
                   <select value={tarjEq} onChange={e => { setTarjEq(e.target.value); setTarjJug('') }}
@@ -764,7 +774,8 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
       {p.jugado && (
         <div className="bg-green-900/20 px-3 py-1 flex items-center justify-between">
           <span className="text-[11px] text-green-400">✓ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
-          {cerrada && <span className="text-[10px] text-gray-500 font-bold">🔒 CERRADA</span>}
+          {cerrada && <span className="text-[10px] text-gray-500 font-bold">🔒 FECHA CERRADA</span>}
+          {!cerrada && partidoCerrado && <span className="text-[10px] text-green-400 font-bold">🔒 CERRADO</span>}
         </div>
       )}
     </div>
@@ -1319,15 +1330,15 @@ function TabPartidos({ data }) {
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
               Fecha {fechaSel} · {partidosFecha.length} partidos
             </p>
-            <div className="flex items-center gap-3">
-              <button onClick={toggleCerrada} className={`text-[11px] font-bold ${cerrada ? 'text-green-400' : 'text-gray-400'}`}>
-                {cerrada ? '🔓 Reabrir' : '🔒 Cerrar fecha'}
-              </button>
-              {!cerrada && (
-                <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
-              )}
-            </div>
+            {!cerrada && (
+              <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
+            )}
           </div>
+
+          <button onClick={toggleCerrada}
+            className={`w-full rounded-xl py-3 text-sm font-bold active:scale-95 transition-all ${cerrada ? 'bg-[#111] border border-green-700/40 text-green-400' : 'bg-green-600 text-white'}`}>
+            {cerrada ? '🔓 REABRIR FECHA' : '🔒 CERRAR FECHA'}
+          </button>
 
           {partidosFecha.map(p => (
             <PartidoCard
