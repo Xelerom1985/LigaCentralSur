@@ -179,6 +179,11 @@ export default function Copas({ data }) {
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
         <h1 className="text-xl font-black text-white mb-4">Copas</h1>
         <EsquemaCopas />
+        <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3 mb-4">
+          <p className="text-xs text-yellow-200 leading-relaxed">
+            <span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa (Oro, Plata y Bronce).
+          </p>
+        </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {TABS_COPA.map(t => (
             <button
