@@ -177,6 +177,9 @@ export default function App() {
     if (authed) {
       adminSignOut().catch(() => {})
       localStorage.removeItem(SESSION_KEY)
+      // 'lcs_finanzas_session' vive en Admin.jsx — se limpia acá también para que
+      // cerrar sesión general vuelva a pedir el PIN de Finanzas la próxima vez
+      localStorage.removeItem('lcs_finanzas_session')
       setAuthed(false)
       setSeccion('home')
     } else {

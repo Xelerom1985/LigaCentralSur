@@ -23,7 +23,7 @@ const FINANZAS_SESSION_KEY = 'lcs_finanzas_session'
 export default function Admin({ data }) {
   const [tab, setTab] = useState('Equipos')
 
-  const [finanzasAuthed, setFinanzasAuthed] = useState(() => sessionStorage.getItem(FINANZAS_SESSION_KEY) === '1')
+  const [finanzasAuthed, setFinanzasAuthed] = useState(() => localStorage.getItem(FINANZAS_SESSION_KEY) === '1')
   const [showFinanzasPin, setShowFinanzasPin] = useState(false)
   const [finanzasPinInput, setFinanzasPinInput] = useState('')
   const [finanzasPinError, setFinanzasPinError] = useState(false)
@@ -45,7 +45,7 @@ export default function Admin({ data }) {
   }, [])
 
   const entrarFinanzas = () => {
-    sessionStorage.setItem(FINANZAS_SESSION_KEY, '1')
+    localStorage.setItem(FINANZAS_SESSION_KEY, '1')
     setFinanzasAuthed(true); setShowFinanzasPin(false); setFinanzasPinInput(''); setFinanzasPinError(false)
     setTab('Finanzas')
   }
