@@ -14,6 +14,9 @@ dist-ssr
 .firebase
 .env
 
+# Scripts locales de mantenimiento (rutas hardcodeadas a la PC de Fernando)
+scripts/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

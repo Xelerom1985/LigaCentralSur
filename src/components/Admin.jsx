@@ -1913,7 +1913,9 @@ function TabFinanzas({ data }) {
     return acc
   }, { recaudado: 0, gastos: 0, gananciaOrg: 0 })
   const ingresoCajaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos - resumenGeneral.gananciaOrg
-  const cajaTotal = Number(config.cajaBase || 0) + ingresoCajaGeneral
+  // La Caja Inicial es el valor real que Fernando actualiza a mano (incluye retiros para gastos adicionales),
+  // por eso el objetivo se calcula sobre ese campo y no sobre el ingreso acumulado automático
+  const cajaTotal = Number(config.cajaBase || 0)
   const objetivo = Number(config.objetivo || 0)
   const progresoObjetivo = objetivo > 0 ? Math.min(100, (cajaTotal / objetivo) * 100) : 0
 
@@ -2109,20 +2111,20 @@ function TabFinanzas({ data }) {
         {/* Caja de ahorro + objetivo premios */}
         <div className="bg-[#111] rounded-lg p-2.5">
           <div className="flex justify-between items-baseline mb-1.5">
-            <span className="text-gray-500 text-xs">Caja de ahorro (premios)</span>
-            <span className="text-blue-400 font-bold text-sm">{fmtMoney(cajaTotal)}</span>
+            <span className="text-gray-500 text-xs">Falta para el objetivo</span>
+            <span className="text-blue-400 font-bold text-sm">{fmtMoney(Math.max(0, objetivo - cajaTotal))}</span>
           </div>
           {objetivo > 0 && (
             <>
               <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progresoObjetivo}%` }} />
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">{progresoObjetivo.toFixed(0)}% del objetivo ({fmtMoney(objetivo)})</p>
+              <p className="text-[10px] text-gray-500 mt-1">Vas un {progresoObjetivo.toFixed(0)}% para llegar al objetivo ({fmtMoney(objetivo)}) · llevás {fmtMoney(cajaTotal)}</p>
             </>
           )}
           <div className="flex gap-1.5 mt-2">
             <div className="flex-1">
-              <p className="text-[9px] text-gray-500 mb-0.5">Caja inicial</p>
+              <p className="text-[9px] text-gray-500 mb-0.5">Caja de Ahorro TOTAL</p>
               <MoneyInput value={cajaBaseInput} onChange={setCajaBaseInput}
                 onBlur={guardarCajaBase}
                 className="w-full bg-[#1a1a1a] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none" />
