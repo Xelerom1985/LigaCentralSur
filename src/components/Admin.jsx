@@ -489,6 +489,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
   const [saving, setSaving] = useState(false)
+  const [savedHora, setSavedHora] = useState(false)
   const [showTarj, setShowTarj] = useState(false)
   const [tarjEq, setTarjEq] = useState('')
   const [tarjJug, setTarjJug] = useState('')
@@ -570,6 +571,16 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
     })
     setSaving(false)
   }
+  const guardarHora = async () => {
+    const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
+    await update(ref(db, `partidos/${p.id}`), {
+      hora: hora || null,
+      fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
+    })
+    setSavedHora(true)
+    setTimeout(() => setSavedHora(false), 2000)
+  }
+
   const reabrirPartido = () => update(ref(db, `partidos/${p.id}`), { cerrado: false })
 
   const partidoCerrado = !!p.cerrado
@@ -603,8 +614,12 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
         {/* Solo hora */}
         {!bloqueado && (
           <div className="flex gap-2">
-            <input type="time" value={hora} onChange={e => setHora(e.target.value)}
+            <input type="time" value={hora} onChange={e => { setHora(e.target.value); setSavedHora(false) }}
               className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
+            <button onClick={guardarHora}
+              className={`px-3 rounded-lg text-sm font-bold transition-all active:scale-95 ${savedHora ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}>
+              {savedHora ? '✓' : '💾'}
+            </button>
           </div>
         )}
       </div>
