@@ -4,6 +4,7 @@ export default function Equipos({ data }) {
   const equipos = data.equipos || {}
   const jugadores = data.jugadores || {}
   const [equipoId, setEquipoId] = useState(null)
+  const [fotoAmpliada, setFotoAmpliada] = useState(null)
 
   if (equipoId) {
     const equipo = equipos[equipoId] || {}
@@ -35,7 +36,16 @@ export default function Equipos({ data }) {
           </div>
         </div>
 
-        <div className="px-4 pb-4 relative">
+        {equipo.foto && (
+          <div className="px-4 pt-4">
+            <button onClick={() => setFotoAmpliada(equipo.foto)} className="block w-full active:scale-[0.98] transition-transform">
+              <img src={equipo.foto} className="w-full aspect-[4/3] rounded-xl border border-green-900/30 object-cover" />
+              <p className="text-[10px] text-gray-500 text-center mt-1">Tocá la foto para agrandar</p>
+            </button>
+          </div>
+        )}
+
+        <div className="px-4 pb-4 pt-4 relative">
           {equipo.escudo && (
             <div
               className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-20 pointer-events-none"
@@ -64,6 +74,15 @@ export default function Equipos({ data }) {
             )
           }
         </div>
+
+        {fotoAmpliada && (
+          <div onClick={() => setFotoAmpliada(null)}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <img src={fotoAmpliada} className="max-w-full max-h-full object-contain rounded-lg" />
+            <button onClick={() => setFotoAmpliada(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center">✕</button>
+          </div>
+        )}
       </div>
     )
   }

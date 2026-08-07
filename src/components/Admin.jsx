@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { db, ref, push, update, remove, set } from '../firebase'
 import { compressImage } from '../utils/compressImage'
+import CropModal from './CropModal'
 
 const FASES_OPT = [
   { value: 'liga', label: 'Liga' },
@@ -209,6 +210,8 @@ function TabEquipos({ data }) {
   const equipos = data.equipos || {}
   const [nombre, setNombre] = useState('')
   const [escudo, setEscudo] = useState(null)
+  const [foto, setFoto] = useState(null)
+  const [cropSrc, setCropSrc] = useState(null)
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -218,27 +221,39 @@ function TabEquipos({ data }) {
     setEscudo(await compressImage(f, 300, 0.8))
   }
 
+  // Al elegir la foto se abre el recortador; el resultado recortado queda en `foto`
+  const handleFoto = e => {
+    const f = e.target.files[0]
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = () => setCropSrc(reader.result)
+    reader.readAsDataURL(f)
+    e.target.value = ''
+  }
+
   const guardar = async () => {
     if (!nombre.trim()) return
     setLoading(true)
     if (editId) {
       const payload = { nombre: nombre.trim() }
       if (escudo !== undefined) payload.escudo = escudo || null
+      if (foto !== undefined) payload.foto = foto || null
       await update(ref(db, `equipos/${editId}`), payload)
     } else {
-      await push(ref(db, 'equipos'), { nombre: nombre.trim(), escudo: escudo || null })
+      await push(ref(db, 'equipos'), { nombre: nombre.trim(), escudo: escudo || null, foto: foto || null })
     }
-    setNombre(''); setEscudo(null); setEditId(null); setLoading(false)
+    setNombre(''); setEscudo(null); setFoto(null); setEditId(null); setLoading(false)
   }
 
   const editar = (id, eq) => {
     setEditId(id)
     setNombre(eq.nombre)
     setEscudo(undefined)
+    setFoto(undefined)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const cancelar = () => { setEditId(null); setNombre(''); setEscudo(null) }
+  const cancelar = () => { setEditId(null); setNombre(''); setEscudo(null); setFoto(null) }
 
   const eliminar = async id => {
     if (!confirm('¿Eliminar equipo?')) return
@@ -270,6 +285,14 @@ function TabEquipos({ data }) {
           <p className="text-xs text-gray-500 mb-1">{editId ? 'Nuevo escudo (opcional)' : 'Escudo (opcional)'}</p>
           <input type="file" accept="image/*" onChange={handleImagen} className="text-xs text-gray-400" />
           {escudo && escudo !== undefined && <img src={escudo} className="w-16 h-16 object-contain mt-2 rounded-lg" />}
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">{editId ? 'Nueva foto del equipo (opcional)' : 'Foto del equipo (opcional)'}</p>
+          <input type="file" accept="image/*" onChange={handleFoto} className="text-xs text-gray-400" />
+          {foto && foto !== undefined && <img src={foto} className="w-full max-h-48 object-cover mt-2 rounded-lg" />}
+          {editId && foto === undefined && equipos[editId]?.foto && (
+            <img src={equipos[editId].foto} className="w-full max-h-48 object-cover mt-2 rounded-lg opacity-70" />
+          )}
         </div>
         <div className="flex gap-2">
           {editId && (
@@ -312,6 +335,14 @@ function TabEquipos({ data }) {
         ))}
         {Object.keys(equipos).length === 0 && <p className="text-gray-600 text-sm text-center py-4">Sin equipos</p>}
       </div>
+
+      {cropSrc && (
+        <CropModal
+          image={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onConfirm={recortada => { setFoto(recortada); setCropSrc(null) }}
+        />
+      )}
     </div>
   )
 }
