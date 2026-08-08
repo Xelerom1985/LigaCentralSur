@@ -1891,15 +1891,8 @@ function TabFinanzas({ data }) {
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
 
-  // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada
-  const fechaActual = (() => {
-    for (let n = PRIMERA_FECHA_FINANZAS; n <= totalFechas; n++) {
-      if (!fechasCerradas[n]) return n
-    }
-    return totalFechas
-  })()
-
   const [fechaSel, setFechaSel] = useState(String(PRIMERA_FECHA_FINANZAS))
+  const fechaInitRef = useRef(false)
 
   // Equipos que efectivamente juegan en una fecha (liga o copa) — solo esos pagan cuota
   const equiposQueJuegan = (fechaKey) => {
@@ -1919,6 +1912,32 @@ function TabFinanzas({ data }) {
     }
     return ids
   }
+
+  // Una fecha está "cerrada" en Finanzas cuando todos los equipos que juegan tienen su pago confirmado (candado cerrado)
+  const pagosCompletos = (fechaKey) => {
+    const activos = [...equiposQueJuegan(fechaKey)].filter(id => equiposActivos[id])
+    if (activos.length === 0) return false
+    const p = (finanzas[fechaKey] || {}).pagos || {}
+    return activos.every(id => p[id]?.confirmado)
+  }
+
+  const fechaFinCerrada = (n) => !!fechasCerradas[n] || pagosCompletos(String(n))
+
+  // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada por pagos
+  const fechaActual = (() => {
+    for (let n = PRIMERA_FECHA_FINANZAS; n <= totalFechas; n++) {
+      if (!fechaFinCerrada(n)) return n
+    }
+    return totalFechas
+  })()
+
+  // Al entrar a Finanzas, abrir automáticamente en la fecha en curso (la verde)
+  useEffect(() => {
+    if (fechaInitRef.current) return
+    setFechaSel(String(fechaActual))
+    fechaInitRef.current = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fFecha = finanzas[fechaSel] || {}
   const pagos = fFecha.pagos || {}
@@ -2015,7 +2034,7 @@ function TabFinanzas({ data }) {
         <div className="grid grid-cols-3 gap-2">
           {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
             const sel = String(fechaSel) === String(n)
-            const estado = fechasCerradas[n] ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
+            const estado = fechaFinCerrada(n) ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
             const base = estado === 'cerrada'
               ? 'bg-gray-700 text-gray-300'
               : estado === 'actual'
