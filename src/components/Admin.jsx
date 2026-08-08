@@ -1886,9 +1886,18 @@ function TabFinanzas({ data }) {
   const finanzas = data.finanzas || {}
   const config = finanzas.config || {}
   const deudaInicial = config.deudaInicial || {}
+  const fechasCerradas = data.fechas_cerradas || {}
 
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 9
+
+  // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada
+  const fechaActual = (() => {
+    for (let n = PRIMERA_FECHA_FINANZAS; n <= totalFechas; n++) {
+      if (!fechasCerradas[n]) return n
+    }
+    return totalFechas
+  })()
 
   const [fechaSel, setFechaSel] = useState(String(PRIMERA_FECHA_FINANZAS))
 
@@ -2002,21 +2011,33 @@ function TabFinanzas({ data }) {
 
       {/* Fecha del torneo */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
-        <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
-        <select
-          value={fechaSel}
-          onChange={e => setFechaSel(e.target.value)}
-          className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
-        >
+        <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Fecha del torneo</p>
+        <div className="grid grid-cols-3 gap-2">
           {Array.from({ length: totalFechas - PRIMERA_FECHA_FINANZAS + 1 }, (_, i) => i + PRIMERA_FECHA_FINANZAS).map(n => {
-            const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
-            return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
+            const sel = String(fechaSel) === String(n)
+            const estado = fechasCerradas[n] ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
+            const base = estado === 'cerrada'
+              ? 'bg-gray-700 text-gray-300'
+              : estado === 'actual'
+                ? 'bg-green-600 text-white'
+                : 'bg-red-700 text-white'
+            return (
+              <button key={n} onClick={() => setFechaSel(String(n))}
+                className={`rounded-lg py-2.5 text-sm font-bold transition-all active:scale-95 ${base} ${sel ? 'ring-2 ring-white' : ''}`}>
+                Fecha {n}
+              </button>
+            )
           })}
-          {Object.entries(COPA_JORNADAS).map(([key, fases], i) => {
-            const tiene = Object.values(partidos).some(p => fases.includes(p.fase))
-            return <option key={key} value={key}>Copa · Fecha {i + 1}{tiene ? '  ✓' : ''}</option>
+          {Object.entries(COPA_JORNADAS).map(([key], i) => {
+            const sel = fechaSel === key
+            return (
+              <button key={key} onClick={() => setFechaSel(key)}
+                className={`rounded-lg py-2.5 text-xs font-bold transition-all active:scale-95 bg-red-700 text-white ${sel ? 'ring-2 ring-white' : ''}`}>
+                Copa {i + 1}
+              </button>
+            )
           })}
-        </select>
+        </div>
       </div>
 
       {/* Cuota por equipo */}
