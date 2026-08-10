@@ -1197,17 +1197,25 @@ function TabPartidos({ data }) {
 
         {/* Fecha del torneo */}
         <div>
-          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Fecha del torneo</p>
-          <select
-            value={fechaSel}
-            onChange={e => setFechaSel(Number(e.target.value))}
-            className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 text-white text-base font-bold outline-none"
-          >
-            {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
-              const tiene = Object.values(partidos).some(p => p.fase === 'liga' && p.numero === n)
-              return <option key={n} value={n}>Fecha {n}{tiene ? '  ✓' : ''}</option>
-            })}
-          </select>
+          <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Fecha del torneo</p>
+          {(() => {
+            const nums = [...new Set(Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero))].sort((a, b) => a - b)
+            const fechaActual = nums.find(n => !fechasCerradas[n]) ?? null
+            return (
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+                  const estado = fechasCerradas[n] ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
+                  const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : estado === 'actual' ? 'bg-green-600 text-white' : 'bg-red-700 text-white'
+                  return (
+                    <button key={n} onClick={() => setFechaSel(n)}
+                      className={`rounded-lg py-2.5 text-sm font-bold transition-all active:scale-95 ${base} ${fechaSel === n ? 'ring-2 ring-white' : ''}`}>
+                      Fecha {n}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Día de partidos — botón que abre calendario nativo */}
