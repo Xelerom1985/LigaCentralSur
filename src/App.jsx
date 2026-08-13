@@ -165,6 +165,7 @@ export default function App() {
     }
     localStorage.setItem(SESSION_KEY, '1')
     setAuthed(true); setShowPin(false); setPinInput(''); setPinError(false); setSeccion('admin')
+    if (!torneo) setTorneo('sabados')
   }
 
   const navegar = sec => {
