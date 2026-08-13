@@ -22,7 +22,7 @@ const FINANZAS_CRED_KEY = 'lcs_finanzas_cred'
 const FINANZAS_SESSION_KEY = 'lcs_finanzas_session'
 
 export default function Admin({ data }) {
-  const [tab, setTab] = useState('Equipos')
+  const [tab, setTab] = useState('Partidos')
 
   const [finanzasAuthed, setFinanzasAuthed] = useState(() => localStorage.getItem(FINANZAS_SESSION_KEY) === '1')
   const [showFinanzasPin, setShowFinanzasPin] = useState(false)

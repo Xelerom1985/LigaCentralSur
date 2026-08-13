@@ -254,7 +254,7 @@ export default function App() {
   const elegirTorneo = t => {
     if (t === 'domingos' && !authed) return
     setTorneo(t)
-    setSeccion('home')
+    setSeccion(authed ? 'admin' : 'home')
   }
 
   // ── LOBBY ──────────────────────────────────────────────────────────
