@@ -154,11 +154,13 @@ export default function App() {
     }
   }, [])
 
+  const [pinErrorMsg, setPinErrorMsg] = useState('PIN incorrecto')
   const entrarAdmin = async () => {
     try {
       await adminSignIn()
-    } catch {
-      setPinError(true); setTimeout(() => setPinError(false), 1200)
+    } catch(e) {
+      setPinErrorMsg(e?.code === 'auth/invalid-credential' || e?.code === 'auth/wrong-password' ? 'Contraseña Firebase incorrecta' : `Error: ${e?.code || e?.message || 'desconocido'}`)
+      setPinError(true); setTimeout(() => setPinError(false), 3000)
       return
     }
     localStorage.setItem(SESSION_KEY, '1')
@@ -271,22 +273,31 @@ export default function App() {
         )}
       </button>
 
-      <div className="relative z-10 min-h-dvh flex flex-col items-center justify-center px-8 gap-6">
-        <img src="/logo.png" className="w-28 h-28 object-contain drop-shadow-2xl mb-2" />
+      <div className="relative z-10 min-h-dvh flex flex-col items-center justify-start pt-[22vh] px-8 gap-5">
         <h1 className="text-white text-3xl font-black tracking-tight text-center drop-shadow-lg">Liga Central Sur</h1>
 
-        <div className="w-full max-w-xs flex flex-col gap-4 mt-4">
+        <div className="w-full max-w-xs flex flex-col gap-4 mt-2">
+          {/* SÁBADOS */}
           <button onClick={() => elegirTorneo('sabados')}
-            className="w-full bg-green-600 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl">
-            ⚽ SÁBADOS LIBRE
+            className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
+            <span>⚽ SÁBADOS LIBRE</span>
+            <span className="text-sm font-semibold text-green-200/80 tracking-widest uppercase">Pasco Central</span>
           </button>
 
-          <button onClick={() => elegirTorneo('domingos')} disabled={!authed}
-            className={`w-full rounded-2xl py-5 text-xl font-black transition-all shadow-2xl ${authed ? 'bg-green-800 text-white active:scale-95' : 'bg-[#1a1a1a] text-gray-600 border border-gray-800'}`}>
-            {authed ? '⚽ DOMINGOS' : '🔒 DOMINGOS'}
-          </button>
-
-          {!authed && <p className="text-gray-600 text-xs text-center">Acceso de administrador requerido</p>}
+          {/* DOMINGOS */}
+          <div className="relative w-full overflow-hidden rounded-2xl">
+            <button onClick={() => elegirTorneo('domingos')} disabled={!authed}
+              className="w-full bg-white/10 backdrop-blur-sm border border-white/15 text-white/40 rounded-2xl py-5 text-xl font-black transition-all shadow-2xl flex flex-col items-center gap-0.5">
+              <span>⚽ DOMINGOS</span>
+              <span className="text-sm font-semibold text-white/25 tracking-widest">— — —</span>
+            </button>
+            {/* Franja PRÓXIMAMENTE diagonal */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-2xl">
+              <div className="bg-black/70 w-[140%] py-2 text-center rotate-[-18deg]">
+                <span className="text-white/90 text-xs font-black tracking-[0.3em] uppercase">Próximamente</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -305,7 +316,7 @@ export default function App() {
               placeholder="• • • •"
               className={`w-full bg-[#111] border-2 ${pinError ? 'border-red-500' : 'border-green-800'} rounded-xl px-4 py-3 text-center text-white text-2xl tracking-[0.5em] outline-none mb-2 transition-colors`}
               autoFocus />
-            {pinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">PIN incorrecto</p>}
+            {pinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">{pinErrorMsg}</p>}
             <div className="flex gap-2 mt-3">
               <button onClick={() => { setShowPin(false); setPinInput('') }} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
               <button onClick={intentarPin} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Entrar</button>
@@ -374,7 +385,7 @@ export default function App() {
               className={`w-full bg-[#111] border-2 ${pinError ? 'border-red-500' : 'border-green-800'} rounded-xl px-4 py-3 text-center text-white text-2xl tracking-[0.5em] outline-none mb-2 transition-colors`}
               autoFocus
             />
-            {pinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">PIN incorrecto</p>}
+            {pinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">{pinErrorMsg}</p>}
             <div className="flex gap-2 mt-3">
               <button onClick={() => { setShowPin(false); setPinInput('') }} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
               <button onClick={intentarPin} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Entrar</button>
@@ -428,11 +439,11 @@ export default function App() {
 
       <Navbar seccion={seccion} navegar={navegar} />
 
-      {/* Botón volver al lobby */}
+      {/* Botón volver al lobby — casita centrada arriba */}
       <button onClick={() => setTorneo(null)}
-        className="fixed top-3 left-3 z-40 w-11 h-11 flex items-center justify-center text-white/30 active:text-white/60 transition-colors">
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l9-9m0 0l9 9M12 3v18" />
+        className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-11 h-11 flex items-center justify-center text-white/30 active:text-white/60 transition-colors">
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
         </svg>
       </button>
 
