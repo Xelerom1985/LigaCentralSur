@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { db, ref, onValue, push, update, increment, adminSignIn, adminSignOut } from './firebase'
+import { db, ref, onValue, push, update, increment, adminSignIn, adminSignOut, setTorneoPrefix } from './firebase'
 
 const parseDevice = () => {
   const ua = navigator.userAgent
@@ -42,6 +42,7 @@ export default function App() {
   const [cachedData] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DATA_CACHE_KEY) || '{}') } catch { return {} }
   })
+  const [torneo, setTorneo] = useState(null) // null = lobby, 'sabados' | 'domingos'
   const [seccion, setSeccion] = useState('home')
   const [authed, setAuthed] = useState(false)
   const [showPin, setShowPin] = useState(false)
@@ -58,14 +59,23 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [showInstall, setShowInstall] = useState(false)
 
+  // Sincronizar prefix del torneo activo
+  useEffect(() => {
+    const prefix = torneo === 'domingos' ? 'domingos/' : ''
+    setTorneoPrefix(prefix)
+    setData({}) // limpiar datos al cambiar de torneo
+  }, [torneo])
+
   // Datos públicos: se leen nodo por nodo (no la raíz completa) para poder
   // dejar 'finanzas' protegido por Firebase Auth sin bloquear el resto del sitio
   useEffect(() => {
+    if (!torneo) return
+    const prefix = torneo === 'domingos' ? 'domingos/' : ''
     const unsubs = PUBLIC_PATHS.map(path =>
-      onValue(ref(db, path), snap => setData(prev => ({ ...prev, [path]: snap.val() })))
+      onValue(ref(db, prefix + path), snap => setData(prev => ({ ...prev, [path]: snap.val() })))
     )
     return () => unsubs.forEach(u => u())
-  }, [])
+  }, [torneo])
 
   // Guardar en el dispositivo cada actualización de los datos públicos (nunca finanzas)
   useEffect(() => {
@@ -80,10 +90,11 @@ export default function App() {
 
   // Finanzas: privado, solo se escucha estando autenticado
   useEffect(() => {
-    if (!authed) return
-    const unsub = onValue(ref(db, 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
+    if (!authed || !torneo) return
+    const prefix = torneo === 'domingos' ? 'domingos/' : ''
+    const unsub = onValue(ref(db, prefix + 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
     return () => unsub()
-  }, [authed])
+  }, [authed, torneo])
 
   // Registrar visita al abrir la app
   useEffect(() => {
@@ -238,6 +249,82 @@ export default function App() {
     }
   }
 
+  const elegirTorneo = t => {
+    if (t === 'domingos' && !authed) return
+    setTorneo(t)
+    setSeccion('home')
+  }
+
+  // ── LOBBY ──────────────────────────────────────────────────────────
+  if (!torneo) return (
+    <div className="min-h-dvh bg-[#0a0a0a] text-white relative overflow-hidden">
+      <img src="/fondo-inicio.png" alt="" className="absolute inset-0 w-full h-full object-cover object-center opacity-30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/80" />
+
+      {/* Candado admin en lobby */}
+      <button onClick={handleLockClick}
+        className={`fixed top-3 right-3 z-40 w-11 h-11 flex items-center justify-center transition-colors ${authed ? 'text-green-400/80' : 'text-white/30 active:text-white/60'}`}>
+        {authed ? (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+        ) : (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+        )}
+      </button>
+
+      <div className="relative z-10 min-h-dvh flex flex-col items-center justify-center px-8 gap-6">
+        <img src="/logo.png" className="w-28 h-28 object-contain drop-shadow-2xl mb-2" />
+        <h1 className="text-white text-3xl font-black tracking-tight text-center drop-shadow-lg">Liga Central Sur</h1>
+
+        <div className="w-full max-w-xs flex flex-col gap-4 mt-4">
+          <button onClick={() => elegirTorneo('sabados')}
+            className="w-full bg-green-600 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl">
+            ⚽ SÁBADOS LIBRE
+          </button>
+
+          <button onClick={() => elegirTorneo('domingos')} disabled={!authed}
+            className={`w-full rounded-2xl py-5 text-xl font-black transition-all shadow-2xl ${authed ? 'bg-green-800 text-white active:scale-95' : 'bg-[#1a1a1a] text-gray-600 border border-gray-800'}`}>
+            {authed ? '⚽ DOMINGOS' : '🔒 DOMINGOS'}
+          </button>
+
+          {!authed && <p className="text-gray-600 text-xs text-center">Acceso de administrador requerido</p>}
+        </div>
+      </div>
+
+      {/* Modal PIN en lobby */}
+      {showPin && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-green-800 shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-2">⚙️</div>
+              <p className="text-white font-bold text-lg">Panel Admin</p>
+              <p className="text-gray-400 text-sm">Ingresá el PIN de acceso</p>
+            </div>
+            <input type="password" inputMode="numeric" maxLength={6}
+              value={pinInput} onChange={e => setPinInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && intentarPin()}
+              placeholder="• • • •"
+              className={`w-full bg-[#111] border-2 ${pinError ? 'border-red-500' : 'border-green-800'} rounded-xl px-4 py-3 text-center text-white text-2xl tracking-[0.5em] outline-none mb-2 transition-colors`}
+              autoFocus />
+            {pinError && <p className="text-red-400 text-sm text-center mb-2 animate-pulse">PIN incorrecto</p>}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => { setShowPin(false); setPinInput('') }} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
+              <button onClick={intentarPin} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Entrar</button>
+            </div>
+            {hasCred && bioAvail && (
+              <button onClick={autenticarHuella}
+                className="w-full mt-3 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-[#111] border border-green-900/40 active:scale-95 transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={`w-7 h-7 ${bioError ? 'text-red-400' : 'text-green-400'}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+                </svg>
+                <span className={`text-xs font-semibold ${bioError ? 'text-red-400' : 'text-green-400'}`}>{bioError ? 'No se reconoció' : 'Entrar con huella'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className="min-h-dvh bg-[#0a0a0a] text-white pb-[72px]">
       {/* Banner nueva versión */}
@@ -340,6 +427,14 @@ export default function App() {
       {seccion === 'admin' && authed && <Admin data={data} />}
 
       <Navbar seccion={seccion} navegar={navegar} />
+
+      {/* Botón volver al lobby */}
+      <button onClick={() => setTorneo(null)}
+        className="fixed top-3 left-3 z-40 w-11 h-11 flex items-center justify-center text-white/30 active:text-white/60 transition-colors">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l9-9m0 0l9 9M12 3v18" />
+        </svg>
+      </button>
 
       {/* Engranaje admin — visible solo cuando authed */}
       {authed && (

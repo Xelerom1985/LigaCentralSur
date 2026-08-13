@@ -22,3 +22,9 @@ const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD
 
 export const adminSignIn = () => signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD)
 export const adminSignOut = () => signOut(auth)
+
+// Prefix activo según el torneo seleccionado
+let _prefix = ''
+export const setTorneoPrefix = p => { _prefix = p }
+// ref con prefix: reemplaza ref(db, path) en Admin
+export const rp = path => ref(db, _prefix + path)

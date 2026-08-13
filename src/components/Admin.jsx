@@ -1,18 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
-import { db, ref, push, update, remove, set } from '../firebase'
+﻿import { useState, useEffect, useRef } from 'react'
+import { db, ref, push, update, remove, set, rp } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 
 const FASES_OPT = [
   { value: 'liga', label: 'Liga' },
-  { value: 'oro_4tos', label: 'Copa Oro · Cuartos' },
-  { value: 'oro_semi', label: 'Copa Oro · Semifinal' },
-  { value: 'oro_final', label: 'Copa Oro · Final' },
-  { value: 'plata_semi', label: 'Copa Plata · Semifinal' },
-  { value: 'plata_final', label: 'Copa Plata · Final' },
-  { value: 'bronce_4tos', label: 'Copa Bronce · Cuartos' },
-  { value: 'bronce_semi', label: 'Copa Bronce · Semifinal' },
-  { value: 'bronce_final', label: 'Copa Bronce · Final' },
+  { value: 'oro_4tos', label: 'Copa Oro Â· Cuartos' },
+  { value: 'oro_semi', label: 'Copa Oro Â· Semifinal' },
+  { value: 'oro_final', label: 'Copa Oro Â· Final' },
+  { value: 'plata_semi', label: 'Copa Plata Â· Semifinal' },
+  { value: 'plata_final', label: 'Copa Plata Â· Final' },
+  { value: 'bronce_4tos', label: 'Copa Bronce Â· Cuartos' },
+  { value: 'bronce_semi', label: 'Copa Bronce Â· Semifinal' },
+  { value: 'bronce_final', label: 'Copa Bronce Â· Final' },
 ]
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
@@ -125,15 +125,15 @@ export default function Admin({ data }) {
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-green-800 shadow-2xl">
             <div className="text-center mb-5">
-              <div className="text-4xl mb-2">💰</div>
+              <div className="text-4xl mb-2">ðŸ’°</div>
               <p className="text-white font-bold text-lg">Finanzas</p>
-              <p className="text-gray-400 text-sm">Ingresá el PIN de acceso</p>
+              <p className="text-gray-400 text-sm">IngresÃ¡ el PIN de acceso</p>
             </div>
             <input
               type="password" inputMode="numeric" maxLength={12}
               value={finanzasPinInput} onChange={e => setFinanzasPinInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && intentarFinanzasPin()}
-              placeholder="• • • •"
+              placeholder="â€¢ â€¢ â€¢ â€¢"
               className={`w-full bg-[#111] border-2 ${finanzasPinError ? 'border-red-500' : 'border-green-800'} rounded-xl px-4 py-3 text-center text-white text-2xl tracking-[0.3em] outline-none mb-2 transition-colors`}
               autoFocus
             />
@@ -152,7 +152,7 @@ export default function Admin({ data }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
                 </svg>
                 <span className={`text-xs font-semibold ${finBioError ? 'text-red-400' : 'text-green-400'}`}>
-                  {finBioError ? 'No se reconoció' : 'Entrar con huella'}
+                  {finBioError ? 'No se reconociÃ³' : 'Entrar con huella'}
                 </span>
               </button>
             )}
@@ -167,8 +167,8 @@ export default function Admin({ data }) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-10 h-10 text-green-400 mx-auto mb-3">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
             </svg>
-            <p className="text-white font-bold text-lg">¿Activar huella para Finanzas?</p>
-            <p className="text-gray-400 text-sm mt-1 mb-4">La próxima vez entrás sin escribir el PIN</p>
+            <p className="text-white font-bold text-lg">Â¿Activar huella para Finanzas?</p>
+            <p className="text-gray-400 text-sm mt-1 mb-4">La prÃ³xima vez entrÃ¡s sin escribir el PIN</p>
             <div className="flex gap-2">
               <button onClick={() => setShowFinBioPrompt(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Ahora no</button>
               <button onClick={registrarHuellaFinanzas} className="flex-1 bg-green-600 text-white rounded-xl py-3 font-semibold text-sm">Activar</button>
@@ -205,7 +205,7 @@ export default function Admin({ data }) {
   )
 }
 
-/* ─── EQUIPOS ─── */
+/* â”€â”€â”€ EQUIPOS â”€â”€â”€ */
 function TabEquipos({ data }) {
   const equipos = data.equipos || {}
   const [nombre, setNombre] = useState('')
@@ -238,9 +238,9 @@ function TabEquipos({ data }) {
       const payload = { nombre: nombre.trim() }
       if (escudo !== undefined) payload.escudo = escudo || null
       if (foto !== undefined) payload.foto = foto || null
-      await update(ref(db, `equipos/${editId}`), payload)
+      await update(rp(`equipos/${editId}`), payload)
     } else {
-      await push(ref(db, 'equipos'), { nombre: nombre.trim(), escudo: escudo || null, foto: foto || null })
+      await push(rp('equipos'), { nombre: nombre.trim(), escudo: escudo || null, foto: foto || null })
     }
     setNombre(''); setEscudo(null); setFoto(null); setEditId(null); setLoading(false)
   }
@@ -256,29 +256,29 @@ function TabEquipos({ data }) {
   const cancelar = () => { setEditId(null); setNombre(''); setEscudo(null); setFoto(null) }
 
   const eliminar = async id => {
-    if (!confirm('¿Eliminar equipo?')) return
-    await remove(ref(db, `equipos/${id}`))
-    await remove(ref(db, `jugadores/${id}`))
+    if (!confirm('Â¿Eliminar equipo?')) return
+    await remove(rp(`equipos/${id}`))
+    await remove(rp(`jugadores/${id}`))
   }
 
   const retirar = async (id, retirado) => {
-    const msg = retirado ? '¿Reactivar este equipo?' : '¿Retirar este equipo del torneo? No va a contar para generar nuevos partidos, pero sus resultados, goles y tarjetas ya jugados se mantienen.'
+    const msg = retirado ? 'Â¿Reactivar este equipo?' : 'Â¿Retirar este equipo del torneo? No va a contar para generar nuevos partidos, pero sus resultados, goles y tarjetas ya jugados se mantienen.'
     if (!confirm(msg)) return
-    await update(ref(db, `equipos/${id}`), { retirado: !retirado })
+    await update(rp(`equipos/${id}`), { retirado: !retirado })
   }
 
   return (
     <div className="pt-4 space-y-4">
-      {/* Banner de edición */}
+      {/* Banner de ediciÃ³n */}
       {editId && (
         <div className="bg-green-900/30 border border-green-600/40 rounded-xl px-4 py-2 flex items-center gap-2">
-          <span className="text-green-400 text-sm">✏️ Editando:</span>
+          <span className="text-green-400 text-sm">âœï¸ Editando:</span>
           <span className="text-white text-sm font-bold">{equipos[editId]?.nombre}</span>
         </div>
       )}
 
       <div className={`bg-[#1a1a1a] rounded-xl p-4 border space-y-3 ${editId ? 'border-green-600/60' : 'border-green-900/30'}`}>
-        <p className="text-sm font-bold text-green-400">{editId ? '✏️ Editar Equipo' : 'Nuevo Equipo'}</p>
+        <p className="text-sm font-bold text-green-400">{editId ? 'âœï¸ Editar Equipo' : 'Nuevo Equipo'}</p>
         <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del equipo"
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
         <div>
@@ -313,7 +313,7 @@ function TabEquipos({ data }) {
             ${editId === id ? 'border-green-600/50' : eq.retirado ? 'border-red-900/40' : 'border-green-900/20'}`}>
             {eq.escudo
               ? <img src={eq.escudo} className={`w-10 h-10 object-contain rounded-lg flex-shrink-0 ${eq.retirado ? 'opacity-40' : ''}`} />
-              : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl flex-shrink-0">⚽</div>
+              : <div className="w-10 h-10 rounded-lg bg-green-900/20 flex items-center justify-center text-xl flex-shrink-0">âš½</div>
             }
             <div className="flex-1 min-w-0">
               <p className={`font-semibold min-w-0 truncate ${eq.retirado ? 'text-gray-500' : 'text-white'}`}>{eq.nombre}</p>
@@ -347,7 +347,7 @@ function TabEquipos({ data }) {
   )
 }
 
-/* ─── JUGADORES ─── */
+/* â”€â”€â”€ JUGADORES â”€â”€â”€ */
 function TabJugadores({ data }) {
   const equipos = data.equipos || {}
   const jugadores = data.jugadores || {}
@@ -364,10 +364,10 @@ function TabJugadores({ data }) {
     if (!equipoSel || !nombre.trim()) return
     setLoading(true)
     if (editId) {
-      await update(ref(db, `jugadores/${equipoSel}/${editId}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+      await update(rp(`jugadores/${equipoSel}/${editId}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
       setEditId(null)
     } else {
-      await push(ref(db, `jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
+      await push(rp(`jugadores/${equipoSel}`), { nombre: nombre.trim(), dni: dni.trim(), numero: numero.trim() })
     }
     setNombre(''); setDni(''); setNumero(''); setLoading(false)
   }
@@ -383,24 +383,24 @@ function TabJugadores({ data }) {
   const cancelar = () => { setEditId(null); setNombre(''); setDni(''); setNumero('') }
 
   const eliminar = async jugId => {
-    if (!confirm('¿Eliminar jugador?')) return
-    await remove(ref(db, `jugadores/${equipoSel}/${jugId}`))
+    if (!confirm('Â¿Eliminar jugador?')) return
+    await remove(rp(`jugadores/${equipoSel}/${jugId}`))
   }
 
   return (
     <div className="pt-4 space-y-4">
       <div className={`bg-[#1a1a1a] rounded-xl p-4 border space-y-3 ${editId ? 'border-green-600/60' : 'border-green-900/30'}`}>
-        <p className="text-sm font-bold text-green-400">{editId ? '✏️ Editar Jugador' : 'Agregar Jugador'}</p>
+        <p className="text-sm font-bold text-green-400">{editId ? 'âœï¸ Editar Jugador' : 'Agregar Jugador'}</p>
         <select value={equipoSel} onChange={e => { setEquipoSel(e.target.value); cancelar() }}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none">
-          <option value="">— Seleccioná un equipo —</option>
+          <option value="">â€” SeleccionÃ¡ un equipo â€”</option>
           {Object.entries(equipos).map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)}
         </select>
         {equipoSel && <>
           <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre y Apellido"
             className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
           <div className="flex gap-2">
-            <input value={numero} onChange={e => setNumero(e.target.value)} placeholder="N° camiseta" inputMode="numeric"
+            <input value={numero} onChange={e => setNumero(e.target.value)} placeholder="NÂ° camiseta" inputMode="numeric"
               className="w-28 bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
             <input value={dni} onChange={e => setDni(e.target.value)} placeholder="DNI (opcional)" inputMode="numeric"
               className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
@@ -421,7 +421,7 @@ function TabJugadores({ data }) {
 
       {equipoSel && (
         <div className="space-y-2">
-          <p className="text-xs text-green-400 font-bold uppercase tracking-widest">{equipos[equipoSel]?.nombre} · {lista.length} jugadores</p>
+          <p className="text-xs text-green-400 font-bold uppercase tracking-widest">{equipos[equipoSel]?.nombre} Â· {lista.length} jugadores</p>
           {lista
             .sort((a, b) => (Number(a[1].numero) || 999) - (Number(b[1].numero) || 999))
             .map(([id, j]) => (
@@ -447,10 +447,10 @@ function TabJugadores({ data }) {
   )
 }
 
-/* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
+/* â”€â”€â”€ HORARIOS POR FRANJA (2 canchas simultÃ¡neas: 14hs, 15hs, 16hs) â”€â”€â”€ */
 const GAME_SLOTS = [14, 15, 16]
 
-// Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
+// Reparto al azar, 2 partidos por franja â€” evita que un equipo quede siempre en el mismo horario
 function assignMatchSlots(matches) {
   const res = new Map()
   const shuffled = [...matches].sort(() => Math.random() - 0.5)
@@ -458,15 +458,15 @@ function assignMatchSlots(matches) {
   return res
 }
 
-/* ─── ROUND ROBIN (Berger determinístico) ─── */
+/* â”€â”€â”€ ROUND ROBIN (Berger determinÃ­stico) â”€â”€â”€ */
 function buildRoundRobin(equiposIds, equipos) {
-  // El Mirasol es provisional (solo Fecha 1) → no va al Berger permanente
+  // El Mirasol es provisional (solo Fecha 1) â†’ no va al Berger permanente
   const mirId   = equiposIds.find(id => /mirasol/i.test(equipos[id]?.nombre || ''))
   const permIds = equiposIds.filter(id => id !== mirId)
 
   const find = pat => permIds.find(id => pat.test(equipos[id]?.nombre || ''))
   const romaId   = find(/\broma\b/i)
-  const joseFCId = find(/san jose fc/i)                 // San Jose FC (sin restricción)
+  const joseFCId = find(/san jose fc/i)                 // San Jose FC (sin restricciÃ³n)
   const joseId   = find(/^san jose$/i)                  // San Jose original (pos final = rival de La Roma en F1)
   const antiId   = find(/antidoping/i)
   const tucaId   = find(/tuca/i)
@@ -478,7 +478,7 @@ function buildRoundRobin(equiposIds, equipos) {
   const candId   = find(/candelabro/i)
   const la18Id   = find(/\b18\b/)
 
-  // LaRoma ancla (pos 0), SanJose original al final (pos n-1) → emparejado con LaRoma en F1
+  // LaRoma ancla (pos 0), SanJose original al final (pos n-1) â†’ emparejado con LaRoma en F1
   const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseFCId, pibesId, milanId, candId].filter(Boolean)
   const known  = [romaId, ...middle, joseId].filter(Boolean)
   const rest   = permIds.filter(id => !known.includes(id))
@@ -503,7 +503,7 @@ function buildRoundRobin(equiposIds, equipos) {
   return fixture
 }
 
-/* ─── PARTIDO CARD (usado en TabPartidos) ─── */
+/* â”€â”€â”€ PARTIDO CARD (usado en TabPartidos) â”€â”€â”€ */
 function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
   if (p.libre) {
     const eq = equipos[p.local] || {}
@@ -529,7 +529,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const [quickNames, setQuickNames] = useState({ [p.local]: '', [p.visitante]: '' })
 
   // Separado: la hora se sincroniza siempre (puede cambiar con "Aplicar a todos")
-  // Los goles NO se sincronizan cuando cambia la hora — evita resetear lo que el usuario está escribiendo
+  // Los goles NO se sincronizan cuando cambia la hora â€” evita resetear lo que el usuario estÃ¡ escribiendo
   useEffect(() => {
     setHora(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
   }, [p.fechaHora, p.hora])
@@ -544,7 +544,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const amarillas = tarjetasPartido.filter(([, t]) => t.tipo === 'amarilla').length
   const rojas     = tarjetasPartido.filter(([, t]) => t.tipo === 'roja').length
 
-  // Goles agrupados por jugador → "Juan (x2)"
+  // Goles agrupados por jugador â†’ "Juan (x2)"
   const golesAgrupados = Object.values(
     golesPartido.reduce((acc, [gid, g]) => {
       const key = `${g.equipoId}___${g.jugadorId}`
@@ -560,14 +560,14 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
       .map(([jid, j]) => ({ jid, nombre: j.nombre, numero: j.numero || '' }))
       .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
-  // Un toque en el botón del jugador = +1 gol
+  // Un toque en el botÃ³n del jugador = +1 gol
   const tapGol = (equipoId, jugadorId) =>
-    push(ref(db, `goles/${p.id}`), { equipoId, jugadorId, enContra: false })
+    push(rp(`goles/${p.id}`), { equipoId, jugadorId, enContra: false })
 
-  // Quitar UN gol del jugador (el último registrado)
-  const quitarGol = (ids) => remove(ref(db, `goles/${p.id}/${ids[ids.length - 1]}`))
+  // Quitar UN gol del jugador (el Ãºltimo registrado)
+  const quitarGol = (ids) => remove(rp(`goles/${p.id}/${ids[ids.length - 1]}`))
 
-  // Entrada rápida: crea jugador si no existe y suma gol
+  // Entrada rÃ¡pida: crea jugador si no existe y suma gol
   const addGoalManual = async (eqId) => {
     const nombre = quickNames[eqId]?.trim()
     if (!nombre) return
@@ -577,16 +577,16 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
     if (existente) {
       jugadorId = existente[0]
     } else {
-      const nuevo = await push(ref(db, `jugadores/${eqId}`), { nombre })
+      const nuevo = await push(rp(`jugadores/${eqId}`), { nombre })
       jugadorId = nuevo.key
     }
-    await push(ref(db, `goles/${p.id}`), { equipoId: eqId, jugadorId, enContra: false })
+    await push(rp(`goles/${p.id}`), { equipoId: eqId, jugadorId, enContra: false })
     setQuickNames(prev => ({ ...prev, [eqId]: '' }))
   }
 
   const agregarTarjeta = async () => {
     if (!tarjEq || !tarjJug) return
-    await push(ref(db, `tarjetas/${p.id}`), { equipoId: tarjEq, jugadorId: tarjJug, tipo: tarjTipo })
+    await push(rp(`tarjetas/${p.id}`), { equipoId: tarjEq, jugadorId: tarjJug, tipo: tarjTipo })
     setTarjEq(''); setTarjJug(''); setTarjTipo('amarilla')
   }
 
@@ -594,7 +594,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const cerrarPartido = async () => {
     setSaving(true)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
-    await update(ref(db, `partidos/${p.id}`), {
+    await update(rp(`partidos/${p.id}`), {
       golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true,
       hora: hora || null,
       fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
@@ -604,7 +604,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   }
   const guardarHora = async () => {
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
-    await update(ref(db, `partidos/${p.id}`), {
+    await update(rp(`partidos/${p.id}`), {
       hora: hora || null,
       fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
     })
@@ -612,7 +612,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
     setTimeout(() => setSavedHora(false), 2000)
   }
 
-  const reabrirPartido = () => update(ref(db, `partidos/${p.id}`), { cerrado: false })
+  const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
 
   const partidoCerrado = !!p.cerrado
   const bloqueado = cerrada || partidoCerrado
@@ -649,32 +649,32 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
               className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
             <button onClick={guardarHora}
               className={`px-3 rounded-lg text-sm font-bold transition-all active:scale-95 ${savedHora ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}>
-              {savedHora ? '✓' : '💾'}
+              {savedHora ? 'âœ“' : 'ðŸ’¾'}
             </button>
           </div>
         )}
       </div>
 
-      {/* Cerrar partido: un solo botón que guarda resultado + hora y bloquea todo */}
+      {/* Cerrar partido: un solo botÃ³n que guarda resultado + hora y bloquea todo */}
       {!cerrada && (
         <div className="px-3 pb-2.5">
           {!partidoCerrado ? (
             <button onClick={cerrarPartido} disabled={saving || gl === '' || gv === ''}
               className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all">
-              {saving ? '⏳ Cerrando...' : '🔒 CERRAR PARTIDO'}
+              {saving ? 'â³ Cerrando...' : 'ðŸ”’ CERRAR PARTIDO'}
             </button>
           ) : (
             <button onClick={reabrirPartido}
               className="w-full bg-[#111] border border-green-700/40 text-green-400 rounded-xl py-2 text-xs font-semibold active:scale-95 transition-all">
-              🔓 Reabrir partido
+              ðŸ”“ Reabrir partido
             </button>
           )}
         </div>
       )}
 
-      {/* Goleadores — 2 columnas por equipo */}
+      {/* Goleadores â€” 2 columnas por equipo */}
       <div className="px-3 py-2 border-t border-green-900/10">
-        <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">⚽ Goleadores</p>
+        <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">âš½ Goleadores</p>
         <div className="grid grid-cols-2 gap-2">
           {[p.local, p.visitante].map((eqId, colIdx) => {
             const jugs = jugsPorEquipo(eqId)
@@ -700,7 +700,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                             {g.count > 1 && <span className="text-green-500 ml-0.5 font-black">x{g.count}</span>}
                           </span>
                           {!bloqueado && (
-                            <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">✕</button>
+                            <button onClick={() => quitarGol(g.ids)} className="text-red-400 text-[10px] leading-none ml-0.5">âœ•</button>
                           )}
                         </div>
                       )
@@ -717,17 +717,17 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                       className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-1.5 py-1.5 text-white text-[11px] outline-none min-w-0"
                     >
                       <option value="">Jugador</option>
-                      {jugs.map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                      {jugs.map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} Â· ${j.nombre}` : j.nombre}</option>)}
                     </select>
                     <button
                       onClick={() => selGol[eqId] && tapGol(eqId, selGol[eqId])}
                       disabled={!selGol[eqId]}
                       className="bg-green-700 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
-                    >⚽</button>
+                    >âš½</button>
                   </div>
                 )}
 
-                {/* Entrada rápida */}
+                {/* Entrada rÃ¡pida */}
                 {!bloqueado && (
                   <div className="flex gap-1">
                     <input
@@ -742,7 +742,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                       onClick={() => addGoalManual(eqId)}
                       disabled={!quickNames[eqId]?.trim()}
                       className="bg-green-700/60 text-white rounded-lg px-2 text-xs font-black disabled:opacity-30 flex-shrink-0"
-                    >⚽</button>
+                    >âš½</button>
                   </div>
                 )}
               </div>
@@ -756,12 +756,12 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
         <button onClick={() => setShowTarj(!showTarj)}
           className="w-full flex items-center justify-between bg-[#111] rounded-lg px-3 py-2 text-xs">
           <span className="text-gray-400">
-            🟨🟥 Tarjetas
+            ðŸŸ¨ðŸŸ¥ Tarjetas
             {amarillas > 0 && <span className="ml-2 text-yellow-400 font-bold">{amarillas}</span>}
             {rojas > 0 && <span className="ml-2 text-red-400 font-bold">{rojas}</span>}
-            {amarillas === 0 && rojas === 0 && <span className="text-gray-600 ml-1">— sin tarjetas</span>}
+            {amarillas === 0 && rojas === 0 && <span className="text-gray-600 ml-1">â€” sin tarjetas</span>}
           </span>
-          <span className="text-green-500 text-[10px]">{showTarj ? '▲' : '▼'}</span>
+          <span className="text-green-500 text-[10px]">{showTarj ? 'â–²' : 'â–¼'}</span>
         </button>
 
         {showTarj && (
@@ -770,14 +770,14 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
               const jug = jugadores[t.equipoId]?.[t.jugadorId]
               return (
                 <div key={tid} className="flex items-center gap-2 text-xs bg-[#222] rounded-lg px-2.5 py-1.5">
-                  <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                  <span>{t.tipo === 'amarilla' ? 'ðŸŸ¨' : 'ðŸŸ¥'}</span>
                   <span className="flex-1 text-gray-300 truncate">
                     {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
                     {jug?.nombre || '?'}
-                    <span className="text-gray-500 ml-1">· {equipos[t.equipoId]?.nombre}</span>
+                    <span className="text-gray-500 ml-1">Â· {equipos[t.equipoId]?.nombre}</span>
                   </span>
                   {!bloqueado && (
-                    <button onClick={() => remove(ref(db, `tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">✕</button>
+                    <button onClick={() => remove(rp(`tarjetas/${p.id}/${tid}`))} className="text-red-400 flex-shrink-0">âœ•</button>
                   )}
                 </div>
               )
@@ -796,15 +796,15 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
                   </select>
                   <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
                     className="bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
-                    <option value="amarilla">🟨 Amarilla</option>
-                    <option value="roja">🟥 Roja</option>
+                    <option value="amarilla">ðŸŸ¨ Amarilla</option>
+                    <option value="roja">ðŸŸ¥ Roja</option>
                   </select>
                 </div>
                 <div className="flex gap-1.5">
                   <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
                     className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
                     <option value="">Jugador</option>
-                    {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                    {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} Â· ${j.nombre}` : j.nombre}</option>)}
                   </select>
                   <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
                     className="bg-yellow-700 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40 flex-shrink-0">
@@ -819,16 +819,16 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
 
       {p.jugado && (
         <div className="bg-green-900/20 px-3 py-1 flex items-center justify-between">
-          <span className="text-[11px] text-green-400">✓ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
-          {cerrada && <span className="text-[10px] text-gray-500 font-bold">🔒 FECHA CERRADA</span>}
-          {!cerrada && partidoCerrado && <span className="text-[10px] text-green-400 font-bold">🔒 CERRADO</span>}
+          <span className="text-[11px] text-green-400">âœ“ Resultado guardado: {p.golesLocal} - {p.golesVisitante}</span>
+          {cerrada && <span className="text-[10px] text-gray-500 font-bold">ðŸ”’ FECHA CERRADA</span>}
+          {!cerrada && partidoCerrado && <span className="text-[10px] text-green-400 font-bold">ðŸ”’ CERRADO</span>}
         </div>
       )}
     </div>
   )
 }
 
-/* ─── PARTIDOS ─── */
+/* â”€â”€â”€ PARTIDOS â”€â”€â”€ */
 function TabPartidos({ data }) {
   const equipos = data.equipos || {}
   const equiposActivos = Object.fromEntries(Object.entries(equipos).filter(([, eq]) => !eq.retirado))
@@ -858,7 +858,7 @@ function TabPartidos({ data }) {
   const dateInputRef = useRef(null)
   const fechaInicializada = useRef(false)
 
-  // Al cargar, abrir directo en la fecha en curso: la primera que todavía no está cerrada
+  // Al cargar, abrir directo en la fecha en curso: la primera que todavÃ­a no estÃ¡ cerrada
   useEffect(() => {
     if (fechaInicializada.current) return
     const numeros = [...new Set(Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero))].sort((a, b) => a - b)
@@ -872,9 +872,9 @@ function TabPartidos({ data }) {
   const cerrada = !!fechasCerradas[fechaSel]
 
   const toggleCerrada = () => {
-    const msg = cerrada ? '¿Reabrir esta fecha para poder editar resultados?' : '¿Cerrar esta fecha? Los resultados, goles y tarjetas quedan bloqueados y no se van a poder editar hasta reabrirla.'
+    const msg = cerrada ? 'Â¿Reabrir esta fecha para poder editar resultados?' : 'Â¿Cerrar esta fecha? Los resultados, goles y tarjetas quedan bloqueados y no se van a poder editar hasta reabrirla.'
     if (!confirm(msg)) return
-    set(ref(db, `fechas_cerradas/${fechaSel}`), cerrada ? null : true)
+    set(rp(`fechas_cerradas/${fechaSel}`), cerrada ? null : true)
   }
 
   const toggleSuspendido = id => setSuspendidos(prev => {
@@ -905,7 +905,7 @@ function TabPartidos({ data }) {
   const fmtDia = iso => {
     if (!iso) return null
     const [y, m, d] = iso.split('-')
-    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    const dias = ['Dom', 'Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b']
     const fecha = new Date(`${iso}T12:00`)
     return `${dias[fecha.getDay()]} ${d}/${m}/${y}`
   }
@@ -914,30 +914,30 @@ function TabPartidos({ data }) {
     if (!fechaDia || partidosFecha.length === 0) return
     for (const partido of partidosFecha) {
       const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : (partido.hora || '00:00')
-      await update(ref(db, `partidos/${partido.id}`), { fechaHora: `${fechaDia}T${horaExist}` })
+      await update(rp(`partidos/${partido.id}`), { fechaHora: `${fechaDia}T${horaExist}` })
     }
   }
 
   const generarFecha = async () => {
-    if (cantEquipos < 2) return alert('Necesitás al menos 2 equipos')
+    if (cantEquipos < 2) return alert('NecesitÃ¡s al menos 2 equipos')
     const yaExiste = partidosFecha.length > 0
-    if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. Â¿Reemplazarlos?`)) return
     setGenerando(true)
     let fixture = masterFixture
     if (!fixture) {
       fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
-      await set(ref(db, 'master_fixture'), fixture)
+      await set(rp('master_fixture'), fixture)
     }
     for (const [id, p] of Object.entries(partidos)) {
       if (p.fase === 'liga' && p.numero === fechaSel) {
-        await remove(ref(db, `partidos/${id}`))
-        await remove(ref(db, `goles/${id}`))
-        await remove(ref(db, `tarjetas/${id}`))
+        await remove(rp(`partidos/${id}`))
+        await remove(rp(`goles/${id}`))
+        await remove(rp(`tarjetas/${id}`))
       }
     }
     const ronda = fixture[fechaSel] || []
     let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
-    // Equipos retirados → ya no juegan más; sus rivales ("huérfanos") se emparejan entre sí
+    // Equipos retirados â†’ ya no juegan mÃ¡s; sus rivales ("huÃ©rfanos") se emparejan entre sÃ­
     const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
     if (retirados.size > 0) {
       const huerfanos = []
@@ -956,7 +956,7 @@ function TabPartidos({ data }) {
         arr.push({ local: huerfanos[0], visitante: null, libre: true })
       }
     }
-    // Equipos suspendidos → su rival queda LIBRE
+    // Equipos suspendidos â†’ su rival queda LIBRE
     if (suspendidos.size > 0) {
       arr = arr.map(m => {
         const localSusp = suspendidos.has(m.local)
@@ -982,7 +982,7 @@ function TabPartidos({ data }) {
         }
       }
     }
-    // Separar LIBRE de activos y asignar franjas horarias automáticas
+    // Separar LIBRE de activos y asignar franjas horarias automÃ¡ticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
     const slotMap = assignMatchSlots(activos)
@@ -990,7 +990,7 @@ function TabPartidos({ data }) {
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
       const hs = `${String(slot).padStart(2, '0')}:00`
-      await push(ref(db, 'partidos'), {
+      await push(rp('partidos'), {
         numero: fechaSel, fase: 'liga',
         local: m.local, visitante: m.visitante,
         libre: false, hora: hs,
@@ -999,7 +999,7 @@ function TabPartidos({ data }) {
       })
     }
     for (const m of libres) {
-      await push(ref(db, 'partidos'), {
+      await push(rp('partidos'), {
         numero: fechaSel, fase: 'liga',
         local: m.local, visitante: null,
         libre: true, hora: null, fechaHora: null,
@@ -1012,11 +1012,11 @@ function TabPartidos({ data }) {
 
   const publicarEnHome = async () => {
     setPublicando(true)
-    await set(ref(db, 'home_fecha'), fechaSel)
+    await set(rp('home_fecha'), fechaSel)
     setPublicando(false)
   }
 
-  const quitarDeHome = () => set(ref(db, 'home_fecha'), null)
+  const quitarDeHome = () => set(rp('home_fecha'), null)
 
   const descargarFixture = async () => {
     if (!partidosFecha.length) return
@@ -1032,8 +1032,8 @@ function TabPartidos({ data }) {
     const trunc = (ctx, txt, max) => {
       if (ctx.measureText(txt).width <= max) return txt
       let t = txt
-      while (ctx.measureText(t+'…').width > max && t.length > 1) t = t.slice(0,-1)
-      return t+'…'
+      while (ctx.measureText(t+'â€¦').width > max && t.length > 1) t = t.slice(0,-1)
+      return t+'â€¦'
     }
     // cargar escudos
     const imgs = {}
@@ -1076,7 +1076,7 @@ function TabPartidos({ data }) {
     // header
     ctx.textAlign='center'
     ctx.fillStyle='#16a34a'; ctx.font='bold 18px Arial'
-    ctx.fillText('1ª EDICIÓN 2026',W/2,44)
+    ctx.fillText('1Âª EDICIÃ“N 2026',W/2,44)
     ctx.fillStyle='#ffffff'; ctx.font='bold 42px Arial'
     ctx.fillText('LIGA CENTRAL SUR',W/2,98)
     ctx.fillStyle='#16a34a'; ctx.font='bold 56px Arial'
@@ -1126,7 +1126,7 @@ function TabPartidos({ data }) {
         ctx.strokeStyle='#78350f55'; ctx.lineWidth=1; rr(ctx,PAD,y,INNER,LIBRE_H-8,12); ctx.stroke()
         if(imgs[p.local]) ctx.drawImage(imgs[p.local],PAD+14,y+(LIBRE_H-8)/2-21,42,42)
         ctx.fillStyle='#fbbf24'; ctx.font='bold 22px Arial'; ctx.textAlign='center'
-        ctx.fillText((eq.nombre||'?')+' — sin rival esta fecha',W/2,y+(LIBRE_H-8)/2+8)
+        ctx.fillText((eq.nombre||'?')+' â€” sin rival esta fecha',W/2,y+(LIBRE_H-8)/2+8)
         y+=LIBRE_H
       }
       y+=GAP
@@ -1143,12 +1143,12 @@ function TabPartidos({ data }) {
   }
 
   const agregarManual = async () => {
-    if (!manualLocal) return alert('Elegí el equipo local')
-    if (!manualVisitante) return alert('Elegí el visitante (o LIBRE)')
+    if (!manualLocal) return alert('ElegÃ­ el equipo local')
+    if (!manualVisitante) return alert('ElegÃ­ el visitante (o LIBRE)')
     if (manualLocal === manualVisitante) return alert('Local y visitante no pueden ser el mismo')
     setAgregando(true)
     const esLibre = manualVisitante === '__libre__'
-    await push(ref(db, 'partidos'), {
+    await push(rp('partidos'), {
       numero: fechaSel, fase: 'liga',
       local: manualLocal,
       visitante: esLibre ? null : manualVisitante,
@@ -1166,11 +1166,11 @@ function TabPartidos({ data }) {
   const eliminarFecha = async () => {
     setShowConfirmBorrar(false)
     for (const p of partidosFecha) {
-      await remove(ref(db, `partidos/${p.id}`))
-      await remove(ref(db, `goles/${p.id}`))
-      await remove(ref(db, `tarjetas/${p.id}`))
+      await remove(rp(`partidos/${p.id}`))
+      await remove(rp(`goles/${p.id}`))
+      await remove(rp(`tarjetas/${p.id}`))
     }
-    if (homeFecha === fechaSel) await set(ref(db, 'home_fecha'), null)
+    if (homeFecha === fechaSel) await set(rp('home_fecha'), null)
   }
 
   return (
@@ -1181,13 +1181,13 @@ function TabPartidos({ data }) {
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-red-800 shadow-2xl">
             <div className="text-center mb-5">
-              <div className="text-4xl mb-2">⚠️</div>
-              <p className="text-white font-bold text-lg">¿Borrar Fecha {fechaSel}?</p>
-              <p className="text-gray-400 text-sm mt-1">Realmente querés borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de la Fecha {fechaSel}. Esta acción no se puede deshacer.</p>
+              <div className="text-4xl mb-2">âš ï¸</div>
+              <p className="text-white font-bold text-lg">Â¿Borrar Fecha {fechaSel}?</p>
+              <p className="text-gray-400 text-sm mt-1">Realmente querÃ©s borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de la Fecha {fechaSel}. Esta acciÃ³n no se puede deshacer.</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowConfirmBorrar(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
-              <button onClick={eliminarFecha} className="flex-1 bg-red-600 text-white rounded-xl py-3 font-semibold text-sm">Sí, borrar</button>
+              <button onClick={eliminarFecha} className="flex-1 bg-red-600 text-white rounded-xl py-3 font-semibold text-sm">SÃ­, borrar</button>
             </div>
           </div>
         </div>
@@ -1218,9 +1218,9 @@ function TabPartidos({ data }) {
           })()}
         </div>
 
-        {/* Día de partidos — botón que abre calendario nativo */}
+        {/* DÃ­a de partidos â€” botÃ³n que abre calendario nativo */}
         <div>
-          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Día de los partidos</p>
+          <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">DÃ­a de los partidos</p>
           <div className="relative">
             <button
               className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 flex items-center gap-3 text-left active:scale-[0.98] transition-all"
@@ -1236,7 +1236,7 @@ function TabPartidos({ data }) {
                 <span
                   onClick={e => { e.stopPropagation(); setFechaDia('') }}
                   className="text-gray-500 text-base px-1"
-                >✕</span>
+                >âœ•</span>
               )}
             </button>
             <input
@@ -1271,19 +1271,19 @@ function TabPartidos({ data }) {
         {/* Aviso fecha cerrada */}
         {cerrada && (
           <div className="bg-gray-900/40 border border-gray-700/40 rounded-xl px-4 py-3 flex items-center gap-2">
-            <span className="text-lg">🔒</span>
-            <p className="flex-1 text-xs text-gray-400">Esta fecha está <span className="font-bold text-gray-300">cerrada</span>. Los resultados, goles y tarjetas no se pueden editar.</p>
+            <span className="text-lg">ðŸ”’</span>
+            <p className="flex-1 text-xs text-gray-400">Esta fecha estÃ¡ <span className="font-bold text-gray-300">cerrada</span>. Los resultados, goles y tarjetas no se pueden editar.</p>
           </div>
         )}
 
-        {/* Botón Generar */}
+        {/* BotÃ³n Generar */}
         {!cerrada && (
           <button
             onClick={generarFecha}
             disabled={generando || cantEquipos < 2}
             className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
           >
-            {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
+            {generando ? 'â³ Generando...' : `ðŸŽ² Generar Fecha ${fechaSel}`}
           </button>
         )}
 
@@ -1294,8 +1294,8 @@ function TabPartidos({ data }) {
             onClick={() => setShowManual(v => !v)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-400 active:scale-[0.98] transition-all"
           >
-            <span>✏️ Agregar partido manual</span>
-            <span className="text-lg leading-none">{showManual ? '▲' : '▼'}</span>
+            <span>âœï¸ Agregar partido manual</span>
+            <span className="text-lg leading-none">{showManual ? 'â–²' : 'â–¼'}</span>
           </button>
           {showManual && (
             <div className="px-4 pb-4 space-y-3 border-t border-green-900/20">
@@ -1307,7 +1307,7 @@ function TabPartidos({ data }) {
                     onChange={e => setManualLocal(e.target.value)}
                     className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
                   >
-                    <option value="">— elegir —</option>
+                    <option value="">â€” elegir â€”</option>
                     {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
                       .map(([id, eq]) => <option key={id} value={id}>{eq.nombre}</option>)
@@ -1321,7 +1321,7 @@ function TabPartidos({ data }) {
                     onChange={e => setManualVisitante(e.target.value)}
                     className="w-full bg-[#111] border border-green-600/30 rounded-xl px-3 py-2.5 text-white text-sm outline-none"
                   >
-                    <option value="">— elegir —</option>
+                    <option value="">â€” elegir â€”</option>
                     <option value="__libre__">LIBRE (sin rival)</option>
                     {Object.entries(equiposActivos)
                       .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
@@ -1352,7 +1352,7 @@ function TabPartidos({ data }) {
                 disabled={agregando || !manualLocal || !manualVisitante}
                 className="w-full bg-green-700 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-40 active:scale-95 transition-all"
               >
-                {agregando ? 'Agregando...' : '➕ Agregar partido'}
+                {agregando ? 'Agregando...' : 'âž• Agregar partido'}
               </button>
             </div>
           )}
@@ -1365,12 +1365,12 @@ function TabPartidos({ data }) {
             onClick={aplicarFechaATodos}
             className="w-full bg-[#111] border border-green-700/30 text-green-400 rounded-xl py-2.5 text-sm font-semibold active:scale-95 transition-all"
           >
-            📅 Aplicar {fmtDia(fechaDia)} a todos
+            ðŸ“… Aplicar {fmtDia(fechaDia)} a todos
           </button>
         )}
 
         {cantEquipos < 2 && (
-          <p className="text-[11px] text-yellow-600 text-center">Necesitás al menos 2 equipos registrados</p>
+          <p className="text-[11px] text-yellow-600 text-center">NecesitÃ¡s al menos 2 equipos registrados</p>
         )}
         {!masterFixture && cantEquipos >= 2 && (
           <p className="text-[11px] text-gray-500 text-center">Primera vez: se crea el fixture completo para todas las fechas</p>
@@ -1382,7 +1382,7 @@ function TabPartidos({ data }) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
-              Fecha {fechaSel} · {partidosFecha.length} partidos
+              Fecha {fechaSel} Â· {partidosFecha.length} partidos
             </p>
             {!cerrada && (
               <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
@@ -1391,7 +1391,7 @@ function TabPartidos({ data }) {
 
           <button onClick={toggleCerrada}
             className={`w-full rounded-xl py-3 text-sm font-bold active:scale-95 transition-all ${cerrada ? 'bg-[#111] border border-green-700/40 text-green-400' : 'bg-green-600 text-white'}`}>
-            {cerrada ? '🔓 REABRIR FECHA' : '🔒 CERRAR FECHA'}
+            {cerrada ? 'ðŸ”“ REABRIR FECHA' : 'ðŸ”’ CERRAR FECHA'}
           </button>
 
           {partidosFecha.map(p => (
@@ -1409,31 +1409,31 @@ function TabPartidos({ data }) {
 
           <button onClick={publicarEnHome} disabled={publicando}
             className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-            {publicando ? 'Publicando...' : `📢 Publicar Fecha ${fechaSel} en Inicio`}
+            {publicando ? 'Publicando...' : `ðŸ“¢ Publicar Fecha ${fechaSel} en Inicio`}
           </button>
           {homeFecha === fechaSel && (
             <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
-              <p className="text-xs text-green-400">✅ Fecha {fechaSel} publicada en Inicio</p>
+              <p className="text-xs text-green-400">âœ… Fecha {fechaSel} publicada en Inicio</p>
               <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
             </div>
           )}
           <button onClick={descargarFixture} disabled={descargando}
             className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-            {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
+            {descargando ? 'â³ Generando imagen...' : `ðŸ“¥ Descargar Fecha ${fechaSel}`}
           </button>
         </div>
       )}
 
       {partidosFecha.length === 0 && (
         <p className="text-center text-gray-600 text-sm py-8">
-          Elegí una fecha, el día, y tocá "Generar"
+          ElegÃ­ una fecha, el dÃ­a, y tocÃ¡ "Generar"
         </p>
       )}
     </div>
   )
 }
 
-/* ─── COPAS ─── */
+/* â”€â”€â”€ COPAS â”€â”€â”€ */
 function TabCopas({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
@@ -1444,9 +1444,9 @@ function TabCopas({ data }) {
   const [gen, setGen] = useState(false)
 
   const COPAS = [
-    { id: 'oro',    label: 'Copa Oro',    icon: '🥇' },
-    { id: 'plata',  label: 'Copa Plata',  icon: '🥈' },
-    { id: 'bronce', label: 'Copa Bronce', icon: '🥉' },
+    { id: 'oro',    label: 'Copa Oro',    icon: 'ðŸ¥‡' },
+    { id: 'plata',  label: 'Copa Plata',  icon: 'ðŸ¥ˆ' },
+    { id: 'bronce', label: 'Copa Bronce', icon: 'ðŸ¥‰' },
   ]
 
   const RONDAS = {
@@ -1472,7 +1472,7 @@ function TabCopas({ data }) {
     .map(([id, eq]) => ({ id, nombre: eq.nombre }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  const saveEquipos = (nuevos) => set(ref(db, `copas_equipos/${copa}`), nuevos.length ? nuevos : null)
+  const saveEquipos = (nuevos) => set(rp(`copas_equipos/${copa}`), nuevos.length ? nuevos : null)
 
   const agregarEquipo = async () => {
     if (!addEq) return
@@ -1499,18 +1499,18 @@ function TabCopas({ data }) {
   }
 
   const generarRonda = async (fase, minEq) => {
-    if (equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
+    if (equiposCopa.length < minEq) return alert(`NecesitÃ¡s al menos ${minEq} equipos`)
     const yaHay = Object.values(partidos).some(p => p.fase === fase)
-    if (yaHay && !confirm('Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
+    if (yaHay && !confirm('Ya hay partidos en esta ronda. Â¿Reemplazarlos?')) return
     setGen(fase)
     for (const [id, p] of Object.entries(partidos))
       if (p.fase === fase) {
-        await remove(ref(db, `partidos/${id}`))
-        await remove(ref(db, `goles/${id}`))
-        await remove(ref(db, `tarjetas/${id}`))
+        await remove(rp(`partidos/${id}`))
+        await remove(rp(`goles/${id}`))
+        await remove(rp(`tarjetas/${id}`))
       }
     for (const { local, visitante } of buildBracket(equiposCopa))
-      await push(ref(db, 'partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+      await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
     setGen(false)
   }
 
@@ -1538,7 +1538,7 @@ function TabCopas({ data }) {
         </p>
 
         {equiposCopa.length === 0 && (
-          <p className="text-gray-600 text-sm text-center py-2">Sin equipos — agregá los participantes</p>
+          <p className="text-gray-600 text-sm text-center py-2">Sin equipos â€” agregÃ¡ los participantes</p>
         )}
 
         {equiposCopa.map((eqId, idx) => (
@@ -1548,9 +1548,9 @@ function TabCopas({ data }) {
               <img src={equipos[eqId].escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" />
             )}
             <span className="flex-1 text-white text-sm font-semibold truncate">{equipos[eqId]?.nombre || eqId}</span>
-            <button onClick={() => mover(idx, -1)} disabled={idx === 0} className="text-gray-600 text-xs px-1 disabled:opacity-20">▲</button>
-            <button onClick={() => mover(idx, 1)} disabled={idx === equiposCopa.length - 1} className="text-gray-600 text-xs px-1 disabled:opacity-20">▼</button>
-            <button onClick={() => quitarEquipo(eqId)} className="text-red-400 text-xs px-1">✕</button>
+            <button onClick={() => mover(idx, -1)} disabled={idx === 0} className="text-gray-600 text-xs px-1 disabled:opacity-20">â–²</button>
+            <button onClick={() => mover(idx, 1)} disabled={idx === equiposCopa.length - 1} className="text-gray-600 text-xs px-1 disabled:opacity-20">â–¼</button>
+            <button onClick={() => quitarEquipo(eqId)} className="text-red-400 text-xs px-1">âœ•</button>
           </div>
         ))}
 
@@ -1583,7 +1583,7 @@ function TabCopas({ data }) {
                   disabled={!!gen || equiposCopa.length < minEq}
                   className="bg-green-700 text-white rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-30 active:scale-95 transition-all whitespace-nowrap"
                 >
-                  {gen === fase ? '⏳' : ps.length > 0 ? '↺ Regenerar' : '🎲 Generar'}
+                  {gen === fase ? 'â³' : ps.length > 0 ? 'â†º Regenerar' : 'ðŸŽ² Generar'}
                 </button>
               </div>
               {ps.length > 0 && (
@@ -1595,13 +1595,13 @@ function TabCopas({ data }) {
                         {p.jugado ? `${p.golesLocal}-${p.golesVisitante}` : 'vs'}
                       </span>
                       <span className="flex-1 text-white font-semibold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
-                      <button onClick={() => remove(ref(db, `partidos/${p.id}`))} className="text-red-400 pl-2">✕</button>
+                      <button onClick={() => remove(rp(`partidos/${p.id}`))} className="text-red-400 pl-2">âœ•</button>
                     </div>
                   ))}
                 </div>
               )}
               {ps.length === 0 && equiposCopa.length < minEq && (
-                <p className="px-4 pb-3 text-[11px] text-gray-600">Necesitás al menos {minEq} equipos en la lista</p>
+                <p className="px-4 pb-3 text-[11px] text-gray-600">NecesitÃ¡s al menos {minEq} equipos en la lista</p>
               )}
             </div>
           )
@@ -1611,7 +1611,7 @@ function TabCopas({ data }) {
   )
 }
 
-/* ─── RESULTADOS ─── */
+/* â”€â”€â”€ RESULTADOS â”€â”€â”€ */
 function TabResultados({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
@@ -1640,19 +1640,19 @@ function TabResultados({ data }) {
   const guardarResultado = async () => {
     if (!partidoId || gl === '' || gv === '') return
     setSavingRes(true)
-    await update(ref(db, `partidos/${partidoId}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
+    await update(rp(`partidos/${partidoId}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
     setSavingRes(false)
   }
 
   const agregarGol = async () => {
     if (!golEq || (!golEC && !golJug)) return
-    await push(ref(db, `goles/${partidoId}`), { equipoId: golEq, jugadorId: golJug || 'sin_jugador', enContra: golEC })
+    await push(rp(`goles/${partidoId}`), { equipoId: golEq, jugadorId: golJug || 'sin_jugador', enContra: golEC })
     setGolEq(''); setGolJug(''); setGolEC(false)
   }
 
   const agregarTarjeta = async () => {
     if (!tarjEq || !tarjJug) return
-    await push(ref(db, `tarjetas/${partidoId}`), { equipoId: tarjEq, jugadorId: tarjJug, tipo: tarjTipo })
+    await push(rp(`tarjetas/${partidoId}`), { equipoId: tarjEq, jugadorId: tarjJug, tipo: tarjTipo })
     setTarjEq(''); setTarjJug(''); setTarjTipo('amarilla')
   }
 
@@ -1663,7 +1663,7 @@ function TabResultados({ data }) {
   return (
     <div className="pt-4 space-y-4">
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30">
-        <p className="text-xs text-gray-500 mb-2">Seleccioná un partido</p>
+        <p className="text-xs text-gray-500 mb-2">SeleccionÃ¡ un partido</p>
         <select value={partidoId} onChange={e => {
           const p = partidos[e.target.value]
           setPartidoId(e.target.value)
@@ -1671,10 +1671,10 @@ function TabResultados({ data }) {
           setGv(p?.golesVisitante ?? '')
         }}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
-          <option value="">— Elegí un partido —</option>
+          <option value="">â€” ElegÃ­ un partido â€”</option>
           {listaPartidos.map(p => (
             <option key={p.id} value={p.id}>
-              F{p.numero} · {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' ✓' : ''}
+              F{p.numero} Â· {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' âœ“' : ''}
             </option>
           ))}
         </select>
@@ -1699,7 +1699,7 @@ function TabResultados({ data }) {
             </div>
             <button onClick={guardarResultado} disabled={savingRes || gl === '' || gv === ''}
               className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
-              {savingRes ? 'Guardando...' : partido.jugado ? '✓ Actualizar Resultado' : 'Guardar Resultado'}
+              {savingRes ? 'Guardando...' : partido.jugado ? 'âœ“ Actualizar Resultado' : 'Guardar Resultado'}
             </button>
           </div>
 
@@ -1710,12 +1710,12 @@ function TabResultados({ data }) {
                 const jug = jugadores[g.equipoId]?.[g.jugadorId]
                 return (
                   <div key={id} className="flex items-center gap-2 text-sm">
-                    <span className="text-green-400">⚽</span>
+                    <span className="text-green-400">âš½</span>
                     <span className="flex-1 text-white">
                       {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
                       {jug?.nombre || 'Jugador'} <span className="text-gray-500 text-xs">({equipos[g.equipoId]?.nombre})</span>{g.enContra ? <span className="text-red-400 text-xs ml-1">en contra</span> : ''}
                     </span>
-                    <button onClick={() => remove(ref(db, `goles/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                    <button onClick={() => remove(rp(`goles/${partidoId}/${id}`))} className="text-red-400 text-xs">âœ•</button>
                   </div>
                 )
               })}
@@ -1731,7 +1731,7 @@ function TabResultados({ data }) {
               <select value={golJug} onChange={e => setGolJug(e.target.value)}
                 className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
                 <option value="">Jugador</option>
-                {jugsPorEquipo(golEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                {jugsPorEquipo(golEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} Â· ${j.nombre}` : j.nombre}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-2">
@@ -1752,12 +1752,12 @@ function TabResultados({ data }) {
                 const jug = jugadores[t.equipoId]?.[t.jugadorId]
                 return (
                   <div key={id} className="flex items-center gap-2 text-sm">
-                    <span>{t.tipo === 'amarilla' ? '🟨' : '🟥'}</span>
+                    <span>{t.tipo === 'amarilla' ? 'ðŸŸ¨' : 'ðŸŸ¥'}</span>
                     <span className="flex-1 text-white">
                       {jug?.numero && <span className="text-green-500">#{jug.numero} </span>}
                       {jug?.nombre || '?'} <span className="text-gray-500 text-xs">({equipos[t.equipoId]?.nombre})</span>
                     </span>
-                    <button onClick={() => remove(ref(db, `tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">✕</button>
+                    <button onClick={() => remove(rp(`tarjetas/${partidoId}/${id}`))} className="text-red-400 text-xs">âœ•</button>
                   </div>
                 )
               })}
@@ -1773,12 +1773,12 @@ function TabResultados({ data }) {
               <select value={tarjJug} onChange={e => setTarjJug(e.target.value)}
                 className="flex-1 bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
                 <option value="">Jugador</option>
-                {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} · ${j.nombre}` : j.nombre}</option>)}
+                {jugsPorEquipo(tarjEq).map(j => <option key={j.jid} value={j.jid}>{j.numero ? `#${j.numero} Â· ${j.nombre}` : j.nombre}</option>)}
               </select>
               <select value={tarjTipo} onChange={e => setTarjTipo(e.target.value)}
                 className="bg-[#111] border border-green-900/40 rounded-xl px-2 py-2 text-white text-xs outline-none">
-                <option value="amarilla">🟨</option>
-                <option value="roja">🟥</option>
+                <option value="amarilla">ðŸŸ¨</option>
+                <option value="roja">ðŸŸ¥</option>
               </select>
             </div>
             <button onClick={agregarTarjeta} disabled={!tarjEq || !tarjJug}
@@ -1792,7 +1792,7 @@ function TabResultados({ data }) {
   )
 }
 
-/* ─── NOVEDADES ─── */
+/* â”€â”€â”€ NOVEDADES â”€â”€â”€ */
 function TabNovedades({ data }) {
   const novedades = data.novedades || {}
   const [titulo, setTitulo] = useState('')
@@ -1809,7 +1809,7 @@ function TabNovedades({ data }) {
   const agregar = async () => {
     if (!titulo.trim()) return
     setLoading(true)
-    await push(ref(db, 'novedades'), { titulo: titulo.trim(), detalle: detalle.trim(), imagen: imagen || null, orden: Date.now() })
+    await push(rp('novedades'), { titulo: titulo.trim(), detalle: detalle.trim(), imagen: imagen || null, orden: Date.now() })
     setTitulo(''); setDetalle(''); setImagen(null); setLoading(false)
   }
 
@@ -1821,7 +1821,7 @@ function TabNovedades({ data }) {
     <div className="pt-4 space-y-4">
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-3">
         <p className="text-sm font-bold text-green-400">Nueva Novedad</p>
-        <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título"
+        <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="TÃ­tulo"
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none" />
         <textarea value={detalle} onChange={e => setDetalle(e.target.value)} placeholder="Detalle (opcional)" rows={3}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-4 py-2.5 text-white text-sm outline-none resize-none" />
@@ -1845,7 +1845,7 @@ function TabNovedades({ data }) {
                 <p className="font-bold text-white text-sm">{n.titulo}</p>
                 {n.detalle && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.detalle}</p>}
               </div>
-              <button onClick={() => remove(ref(db, `novedades/${n.id}`))} className="text-red-400 text-xs flex-shrink-0">✕</button>
+              <button onClick={() => remove(rp(`novedades/${n.id}`))} className="text-red-400 text-xs flex-shrink-0">âœ•</button>
             </div>
           </div>
         ))}
@@ -1855,7 +1855,7 @@ function TabNovedades({ data }) {
   )
 }
 
-/* ─── FINANZAS ─── */
+/* â”€â”€â”€ FINANZAS â”€â”€â”€ */
 const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
 const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
@@ -1867,12 +1867,12 @@ const COPA_JORNADAS = {
 }
 const GASTOS_FIJOS = [
   { key: 'cancha', label: 'Cancha' },
-  { key: 'arbitros', label: 'Árbitros' },
+  { key: 'arbitros', label: 'Ãrbitros' },
   { key: 'bebidas', label: 'Bebidas' },
   { key: 'facu', label: 'Facu', desde: 6 },
 ]
 
-// Input de monto: muestra "$ 55.000" mientras se escribe, guarda solo dígitos
+// Input de monto: muestra "$ 55.000" mientras se escribe, guarda solo dÃ­gitos
 function MoneyInput({ value, onChange, onBlur, placeholder, className, disabled }) {
   return (
     <input
@@ -1903,7 +1903,7 @@ function TabFinanzas({ data }) {
   const [fechaSel, setFechaSel] = useState(String(PRIMERA_FECHA_FINANZAS))
   const fechaInitRef = useRef(false)
 
-  // Equipos que efectivamente juegan en una fecha (liga o copa) — solo esos pagan cuota
+  // Equipos que efectivamente juegan en una fecha (liga o copa) â€” solo esos pagan cuota
   const equiposQueJuegan = (fechaKey) => {
     const ids = new Set()
     if (COPA_JORNADAS[fechaKey]) {
@@ -1922,7 +1922,7 @@ function TabFinanzas({ data }) {
     return ids
   }
 
-  // Una fecha está "cerrada" en Finanzas cuando todos los equipos que juegan tienen su pago confirmado (candado cerrado)
+  // Una fecha estÃ¡ "cerrada" en Finanzas cuando todos los equipos que juegan tienen su pago confirmado (candado cerrado)
   const pagosCompletos = (fechaKey) => {
     const activos = [...equiposQueJuegan(fechaKey)].filter(id => equiposActivos[id])
     if (activos.length === 0) return false
@@ -1932,7 +1932,7 @@ function TabFinanzas({ data }) {
 
   const fechaFinCerrada = (n) => !!fechasCerradas[n] || pagosCompletos(String(n))
 
-  // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada por pagos
+  // Fecha en curso: la primera de liga (desde la 4) que todavÃ­a no estÃ¡ cerrada por pagos
   const fechaActual = (() => {
     for (let n = PRIMERA_FECHA_FINANZAS; n <= totalFechas; n++) {
       if (!fechaFinCerrada(n)) return n
@@ -1940,7 +1940,7 @@ function TabFinanzas({ data }) {
     return totalFechas
   })()
 
-  // Al entrar a Finanzas, abrir automáticamente en la fecha en curso (la verde)
+  // Al entrar a Finanzas, abrir automÃ¡ticamente en la fecha en curso (la verde)
   useEffect(() => {
     if (fechaInitRef.current) return
     setFechaSel(String(fechaActual))
@@ -1977,17 +1977,17 @@ function TabFinanzas({ data }) {
   useEffect(() => { setCajaBaseInput(String(config.cajaBase ?? '')) }, [config.cajaBase])
   useEffect(() => { setObjetivoInput(String(config.objetivo ?? '')) }, [config.objetivo])
 
-  const guardarCuota = () => update(ref(db, `finanzas/${fechaSel}`), { cuota: cuotaInput === '' ? null : Number(cuotaInput) })
-  const guardarGananciaOrg = () => update(ref(db, `finanzas/${fechaSel}`), { gananciaOrganizadores: orgInput === '' ? null : Number(orgInput) })
-  const guardarGasto = key => update(ref(db, `finanzas/${fechaSel}/gastos`), { [key]: gastoInputs[key] === '' ? null : Number(gastoInputs[key]) })
-  const guardarCajaBase = () => update(ref(db, 'finanzas/config'), { cajaBase: cajaBaseInput === '' ? null : Number(cajaBaseInput) })
-  const guardarObjetivo = () => update(ref(db, 'finanzas/config'), { objetivo: objetivoInput === '' ? null : Number(objetivoInput) })
+  const guardarCuota = () => update(rp(`finanzas/${fechaSel}`), { cuota: cuotaInput === '' ? null : Number(cuotaInput) })
+  const guardarGananciaOrg = () => update(rp(`finanzas/${fechaSel}`), { gananciaOrganizadores: orgInput === '' ? null : Number(orgInput) })
+  const guardarGasto = key => update(rp(`finanzas/${fechaSel}/gastos`), { [key]: gastoInputs[key] === '' ? null : Number(gastoInputs[key]) })
+  const guardarCajaBase = () => update(rp('finanzas/config'), { cajaBase: cajaBaseInput === '' ? null : Number(cajaBaseInput) })
+  const guardarObjetivo = () => update(rp('finanzas/config'), { objetivo: objetivoInput === '' ? null : Number(objetivoInput) })
 
   const guardarPago = (equipoId, campo, valor) =>
-    update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { [campo]: valor === '' ? null : Number(valor) })
+    update(rp(`finanzas/${fechaSel}/pagos/${equipoId}`), { [campo]: valor === '' ? null : Number(valor) })
 
   const toggleConfirmado = equipoId =>
-    update(ref(db, `finanzas/${fechaSel}/pagos/${equipoId}`), { confirmado: !pagos[equipoId]?.confirmado })
+    update(rp(`finanzas/${fechaSel}/pagos/${equipoId}`), { confirmado: !pagos[equipoId]?.confirmado })
 
   const recaudadoEfectivoFecha = Object.values(pagos).reduce((s, p) => s + Number(p.efectivo || 0), 0)
   const recaudadoTransferenciaFecha = Object.values(pagos).reduce((s, p) => s + Number(p.transferencia || 0), 0)
@@ -2008,13 +2008,13 @@ function TabFinanzas({ data }) {
   }, { recaudado: 0, gastos: 0, gananciaOrg: 0 })
   const ingresoCajaGeneral = resumenGeneral.recaudado - resumenGeneral.gastos - resumenGeneral.gananciaOrg
   // La Caja Inicial es el valor real que Fernando actualiza a mano (incluye retiros para gastos adicionales),
-  // por eso el objetivo se calcula sobre ese campo y no sobre el ingreso acumulado automático
+  // por eso el objetivo se calcula sobre ese campo y no sobre el ingreso acumulado automÃ¡tico
   const cajaTotal = Number(config.cajaBase || 0)
   const objetivo = Number(config.objetivo || 0)
   const progresoObjetivo = objetivo > 0 ? Math.min(100, (cajaTotal / objetivo) * 100) : 0
 
   // Deuda total acumulada por equipo: deuda inicial + cuotas - pagos, desde la Fecha 4
-  // Solo se suma la cuota de las fechas donde el equipo efectivamente jugó
+  // Solo se suma la cuota de las fechas donde el equipo efectivamente jugÃ³
   const calcularDeudaTotal = eqId => {
     let total = Number(deudaInicial[eqId] || 0)
     fechasFinanzas.forEach(([n, f]) => {
@@ -2032,7 +2032,7 @@ function TabFinanzas({ data }) {
     .sort((a, b) => b[1] - a[1])
 
   const idsQueJuegan = equiposQueJuegan(fechaSel)
-  const labelFecha = COPA_JORNADAS[fechaSel] ? `Copa · Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+  const labelFecha = COPA_JORNADAS[fechaSel] ? `Copa Â· Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
 
   return (
     <div className="pt-4 space-y-4">
@@ -2093,9 +2093,9 @@ function TabFinanzas({ data }) {
 
       {/* Pagos por equipo */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
-        <p className="text-sm font-bold text-green-400">Pagos — {labelFecha}</p>
+        <p className="text-sm font-bold text-green-400">Pagos â€” {labelFecha}</p>
         {idsQueJuegan.size === 0 && (
-          <p className="text-gray-600 text-xs text-center py-3">Todavía no hay cruces cargados para esta fecha</p>
+          <p className="text-gray-600 text-xs text-center py-3">TodavÃ­a no hay cruces cargados para esta fecha</p>
         )}
         {Object.entries(equiposActivos)
           .filter(([id]) => idsQueJuegan.has(id))
@@ -2110,8 +2110,8 @@ function TabFinanzas({ data }) {
               <div key={id} className={`rounded-xl p-2.5 space-y-1.5 ${tarjetaClase}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
-                  <button onClick={() => toggleConfirmado(id)} className="flex-shrink-0 text-base leading-none" title="Marcar operación cerrada">
-                    {p.confirmado ? '🔒' : '🔓'}
+                  <button onClick={() => toggleConfirmado(id)} className="flex-shrink-0 text-base leading-none" title="Marcar operaciÃ³n cerrada">
+                    {p.confirmado ? 'ðŸ”’' : 'ðŸ”“'}
                   </button>
                 </div>
                 <div className="flex gap-1.5">
@@ -2135,7 +2135,7 @@ function TabFinanzas({ data }) {
                 <p className="text-xs">
                   <span className="text-gray-500">Debe: </span>
                   <span className={`font-bold ${deudaTotal > 0 ? 'text-red-400' : deudaTotal < 0 ? 'text-green-400' : 'text-gray-400'}`}>
-                    {deudaTotal > 0 ? fmtMoney(deudaTotal) : deudaTotal < 0 ? `A favor ${fmtMoney(-deudaTotal)}` : 'Al día'}
+                    {deudaTotal > 0 ? fmtMoney(deudaTotal) : deudaTotal < 0 ? `A favor ${fmtMoney(-deudaTotal)}` : 'Al dÃ­a'}
                   </span>
                 </p>
               </div>
@@ -2145,7 +2145,7 @@ function TabFinanzas({ data }) {
 
       {/* Gastos */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
-        <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
+        <p className="text-sm font-bold text-green-400">Gastos â€” {labelFecha}</p>
         {GASTOS_FIJOS.filter(g => !g.desde || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
@@ -2157,7 +2157,7 @@ function TabFinanzas({ data }) {
               return (
                 <button onClick={() => guardarGasto(g.key)}
                   className={`rounded-lg w-9 h-9 text-sm font-black flex items-center justify-center flex-shrink-0 transition-all
-                    ${confirmado ? 'bg-green-900/40 text-green-600 scale-90' : 'bg-green-700 text-white'}`}>✓</button>
+                    ${confirmado ? 'bg-green-900/40 text-green-600 scale-90' : 'bg-green-700 text-white'}`}>âœ“</button>
               )
             })()}
           </div>
@@ -2166,7 +2166,7 @@ function TabFinanzas({ data }) {
 
       {/* Caja de ahorro + resumen de la fecha */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
-        <p className="text-sm font-bold text-green-400 mb-1">Resumen — {labelFecha}</p>
+        <p className="text-sm font-bold text-green-400 mb-1">Resumen â€” {labelFecha}</p>
         <div className="bg-[#111] rounded-lg p-2.5">
           <p className="text-gray-500 text-xs">Recaudado en Efectivo</p>
           <p className="text-white font-bold text-sm">{fmtMoney(recaudadoEfectivoFecha)}</p>
@@ -2186,7 +2186,7 @@ function TabFinanzas({ data }) {
         <div className="bg-[#111] rounded-lg p-2.5">
           <p className="text-gray-500 text-xs mb-1">Ganancia de los Organizadores</p>
           <MoneyInput value={orgInput} onChange={setOrgInput}
-            onBlur={guardarGananciaOrg} placeholder="$ 0 (a mano, según decidas esta fecha)"
+            onBlur={guardarGananciaOrg} placeholder="$ 0 (a mano, segÃºn decidas esta fecha)"
             className="w-full bg-[#1a1a1a] border border-green-900/40 rounded-xl px-3 py-2 text-white text-sm outline-none" />
         </div>
         <div className="bg-[#111] rounded-lg p-2.5">
@@ -2228,7 +2228,7 @@ function TabFinanzas({ data }) {
               <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progresoObjetivo}%` }} />
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">Vas un {progresoObjetivo.toFixed(0)}% para llegar al objetivo ({fmtMoney(objetivo)}) · llevás {fmtMoney(cajaTotal)}</p>
+              <p className="text-[10px] text-gray-500 mt-1">Vas un {progresoObjetivo.toFixed(0)}% para llegar al objetivo ({fmtMoney(objetivo)}) Â· llevÃ¡s {fmtMoney(cajaTotal)}</p>
             </>
           )}
           <div className="flex gap-1.5 mt-2">
@@ -2250,3 +2250,4 @@ function TabFinanzas({ data }) {
     </div>
   )
 }
+
