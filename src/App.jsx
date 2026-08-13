@@ -146,11 +146,12 @@ export default function App() {
     return () => window.removeEventListener('popstate', handler)
   }, [])
 
-  // Restaurar sesión admin persistida (solo el acceso, no navegar a admin)
+  // Restaurar sesión admin persistida — espera confirmación de Firebase antes de setear authed
   useEffect(() => {
     if (localStorage.getItem(SESSION_KEY) === '1') {
-      setAuthed(true)
-      adminSignIn().catch(() => {})
+      adminSignIn()
+        .then(() => setAuthed(true))
+        .catch(() => localStorage.removeItem(SESSION_KEY))
     }
   }, [])
 
