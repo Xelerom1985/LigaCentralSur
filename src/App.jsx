@@ -254,7 +254,6 @@ export default function App() {
   }
 
   const elegirTorneo = t => {
-    if (t === 'domingos' && !authed) return
     setTorneo(t)
     setSeccion(authed ? 'admin' : 'home')
   }
@@ -287,19 +286,10 @@ export default function App() {
           </button>
 
           {/* DOMINGOS */}
-          <div className="relative w-full overflow-hidden rounded-2xl">
-            <button onClick={() => elegirTorneo('domingos')} disabled={!authed}
-              className="w-full bg-white/10 backdrop-blur-sm border border-white/15 text-white/40 rounded-2xl py-5 text-xl font-black transition-all shadow-2xl flex flex-col items-center gap-0.5">
-              <span>⚽ DOMINGOS</span>
-              <span className="text-sm font-semibold text-white/25 tracking-widest">— — —</span>
-            </button>
-            {/* Franja PRÓXIMAMENTE diagonal */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-2xl">
-              <div className="bg-black/70 w-[140%] py-2 text-center rotate-[-18deg]">
-                <span className="text-white/90 text-xs font-black tracking-[0.3em] uppercase">Próximamente</span>
-              </div>
-            </div>
-          </div>
+          <button onClick={() => elegirTorneo('domingos')}
+            className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
+            <span>⚽ DOMINGOS</span>
+          </button>
         </div>
       </div>
 
