@@ -1660,8 +1660,36 @@ function TabResultados({ data }) {
     .map(([jid, j]) => ({ jid, nombre: j.nombre, numero: j.numero || '' }))
     .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999) || a.nombre.localeCompare(b.nombre))
 
+  // Vacía de una todas las tarjetas de un tipo en todo el torneo (para corregir cargas por error)
+  const vaciarTarjetas = async tipo => {
+    const label = tipo === 'amarilla' ? 'amarillas' : 'rojas'
+    if (!confirm(`¿Eliminar TODAS las tarjetas ${label} de todos los partidos? No se puede deshacer.`)) return
+    const updates = {}
+    Object.entries(tarjetas).forEach(([pid, ts]) => {
+      Object.entries(ts).forEach(([tid, t]) => {
+        if (t.tipo === tipo) updates[`tarjetas/${pid}/${tid}`] = null
+      })
+    })
+    if (Object.keys(updates).length === 0) { alert(`No hay tarjetas ${label} cargadas.`); return }
+    await update(rp(''), updates)
+  }
+
   return (
     <div className="pt-4 space-y-4">
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-red-900/30 space-y-2">
+        <p className="text-xs text-gray-500">Mantenimiento — borra tarjetas de todo el torneo de una vez</p>
+        <div className="flex gap-2">
+          <button onClick={() => vaciarTarjetas('amarilla')}
+            className="flex-1 bg-yellow-900/30 border border-yellow-700/40 text-yellow-400 rounded-xl py-2 text-xs font-semibold active:scale-95 transition-all">
+            🟨 Vaciar amarillas
+          </button>
+          <button onClick={() => vaciarTarjetas('roja')}
+            className="flex-1 bg-red-900/30 border border-red-700/40 text-red-400 rounded-xl py-2 text-xs font-semibold active:scale-95 transition-all">
+            🟥 Vaciar rojas
+          </button>
+        </div>
+      </div>
+
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30">
         <p className="text-xs text-gray-500 mb-2">Seleccioná un partido</p>
         <select value={partidoId} onChange={e => {
