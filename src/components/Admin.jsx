@@ -1667,11 +1667,11 @@ function TabResultados({ data }) {
     const updates = {}
     Object.entries(tarjetas).forEach(([pid, ts]) => {
       Object.entries(ts).forEach(([tid, t]) => {
-        if (t.tipo === tipo) updates[`tarjetas/${pid}/${tid}`] = null
+        if (t.tipo === tipo) updates[`${pid}/${tid}`] = null
       })
     })
     if (Object.keys(updates).length === 0) { alert(`No hay tarjetas ${label} cargadas.`); return }
-    await update(rp(''), updates)
+    await update(rp('tarjetas'), updates)
   }
 
   return (
