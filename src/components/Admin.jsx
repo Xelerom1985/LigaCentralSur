@@ -613,6 +613,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   }
 
   const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
+  const toggleSinCuota = () => update(rp(`partidos/${p.id}`), { sinCuota: !p.sinCuota })
 
   const partidoCerrado = !!p.cerrado
   const bloqueado = cerrada || partidoCerrado
@@ -653,6 +654,12 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
             </button>
           </div>
         )}
+
+        {/* Walkover: se juega el resultado (puntos/gol) pero no se cobra cuota a ninguno de los dos */}
+        <label className="flex items-center gap-2 mt-2 text-[11px] text-gray-400 cursor-pointer select-none">
+          <input type="checkbox" checked={!!p.sinCuota} onChange={toggleSinCuota} className="accent-yellow-500 w-3.5 h-3.5" />
+          🚫 Walkover — no cobrar cuota esta fecha a ninguno de los dos
+        </label>
       </div>
 
       {/* Cerrar partido: un solo botón que guarda resultado + hora y bloquea todo */}
@@ -1942,7 +1949,7 @@ function TabFinanzas({ data }) {
     } else {
       const n = Number(fechaKey)
       Object.values(partidos).forEach(p => {
-        if (p.fase === 'liga' && Number(p.numero) === n && !p.libre && p.local && p.visitante) {
+        if (p.fase === 'liga' && Number(p.numero) === n && !p.libre && !p.sinCuota && p.local && p.visitante) {
           ids.add(p.local); ids.add(p.visitante)
         }
       })
