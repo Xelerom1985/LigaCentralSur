@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { db, ref, push, update, remove, set, rp } from '../firebase'
+import { db, ref, push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 
@@ -1935,6 +1935,9 @@ function TabFinanzas({ data }) {
   const cantEquipos = Object.keys(equiposActivos).length
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 10
 
+  // Sábados no lleva Finanzas de las fechas 1 a 3 (son previas a esta funcionalidad); Domingos sí, desde su Fecha 1
+  const primeraFechaFinanzas = getTorneoPrefix() === 'domingos/' ? 1 : 4
+
   const [fechaSel, setFechaSel] = useState('1')
   const fechaInitRef = useRef(false)
 
@@ -1969,7 +1972,7 @@ function TabFinanzas({ data }) {
 
   // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada por pagos
   const fechaActual = (() => {
-    for (let n = 1; n <= totalFechas; n++) {
+    for (let n = primeraFechaFinanzas; n <= totalFechas; n++) {
       if (!fechaFinCerrada(n)) return n
     }
     return totalFechas
@@ -2031,7 +2034,7 @@ function TabFinanzas({ data }) {
   const ingresoCajaFecha = recaudadoFecha - gastosFecha - Number(gananciaOrg || 0)
 
   // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante) + las jornadas de copas
-  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= 1 || COPA_JORNADAS[n]))
+  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= primeraFechaFinanzas || COPA_JORNADAS[n]))
 
   const resumenGeneral = fechasFinanzas.reduce((acc, [, f]) => {
     const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
@@ -2076,7 +2079,7 @@ function TabFinanzas({ data }) {
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
         <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Fecha del torneo</p>
         <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
+          {Array.from({ length: totalFechas - primeraFechaFinanzas + 1 }, (_, i) => i + primeraFechaFinanzas).map(n => {
             const sel = String(fechaSel) === String(n)
             const estado = fechaFinCerrada(n) ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
             const base = estado === 'cerrada'

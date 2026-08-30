@@ -26,5 +26,6 @@ export const adminSignOut = () => signOut(auth)
 // Prefix activo según el torneo seleccionado
 let _prefix = ''
 export const setTorneoPrefix = p => { _prefix = p }
+export const getTorneoPrefix = () => _prefix
 // ref con prefix: reemplaza ref(db, path) en Admin
 export const rp = path => ref(db, _prefix + path)
