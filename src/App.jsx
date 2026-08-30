@@ -42,7 +42,15 @@ export default function App() {
   const [cachedData] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DATA_CACHE_KEY) || '{}') } catch { return {} }
   })
-  const [torneo, setTorneo] = useState(null) // null = lobby, 'sabados' | 'domingos'
+  const TORNEO_KEY = 'lcs_torneo'
+  // null = lobby, 'sabados' | 'domingos' — se restaura desde localStorage para que un refresh no vuelva al lobby
+  const [torneo, setTorneo] = useState(() => {
+    const guardado = localStorage.getItem(TORNEO_KEY)
+    return guardado === 'sabados' || guardado === 'domingos' ? guardado : null
+  })
+  // Ir al lobby (casita) borra la preferencia guardada; elegir un torneo la guarda
+  const irAlLobby = () => { localStorage.removeItem(TORNEO_KEY); setTorneo(null) }
+  const elegirYGuardarTorneo = t => { localStorage.setItem(TORNEO_KEY, t); setTorneo(t) }
   const [seccion, setSeccion] = useState('home')
   const [authed, setAuthed] = useState(false)
   const [showPin, setShowPin] = useState(false)
@@ -166,7 +174,7 @@ export default function App() {
     }
     localStorage.setItem(SESSION_KEY, '1')
     setAuthed(true); setShowPin(false); setPinInput(''); setPinError(false); setSeccion('admin')
-    if (!torneo) setTorneo('sabados')
+    if (!torneo) elegirYGuardarTorneo('sabados')
   }
 
   const navegar = sec => {
@@ -254,7 +262,7 @@ export default function App() {
   }
 
   const elegirTorneo = t => {
-    setTorneo(t)
+    elegirYGuardarTorneo(t)
     setSeccion(authed ? 'admin' : 'home')
   }
 
@@ -432,7 +440,7 @@ export default function App() {
       <Navbar seccion={seccion} navegar={navegar} />
 
       {/* Botón volver al lobby — casita centrada arriba */}
-      <button onClick={() => setTorneo(null)}
+      <button onClick={irAlLobby}
         className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-11 h-11 flex items-center justify-center text-white/30 active:text-white/60 transition-colors">
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
