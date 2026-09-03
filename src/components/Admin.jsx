@@ -15,7 +15,7 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
+const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
 const FINANZAS_PIN = '200514687'
 const FINANZAS_CRED_KEY = 'lcs_finanzas_cred'
@@ -28,6 +28,7 @@ export default function Admin({ data }) {
   const [showFinanzasPin, setShowFinanzasPin] = useState(false)
   const [finanzasPinInput, setFinanzasPinInput] = useState('')
   const [finanzasPinError, setFinanzasPinError] = useState(false)
+  const [tabPendiente, setTabPendiente] = useState('Finanzas')
   const [finBioAvail, setFinBioAvail] = useState(false)
   const [finHasCred, setFinHasCred] = useState(false)
   const [finBioError, setFinBioError] = useState(false)
@@ -48,7 +49,7 @@ export default function Admin({ data }) {
   const entrarFinanzas = () => {
     localStorage.setItem(FINANZAS_SESSION_KEY, '1')
     setFinanzasAuthed(true); setShowFinanzasPin(false); setFinanzasPinInput(''); setFinanzasPinError(false)
-    setTab('Finanzas')
+    setTab(tabPendiente)
   }
 
   const intentarFinanzasPin = () => {
@@ -107,7 +108,8 @@ export default function Admin({ data }) {
   }
 
   const abrirTab = t => {
-    if (t === 'Finanzas' && !finanzasAuthed) {
+    if ((t === 'Finanzas' || t === 'Objetivo') && !finanzasAuthed) {
+      setTabPendiente(t)
       setShowFinanzasPin(true)
       setFinanzasPinInput('')
       setFinanzasPinError(false)
@@ -185,7 +187,7 @@ export default function Admin({ data }) {
             <button key={t} onClick={() => abrirTab(t)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                 ${tab === t
-                  ? (t === 'Finanzas' ? 'bg-red-600 text-white' : 'bg-green-600 text-white')
+                  ? (t === 'Finanzas' ? 'bg-red-600 text-white' : t === 'Objetivo' ? 'bg-yellow-600 text-white' : 'bg-green-600 text-white')
                   : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
               {t}
             </button>
@@ -200,6 +202,7 @@ export default function Admin({ data }) {
         {tab === 'Resultados' && <TabResultados data={data} />}
         {tab === 'Novedades'  && <TabNovedades data={data} />}
         {tab === 'Finanzas'   && finanzasAuthed && <TabFinanzas data={data} />}
+        {tab === 'Objetivo'   && finanzasAuthed && <TabObjetivo data={data} />}
       </div>
     </div>
   )
@@ -1890,8 +1893,171 @@ function TabNovedades({ data }) {
   )
 }
 
-/* ─── FINANZAS ─── */
+/* ─── OBJETIVO ─── */
 const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
+
+const FECHAS_PROYECCION = [
+  { key: 'f10',   label: 'Fecha 10', copa: false },
+  { key: 'f11',   label: 'Fecha 11', copa: false },
+  { key: 'copa1', label: 'Copa 1',   copa: true  },
+  { key: 'copa2', label: 'Copa 2',   copa: true  },
+  { key: 'copa3', label: 'Copa 3',   copa: true  },
+]
+
+function TabObjetivo({ data }) {
+  const finanzas = data.finanzas || {}
+  const config = finanzas.config || {}
+  const objConfig = finanzas.objetivo_config || {}
+  const proyeccion = objConfig.proyeccion || {}
+
+  const cajaBase = Number(config.cajaBase || 0)
+  const objetivo = Number(config.objetivo || 0)
+
+  const [deudasInput, setDeudasInput] = useState(String(objConfig.deudas ?? ''))
+  useEffect(() => { setDeudasInput(String(objConfig.deudas ?? '')) }, [objConfig.deudas])
+  const guardarDeudas = () => update(rp('finanzas/objetivo_config'), { deudas: deudasInput === '' ? null : Number(deudasInput) })
+
+  const [inputs, setInputs] = useState({})
+  useEffect(() => {
+    const next = {}
+    FECHAS_PROYECCION.forEach(({ key }) => {
+      const p = proyeccion[key] || {}
+      next[`${key}_ingreso`]  = String(p.ingreso  ?? '')
+      next[`${key}_egreso`]   = String(p.egreso   ?? '')
+      next[`${key}_ganancia`] = String(p.ganancia ?? '')
+    })
+    setInputs(next)
+  }, [JSON.stringify(proyeccion)])
+
+  const guardar = (fechaKey, campo, valor) =>
+    update(rp('finanzas/objetivo_config/proyeccion/' + fechaKey), {
+      [campo]: valor === '' ? null : Number(valor)
+    })
+
+  const filas = FECHAS_PROYECCION.map(({ key, label, copa }) => {
+    const p = proyeccion[key] || {}
+    const ingreso  = Number(p.ingreso  || 0)
+    const egreso   = Number(p.egreso   || 0)
+    const ganancia = Number(p.ganancia || 0)
+    return { key, label, copa, ingreso, egreso, ganancia, caja: ingreso - egreso - ganancia }
+  })
+
+  const totalIngreso  = filas.reduce((s, f) => s + f.ingreso,  0)
+  const totalEgreso   = filas.reduce((s, f) => s + f.egreso,   0)
+  const totalGanancia = filas.reduce((s, f) => s + f.ganancia, 0)
+  const totalCaja     = filas.reduce((s, f) => s + Math.max(0, f.caja), 0)
+
+  const deudas = Number(objConfig.deudas || 0)
+  const totalProyectado = cajaBase + deudas + totalCaja
+  const aFavor = totalProyectado - objetivo
+
+  return (
+    <div className="pt-4 space-y-4">
+
+      {/* Cabecera */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-yellow-600/40">
+        <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-3">📊 Proyección al cierre</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-[#111] rounded-lg p-2.5">
+            <p className="text-[9px] text-gray-500 mb-1">Caja de Ahorro TOTAL</p>
+            <p className="text-white font-bold text-sm">{fmtMoney(cajaBase)}</p>
+          </div>
+          <div className="bg-[#111] rounded-lg p-2.5 border border-yellow-600/30">
+            <p className="text-[9px] text-gray-500 mb-1">Objetivo premios</p>
+            <p className="text-yellow-400 font-bold text-sm">{fmtMoney(objetivo)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-[9px] text-red-400 font-bold uppercase tracking-wider flex-1">Deudas pendientes de cobro</p>
+          <MoneyInput
+            value={deudasInput}
+            onChange={setDeudasInput}
+            onBlur={guardarDeudas}
+            className="w-28 bg-[#111] border border-red-900/40 rounded-lg px-2 py-1.5 text-white text-xs outline-none text-right"
+          />
+        </div>
+      </div>
+
+      {/* Tabla fechas */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-yellow-600/30">
+        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3">Fechas restantes</p>
+        <div className="grid grid-cols-5 gap-1 mb-2 px-0.5">
+          {['', 'Ingresa', 'Gastos', 'Ganancia', '→Caja'].map(h => (
+            <p key={h} className="text-[8px] font-bold uppercase tracking-wide text-gray-500 text-right first:text-left">{h}</p>
+          ))}
+        </div>
+        {filas.map(({ key, label, copa, caja }) => (
+          <div key={key} className="mb-3">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 inline-block
+              ${copa ? 'bg-red-900/40 text-red-300' : 'bg-green-900/40 text-green-300'}`}>
+              {label}
+            </span>
+            <div className="grid grid-cols-5 gap-1 items-center">
+              <div />
+              {['ingreso', 'egreso', 'ganancia'].map(campo => (
+                <MoneyInput
+                  key={campo}
+                  value={inputs[`${key}_${campo}`] ?? ''}
+                  onChange={v => setInputs(prev => ({ ...prev, [`${key}_${campo}`]: v }))}
+                  onBlur={() => guardar(key, campo, inputs[`${key}_${campo}`] ?? '')}
+                  className={`w-full bg-[#111] border rounded px-1.5 py-1.5 text-white text-[10px] outline-none text-right
+                    ${campo === 'egreso' ? 'border-red-900/30' : campo === 'ganancia' ? 'border-gray-700' : 'border-green-900/30'}`}
+                />
+              ))}
+              <div className={`text-right text-[10px] font-bold
+                ${caja > 0 ? 'text-green-400' : caja < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                {caja !== 0 ? fmtMoney(Math.abs(caja)) : '—'}
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="border-t border-yellow-600/30 pt-2 grid grid-cols-5 gap-1">
+          <p className="text-[8px] text-gray-500 font-bold uppercase self-center">Total</p>
+          <p className="text-[10px] font-bold text-right text-white">{fmtMoney(totalIngreso)}</p>
+          <p className="text-[10px] font-bold text-right text-red-400">{fmtMoney(totalEgreso)}</p>
+          <p className="text-[10px] font-bold text-right text-gray-400">{fmtMoney(totalGanancia)}</p>
+          <p className="text-[10px] font-bold text-right text-green-400">{fmtMoney(totalCaja)}</p>
+        </div>
+      </div>
+
+      {/* Resumen */}
+      <div className="bg-[#1a1a1a] rounded-xl p-4 border border-yellow-600/40">
+        <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-3">Resumen final</p>
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Caja de Ahorro</span>
+            <span className="text-sm font-bold text-white">{fmtMoney(cajaBase)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Deudas por cobrar</span>
+            <span className="text-sm font-bold text-white">{fmtMoney(deudas)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Ingresos a caja (fechas)</span>
+            <span className="text-sm font-bold text-white">{fmtMoney(totalCaja)}</span>
+          </div>
+          <div className="h-px bg-yellow-600/30 my-2" />
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm font-bold text-white">Total proyectado</span>
+            <span className="text-xl font-bold text-white">{fmtMoney(totalProyectado)}</span>
+          </div>
+          <div className={`flex justify-between items-center mt-1 px-3 py-2.5 rounded-lg
+            ${aFavor >= 0 ? 'bg-green-900/20 border border-green-700/40' : 'bg-red-900/20 border border-red-700/40'}`}>
+            <span className={`text-xs font-bold ${aFavor >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {aFavor >= 0 ? '✅ A favor' : '⚠️ Falta'}
+            </span>
+            <span className={`text-base font-bold ${aFavor >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {aFavor >= 0 ? '+' : ''}{fmtMoney(aFavor)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  )
+}
+
+/* ─── FINANZAS ─── */
 const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
 // Jornadas de la fase de copas, para seguir cobrando cuota una vez terminada la liga
