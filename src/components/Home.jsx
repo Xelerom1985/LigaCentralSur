@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
+import { COPA_JORNADAS, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -68,17 +69,30 @@ export default function Home({ data }) {
   const homeFecha = data.home_fecha ?? null
   const [lightbox, setLightbox] = useState(null)
 
+  const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
+
   const fechaPartidos = useMemo(() => {
     if (!homeFecha) return []
     return Object.entries(partidos)
-      .filter(([, p]) => p.fase === 'liga' && Number(p.numero) === Number(homeFecha))
+      .filter(([, p]) => esCopaHome ? COPA_JORNADAS[homeFecha].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === Number(homeFecha)))
       .map(([id, p]) => ({ id, ...p }))
       .sort((a, b) => {
         const ha = a.fechaHora ? a.fechaHora.split('T')[1]?.slice(0,5) : (a.hora || '99:99')
         const hb = b.fechaHora ? b.fechaHora.split('T')[1]?.slice(0,5) : (b.hora || '99:99')
         return ha.localeCompare(hb)
       })
-  }, [partidos, homeFecha])
+  }, [partidos, homeFecha, esCopaHome])
+
+  // En Copa se muestra un bloque separado por cada torneo (Oro/Plata/Bronce) presente en la jornada
+  const gruposCopa = useMemo(() => {
+    if (!esCopaHome) return []
+    const byFase = {}
+    fechaPartidos.forEach(p => {
+      if (!byFase[p.fase]) byFase[p.fase] = []
+      byFase[p.fase].push(p)
+    })
+    return Object.entries(byFase).map(([fase, ps]) => ({ fase, partidos: ps }))
+  }, [fechaPartidos, esCopaHome])
 
   const novedadesList = useMemo(() =>
     Object.entries(novedades)
@@ -105,6 +119,38 @@ export default function Home({ data }) {
 
   const hasOverlay = homeFecha || novedadesList.length > 0
 
+  const MatchRow = ({ p }) => {
+    const hora = fmtHora(p.fechaHora)
+    return (
+      <div className="px-4 py-3 flex items-center gap-3">
+        <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
+          <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || '?'}</span>
+          {equipos[p.local]?.escudo
+            ? <img src={equipos[p.local].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
+            : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
+        </div>
+        <div className="flex-shrink-0 text-center w-20">
+          {p.jugado ? (
+            <>
+              <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
+              {hora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{hora}</p>}
+            </>
+          ) : hora ? (
+            <p className="text-white font-black text-xl leading-tight">{hora}</p>
+          ) : (
+            <p className="text-gray-500 text-sm font-bold">vs</p>
+          )}
+        </div>
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          {equipos[p.visitante]?.escudo
+            ? <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
+            : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
+          <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen">
       {/* Fondo */}
@@ -120,7 +166,7 @@ export default function Home({ data }) {
       {hasOverlay && (
         <div className="absolute inset-x-0 top-[24%] bottom-[72px] px-4 pb-3 pt-2 space-y-3 overflow-y-auto">
 
-          {homeFecha && fechaPartidos.length > 0 && (
+          {homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
@@ -131,40 +177,26 @@ export default function Home({ data }) {
                 )}
               </div>
               <div className="divide-y divide-white/5">
-                {fechaPartidos.map(p => {
-                  const hora = fmtHora(p.fechaHora)
-                  return (
-                  <div key={p.id} className="px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || '?'}</span>
-                      {equipos[p.local]?.escudo
-                        ? <img src={equipos[p.local].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-                    </div>
-                    <div className="flex-shrink-0 text-center w-20">
-                      {p.jugado ? (
-                        <>
-                          <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
-                          {hora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{hora}</p>}
-                        </>
-                      ) : hora ? (
-                        <p className="text-white font-black text-xl leading-tight">{hora}</p>
-                      ) : (
-                        <p className="text-gray-500 text-sm font-bold">vs</p>
-                      )}
-                    </div>
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      {equipos[p.visitante]?.escudo
-                        ? <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-                      <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
-                    </div>
-                  </div>
-                  )
-                })}
+                {fechaPartidos.map(p => <MatchRow key={p.id} p={p} />)}
               </div>
             </div>
           )}
+
+          {homeFecha && esCopaHome && gruposCopa.map(({ fase, partidos: ps }) => (
+            <div key={fase} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
+              <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
+                <span className="text-green-400 text-xs font-black uppercase tracking-widest">
+                  {COPA_LABELS[fase.split('_')[0]]} · {FASE_LABELS[fase]}
+                </span>
+                {fechaLabel && (
+                  <span className="text-gray-400 text-xs capitalize">{fechaLabel}</span>
+                )}
+              </div>
+              <div className="divide-y divide-white/5">
+                {ps.map(p => <MatchRow key={p.id} p={p} />)}
+              </div>
+            </div>
+          ))}
 
           {novedadesList.map(n => (
             <div key={n.id} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">

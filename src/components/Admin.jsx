@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { db, ref, push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
+import { COPA_JORNADAS } from '../copaJornadas'
 
 const FASES_OPT = [
   { value: 'liga', label: 'Liga' },
@@ -14,13 +15,6 @@ const FASES_OPT = [
   { value: 'bronce_semi', label: 'Copa Bronce · Semifinal' },
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
-
-// Jornadas de la fase de copas, agrupadas para poder cargar resultados igual que una Fecha de Liga
-const COPA_JORNADAS = {
-  copa_1: ['oro_4tos', 'bronce_semi'],
-  copa_2: ['oro_semi', 'plata_semi'],
-  copa_3: ['oro_final', 'plata_final', 'bronce_final'],
-}
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
@@ -1447,23 +1441,21 @@ function TabPartidos({ data }) {
             />
           ))}
 
+          <button onClick={publicarEnHome} disabled={publicando}
+            className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+            {publicando ? 'Publicando...' : `📢 Publicar ${labelFecha} en Inicio`}
+          </button>
+          {homeFecha === fechaSel && (
+            <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
+              <p className="text-xs text-green-400">✅ {labelFecha} publicada en Inicio</p>
+              <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
+            </div>
+          )}
           {!esCopa && (
-            <>
-              <button onClick={publicarEnHome} disabled={publicando}
-                className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-                {publicando ? 'Publicando...' : `📢 Publicar Fecha ${fechaSel} en Inicio`}
-              </button>
-              {homeFecha === fechaSel && (
-                <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
-                  <p className="text-xs text-green-400">✅ Fecha {fechaSel} publicada en Inicio</p>
-                  <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
-                </div>
-              )}
-              <button onClick={descargarFixture} disabled={descargando}
-                className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-                {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
-              </button>
-            </>
+            <button onClick={descargarFixture} disabled={descargando}
+              className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+              {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
+            </button>
           )}
         </div>
       )}
