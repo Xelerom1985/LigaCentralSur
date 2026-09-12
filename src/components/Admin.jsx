@@ -15,6 +15,13 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
+// Jornadas de la fase de copas, agrupadas para poder cargar resultados igual que una Fecha de Liga
+const COPA_JORNADAS = {
+  copa_1: ['oro_4tos', 'bronce_semi'],
+  copa_2: ['oro_semi', 'plata_semi'],
+  copa_3: ['oro_final', 'plata_final', 'bronce_final'],
+}
+
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
 const FINANZAS_PIN = '200514687'
@@ -893,10 +900,14 @@ function TabPartidos({ data }) {
     return s
   })
 
+  const esCopa = typeof fechaSel === 'string' && !!COPA_JORNADAS[fechaSel]
+  const perteneceAFecha = p => esCopa ? COPA_JORNADAS[fechaSel].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === fechaSel)
+  const labelFecha = esCopa ? `Copa ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+
   useEffect(() => {
     const dias = [...new Set(
       Object.values(partidos)
-        .filter(p => p.fase === 'liga' && Number(p.numero) === fechaSel && p.fechaHora)
+        .filter(p => perteneceAFecha(p) && p.fechaHora)
         .map(p => p.fechaHora.split('T')[0])
     )]
     setFechaDia(dias.length === 1 ? dias[0] : '')
@@ -908,7 +919,7 @@ function TabPartidos({ data }) {
   }
 
   const partidosFecha = Object.entries(partidos)
-    .filter(([, p]) => p.fase === 'liga' && p.numero === fechaSel)
+    .filter(([, p]) => perteneceAFecha(p))
     .map(([id, p]) => ({ id, ...p }))
     .sort((a, b) => horaDe(a) - horaDe(b) || a.id.localeCompare(b.id))
 
@@ -1223,6 +1234,16 @@ function TabPartidos({ data }) {
                     </button>
                   )
                 })}
+                {Object.keys(COPA_JORNADAS).map((key, i) => {
+                  const estado = fechasCerradas[key] ? 'cerrada' : 'futura'
+                  const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : 'bg-yellow-700 text-white'
+                  return (
+                    <button key={key} onClick={() => setFechaSel(key)}
+                      className={`rounded-lg py-2.5 text-xs font-bold transition-all active:scale-95 ${base} ${fechaSel === key ? 'ring-2 ring-white' : ''}`}>
+                      Copa {i + 1}
+                    </button>
+                  )
+                })}
               </div>
             )
           })()}
@@ -1260,7 +1281,8 @@ function TabPartidos({ data }) {
           </div>
         </div>
 
-        {/* Equipos suspendidos esta fecha */}
+        {/* Equipos suspendidos esta fecha (no aplica a jornadas de Copa) */}
+        {!esCopa && (
         <div>
           <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Suspendidos esta fecha</p>
           <div className="space-y-1.5">
@@ -1277,6 +1299,14 @@ function TabPartidos({ data }) {
             })}
           </div>
         </div>
+        )}
+
+        {/* Copa: los partidos se generan en la pestaña Copas, acá solo se cargan resultados */}
+        {esCopa && (
+          <div className="bg-yellow-900/10 border border-yellow-800/30 rounded-xl px-4 py-3">
+            <p className="text-xs text-yellow-500">🏆 Los cruces de esta jornada de Copa se generan desde la pestaña <span className="font-bold">Copas</span>. Acá solo cargás horario, resultados, goles y tarjetas.</p>
+          </div>
+        )}
 
         {/* Aviso fecha cerrada */}
         {cerrada && (
@@ -1286,8 +1316,8 @@ function TabPartidos({ data }) {
           </div>
         )}
 
-        {/* Botón Generar */}
-        {!cerrada && (
+        {/* Botón Generar (solo Liga: en Copa los cruces se arman en la pestaña Copas) */}
+        {!cerrada && !esCopa && (
           <button
             onClick={generarFecha}
             disabled={generando || cantEquipos < 2}
@@ -1297,8 +1327,8 @@ function TabPartidos({ data }) {
           </button>
         )}
 
-        {/* Agregar partido manualmente */}
-        {!cerrada && (
+        {/* Agregar partido manualmente (solo Liga) */}
+        {!cerrada && !esCopa && (
         <div className="border border-dashed border-green-900/40 rounded-xl overflow-hidden">
           <button
             onClick={() => setShowManual(v => !v)}
@@ -1392,7 +1422,7 @@ function TabPartidos({ data }) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-green-400 uppercase tracking-widest">
-              Fecha {fechaSel} · {partidosFecha.length} partidos
+              {labelFecha} · {partidosFecha.length} partidos
             </p>
             {!cerrada && (
               <button onClick={() => setShowConfirmBorrar(true)} className="text-[11px] text-red-400">Borrar fecha</button>
@@ -1417,26 +1447,30 @@ function TabPartidos({ data }) {
             />
           ))}
 
-          <button onClick={publicarEnHome} disabled={publicando}
-            className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-            {publicando ? 'Publicando...' : `📢 Publicar Fecha ${fechaSel} en Inicio`}
-          </button>
-          {homeFecha === fechaSel && (
-            <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
-              <p className="text-xs text-green-400">✅ Fecha {fechaSel} publicada en Inicio</p>
-              <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
-            </div>
+          {!esCopa && (
+            <>
+              <button onClick={publicarEnHome} disabled={publicando}
+                className="w-full bg-green-500 text-black font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+                {publicando ? 'Publicando...' : `📢 Publicar Fecha ${fechaSel} en Inicio`}
+              </button>
+              {homeFecha === fechaSel && (
+                <div className="flex items-center justify-between bg-green-900/20 rounded-xl px-3 py-2">
+                  <p className="text-xs text-green-400">✅ Fecha {fechaSel} publicada en Inicio</p>
+                  <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
+                </div>
+              )}
+              <button onClick={descargarFixture} disabled={descargando}
+                className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
+                {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
+              </button>
+            </>
           )}
-          <button onClick={descargarFixture} disabled={descargando}
-            className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
-            {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
-          </button>
         </div>
       )}
 
       {partidosFecha.length === 0 && (
         <p className="text-center text-gray-600 text-sm py-8">
-          Elegí una fecha, el día, y tocá "Generar"
+          {esCopa ? 'Todavía no hay partidos generados para esta jornada de Copa' : 'Elegí una fecha, el día, y tocá "Generar"'}
         </p>
       )}
     </div>
@@ -2060,12 +2094,6 @@ function TabObjetivo({ data }) {
 /* ─── FINANZAS ─── */
 const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
-// Jornadas de la fase de copas, para seguir cobrando cuota una vez terminada la liga
-const COPA_JORNADAS = {
-  copa_1: ['oro_4tos', 'bronce_semi'],
-  copa_2: ['oro_semi', 'plata_semi'],
-  copa_3: ['oro_final', 'plata_final', 'bronce_final'],
-}
 const GASTOS_FIJOS = [
   { key: 'cancha', label: 'Cancha' },
   { key: 'arbitros', label: 'Árbitros' },
