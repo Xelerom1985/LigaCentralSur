@@ -1535,10 +1535,16 @@ function TabCopas({ data }) {
   }
 
   const buildBracket = (ids) => {
-    const n = ids.length
+    // Sorteo real: se mezclan los equipos al azar antes de armar los cruces (no siempre 1ro vs último, 2do vs anteúltimo...)
+    const mezclados = [...ids]
+    for (let i = mezclados.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[mezclados[i], mezclados[j]] = [mezclados[j], mezclados[i]]
+    }
+    const n = mezclados.length
     const out = []
     for (let i = 0; i < Math.floor(n / 2); i++)
-      out.push({ local: ids[i], visitante: ids[n - 1 - i] })
+      out.push({ local: mezclados[i], visitante: mezclados[n - 1 - i] })
     return out
   }
 
