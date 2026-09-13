@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-function calcTabla(partidos, equipos) {
+export function calcTabla(partidos, equipos) {
   const stats = {}
   Object.values(equipos).forEach((_, idx) => {
     // init

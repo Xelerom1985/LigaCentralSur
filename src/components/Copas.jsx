@@ -1,15 +1,9 @@
-import { useState, useMemo } from 'react'
-
-const TABS_COPA = [
-  { id: 'oro', label: '🥇 Copa de Oro', color: 'yellow' },
-  { id: 'plata', label: '🥈 Copa de Plata', color: 'gray' },
-  { id: 'bronce', label: '🥉 Copa de Bronce', color: 'orange' },
-]
+import { useMemo } from 'react'
+import { calcTabla } from './Tabla'
 
 export default function Copas({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
-  const [tab, setTab] = useState('oro')
 
   const getEq = id => equipos[id] || {}
 
@@ -21,6 +15,16 @@ export default function Copas({ data }) {
         {rondaLabel || 'A definir'}
       </div>
     )
+    if (p.libre) {
+      const eqLibre = getEq(p.local)
+      return (
+        <div className="bg-[#1a1a1a] rounded-xl px-3 py-2.5 border border-yellow-900/30 flex items-center gap-3">
+          {eqLibre.escudo && <img src={eqLibre.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
+          <span className="flex-1 text-xs font-semibold text-white truncate">{eqLibre.nombre || '?'}</span>
+          <span className="text-[10px] font-bold text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded-lg flex-shrink-0">LIBRE</span>
+        </div>
+      )
+    }
     const local = getEq(p.local)
     const vis = getEq(p.visitante)
     const hayEquipos = p.local && p.visitante
@@ -57,6 +61,10 @@ export default function Copas({ data }) {
       </div>
     )
   }
+
+  const SeccionTitulo = ({ children }) => (
+    <h2 className="text-sm font-black text-white uppercase tracking-widest mb-3 pt-2">{children}</h2>
+  )
 
   const BracketOro = () => {
     const cuartos = getPartidosByFase('oro_4tos').sort((a, b) => (a.numero || 0) - (b.numero || 0))
@@ -174,33 +182,118 @@ export default function Copas({ data }) {
     </div>
   )
 
+  // Tabla de posiciones de la Liga, ahora a modo histórico (la fase de Liga ya terminó)
+  const tabla = useMemo(() => calcTabla(partidos, equipos), [partidos, equipos])
+
+  const TablaHistorica = () => (
+    <div>
+      <div className="bg-[#111] rounded-t-xl px-3 py-2 border border-green-900/30">
+        <div className="flex items-center text-[10px] text-gray-500 font-bold uppercase">
+          <span className="w-6 text-center">#</span>
+          <span className="flex-1 ml-2">Equipo</span>
+          <span className="w-7 text-center">PJ</span>
+          <span className="w-7 text-center">PG</span>
+          <span className="w-7 text-center">PE</span>
+          <span className="w-7 text-center">PP</span>
+          <span className="w-8 text-center">GF</span>
+          <span className="w-8 text-center">GC</span>
+          <span className="w-9 text-center font-black text-green-400">PTS</span>
+        </div>
+      </div>
+      <div className="border-x border-b border-green-900/30 rounded-b-xl overflow-hidden">
+        {tabla.map((eq, i) => {
+          const esOro = i < 8
+          const esBronce = i >= 8
+          return (
+            <div
+              key={eq.id}
+              className={`flex items-center px-3 py-2 border-b border-green-900/10 last:border-0
+                ${esOro ? 'bg-green-900/10' : esBronce ? 'bg-orange-900/5' : ''}`}
+            >
+              <span className={`w-6 text-center text-xs font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-500'}`}>{i + 1}</span>
+              <div className="flex-1 ml-2 flex items-center gap-1.5 min-w-0">
+                {eq.escudo && <img src={eq.escudo} className="w-6 h-6 object-contain rounded flex-shrink-0" />}
+                <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
+              </div>
+              <span className="w-7 text-center text-xs text-gray-400">{eq.pj}</span>
+              <span className="w-7 text-center text-xs text-gray-400">{eq.pg}</span>
+              <span className="w-7 text-center text-xs text-gray-400">{eq.pe}</span>
+              <span className="w-7 text-center text-xs text-gray-400">{eq.pp}</span>
+              <span className="w-8 text-center text-xs text-gray-400">{eq.gf}</span>
+              <span className="w-8 text-center text-xs text-gray-400">{eq.gc}</span>
+              <span className="w-9 text-center text-sm font-black text-green-400">{eq.pts}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-[11px] text-gray-500 mt-2">PG=ganados · PE=empatados · PP=perdidos</p>
+    </div>
+  )
+
+  // Fixture completo de la fase de Liga (11 fechas), agrupado por fecha
+  const fixtureLigaPorFecha = useMemo(() => {
+    const porFecha = {}
+    Object.entries(partidos).forEach(([id, p]) => {
+      if (p.fase !== 'liga') return
+      const n = Number(p.numero)
+      if (!porFecha[n]) porFecha[n] = []
+      porFecha[n].push({ id, ...p })
+    })
+    const horaDe = p => {
+      const t = p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : p.hora
+      return t ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : Infinity
+    }
+    return Object.entries(porFecha)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([n, ps]) => [n, ps.sort((a, b) => horaDe(a) - horaDe(b))])
+  }, [partidos])
+
   return (
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
         <h1 className="text-xl font-black text-white mb-4">Copas</h1>
         <EsquemaCopas />
-        <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3 mb-4">
+        <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3">
           <p className="text-xs text-yellow-200 leading-relaxed">
             <span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa (Oro, Plata y Bronce).
           </p>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {TABS_COPA.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all
-                ${tab === t.id ? 'bg-green-600 text-white' : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
       </div>
-      <div className="px-4 pb-4">
-        {tab === 'oro' && <BracketOro />}
-        {tab === 'plata' && <BracketPlata />}
-        {tab === 'bronce' && <BracketBronce />}
+
+      <div className="px-4 pb-4 space-y-6">
+        <div>
+          <SeccionTitulo>🥇 Copa de Oro</SeccionTitulo>
+          <BracketOro />
+        </div>
+
+        <div>
+          <SeccionTitulo>🥈 Copa de Plata</SeccionTitulo>
+          <BracketPlata />
+        </div>
+
+        <div>
+          <SeccionTitulo>🥉 Copa de Bronce</SeccionTitulo>
+          <BracketBronce />
+        </div>
+
+        <div className="border-t border-green-900/20 pt-2">
+          <SeccionTitulo>📊 Tabla de Posiciones <span className="text-gray-500 font-normal normal-case tracking-normal">· Histórico Fase Liga</span></SeccionTitulo>
+          <TablaHistorica />
+        </div>
+
+        <div>
+          <SeccionTitulo>📅 Fixture · Fase Liga</SeccionTitulo>
+          <div className="space-y-4">
+            {fixtureLigaPorFecha.map(([n, ps]) => (
+              <div key={n}>
+                <h3 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-2">Fecha {n}</h3>
+                <div className="space-y-2">
+                  {ps.map(p => <ResultCard key={p.id || `${p.local}-${p.visitante}-${n}`} p={p} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
