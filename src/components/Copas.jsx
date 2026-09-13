@@ -3,9 +3,10 @@ export default function Copas({ data }) {
   const partidos = data.partidos || {}
 
   const getEq = id => equipos[id] || {}
+  // El campo "slot" (opcional) permite fijar a mano el orden/lado de cada cruce dentro del cuadro
   const getPartidosByFase = fase => Object.values(partidos)
     .filter(p => p.fase === fase)
-    .sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    .sort((a, b) => (a.slot ?? a.numero ?? 0) - (b.slot ?? b.numero ?? 0))
 
   const TeamRow = ({ id }) => {
     const eq = getEq(id)
