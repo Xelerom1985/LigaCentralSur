@@ -1,63 +1,41 @@
-import { useMemo } from 'react'
-import { calcTabla } from './Tabla'
-
 export default function Copas({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
 
   const getEq = id => equipos[id] || {}
+  const getPartidosByFase = fase => Object.values(partidos)
+    .filter(p => p.fase === fase)
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0))
 
-  const getPartidosByFase = fase => Object.values(partidos).filter(p => p.fase === fase)
-
-  const ResultCard = ({ p, rondaLabel }) => {
-    if (!p) return (
-      <div className="bg-[#1a1a1a] rounded-xl p-3 border border-dashed border-green-900/30 text-center text-gray-600 text-xs">
-        {rondaLabel || 'A definir'}
+  const TeamRow = ({ id }) => {
+    const eq = getEq(id)
+    return (
+      <div className="team-row">
+        {eq.escudo && <img src={eq.escudo} alt={eq.nombre} />}
+        <span>{eq.nombre || (id ? '?' : 'A definir')}</span>
       </div>
     )
-    if (p.libre) {
-      const eqLibre = getEq(p.local)
+  }
+
+  const MatchBox = ({ p, connClass }) => (
+    <div className={`match-box ${connClass || ''}`}>
+      <TeamRow id={p?.local} />
+      <TeamRow id={p?.visitante} />
+    </div>
+  )
+
+  const TbdSlot = ({ p, label, connClass }) => {
+    if (p && (p.local || p.visitante)) {
       return (
-        <div className="bg-[#1a1a1a] rounded-xl px-3 py-2.5 border border-yellow-900/30 flex items-center gap-3">
-          {eqLibre.escudo && <img src={eqLibre.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />}
-          <span className="flex-1 text-xs font-semibold text-white truncate">{eqLibre.nombre || '?'}</span>
-          <span className="text-[10px] font-bold text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded-lg flex-shrink-0">LIBRE</span>
+        <div className={`match-box ${connClass || ''}`}>
+          <TeamRow id={p.local} />
+          <TeamRow id={p.visitante} />
         </div>
       )
     }
-    const local = getEq(p.local)
-    const vis = getEq(p.visitante)
-    const hayEquipos = p.local && p.visitante
     return (
-      <div className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/20">
-        {rondaLabel && <p className="text-[10px] text-green-500 font-bold uppercase mb-2">{rondaLabel}</p>}
-        {(p.fechaHora || p.cancha) && (
-          <p className="text-[10px] text-gray-500 mb-2">
-            {p.fechaHora ? new Date(p.fechaHora).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-            {p.cancha ? ` · ${p.cancha}` : ''}
-          </p>
-        )}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex flex-col items-end gap-1">
-            {local.escudo && <img src={local.escudo} className="w-8 h-8 object-contain rounded" />}
-            <p className={`text-xs font-semibold text-right ${p.jugado && p.golesLocal > p.golesVisitante ? 'text-green-400' : 'text-white'}`}>
-              {local.nombre || (p.local ? '?' : 'A definir')}
-            </p>
-          </div>
-          <div className="w-16 text-center flex-shrink-0">
-            {p.jugado ? (
-              <span className="text-xl font-black">{p.golesLocal} - {p.golesVisitante}</span>
-            ) : (
-              <span className="text-xs text-gray-600 font-bold">{hayEquipos ? 'VS' : '?'}</span>
-            )}
-          </div>
-          <div className="flex-1 flex flex-col items-start gap-1">
-            {vis.escudo && <img src={vis.escudo} className="w-8 h-8 object-contain rounded" />}
-            <p className={`text-xs font-semibold ${p.jugado && p.golesVisitante > p.golesLocal ? 'text-green-400' : 'text-white'}`}>
-              {vis.nombre || (p.visitante ? '?' : 'A definir')}
-            </p>
-          </div>
-        </div>
+      <div className={`tbd-slot ${connClass || ''}`}>
+        <span>{label}</span>
       </div>
     )
   }
@@ -66,79 +44,130 @@ export default function Copas({ data }) {
     <h2 className="text-sm font-black text-white uppercase tracking-widest mb-3 pt-2">{children}</h2>
   )
 
+  // Cuadro horizontal (cuartos -> semifinal -> final <- semifinal <- cuartos), como Copa Argentina
   const BracketOro = () => {
-    const cuartos = getPartidosByFase('oro_4tos').sort((a, b) => (a.numero || 0) - (b.numero || 0))
-    const semis = getPartidosByFase('oro_semi').sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    const cuartos = getPartidosByFase('oro_4tos')
+    const semis = getPartidosByFase('oro_semi')
     const final = getPartidosByFase('oro_final')[0]
     return (
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-2">Cuartos de Final</h3>
-          <div className="space-y-2">
-            {cuartos.length ? cuartos.map((p, i) => <ResultCard key={i} p={p} />) : <ResultCard rondaLabel="Sin datos" />}
+      <div className="bracket-scroll">
+        <div className="bracket-row">
+          <div className="col-wrap">
+            <p className="col-label">Cuartos</p>
+            <div className="col col-cuartos">
+              <MatchBox p={cuartos[0]} connClass="conn-r-up" />
+              <MatchBox p={cuartos[1]} connClass="conn-r-down" />
+            </div>
           </div>
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-2">Semifinales</h3>
-          <div className="space-y-2">
-            {semis.length ? semis.map((p, i) => <ResultCard key={i} p={p} />) : [0, 1].map(i => <ResultCard key={i} rondaLabel="Semi a definir" />)}
+
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi">
+              <TbdSlot p={semis[0]} label="Semifinal 1" connClass="conn-r" />
+            </div>
           </div>
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-2">Final</h3>
-          <ResultCard p={final} rondaLabel="Final a definir" />
+
+          <div className="col-wrap">
+            <p className="col-label">Final</p>
+            <div className="col col-final">
+              <div className="trophy-wrap">
+                <span className="trophy">🏆</span>
+                <TbdSlot p={final} label="Final" />
+              </div>
+            </div>
+          </div>
+
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi">
+              <TbdSlot p={semis[1]} label="Semifinal 2" connClass="conn-l" />
+            </div>
+          </div>
+
+          <div className="col-wrap">
+            <p className="col-label">Cuartos</p>
+            <div className="col col-cuartos">
+              <MatchBox p={cuartos[2]} connClass="conn-l-up" />
+              <MatchBox p={cuartos[3]} connClass="conn-l-down" />
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   const BracketPlata = () => {
-    const semis = getPartidosByFase('plata_semi').sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    const semis = getPartidosByFase('plata_semi')
     const final = getPartidosByFase('plata_final')[0]
-    return (
-      <div className="space-y-4">
-        <p className="text-[11px] text-gray-500 bg-[#1a1a1a] rounded-lg p-2">Los perdedores de cuartos de Copa de Oro disputan la Copa de Plata.</p>
-        <div>
-          <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-2">Semifinales</h3>
-          <div className="space-y-2">
-            {semis.length ? semis.map((p, i) => <ResultCard key={i} p={p} />) : [0, 1].map(i => <ResultCard key={i} rondaLabel="Semi a definir" />)}
-          </div>
+    const hayEquipos = semis.length > 0
+    if (!hayEquipos) {
+      return (
+        <div className="bg-[#1a1a1a] border border-dashed border-green-900/30 rounded-2xl px-4 py-5 text-center">
+          <p className="text-xl mb-2 opacity-50">🥈</p>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Todavía sin equipos.<br />Se completa con los perdedores de los cuartos de Copa de Oro.
+          </p>
         </div>
-        <div>
-          <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest mb-2">Final</h3>
-          <ResultCard p={final} rondaLabel="Final a definir" />
+      )
+    }
+    return (
+      <div className="bracket-scroll">
+        <div className="bracket-row bracket-row-3">
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi" style={{ height: 'var(--boxh)' }}>
+              <TbdSlot p={semis[0]} label="Semifinal 1" connClass="conn-r" />
+            </div>
+          </div>
+          <div className="col-wrap">
+            <p className="col-label">Final</p>
+            <div className="col col-final" style={{ height: 'var(--boxh)' }}>
+              <div className="trophy-wrap">
+                <span className="trophy" style={{ background: 'rgba(199,204,212,0.12)', borderColor: 'rgba(199,204,212,0.4)' }}>🥈</span>
+                <TbdSlot p={final} label="Final" />
+              </div>
+            </div>
+          </div>
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi" style={{ height: 'var(--boxh)' }}>
+              <TbdSlot p={semis[1]} label="Semifinal 2" connClass="conn-l" />
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
+  // Cuadro horizontal simplificado: semifinal -> final <- semifinal (sin cuartos)
   const BracketBronce = () => {
-    const cuartos = getPartidosByFase('bronce_4tos').sort((a, b) => (a.numero || 0) - (b.numero || 0))
-    const semis = getPartidosByFase('bronce_semi').sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    const semis = getPartidosByFase('bronce_semi')
     const final = getPartidosByFase('bronce_final')[0]
-    const hayRondas = cuartos.length || semis.length || final
     return (
-      <div className="space-y-4">
-        <p className="text-[11px] text-gray-500 bg-[#1a1a1a] rounded-lg p-2">Equipos del 9° en adelante al terminar la fase de liga.</p>
-        {!hayRondas && <p className="text-center text-gray-600 py-6">Sin partidos definidos aún</p>}
-        {cuartos.length > 0 && (
-          <div>
-            <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">Cuartos</h3>
-            <div className="space-y-2">{cuartos.map((p, i) => <ResultCard key={i} p={p} />)}</div>
+      <div className="bracket-scroll">
+        <div className="bracket-row bracket-row-3">
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi" style={{ height: 'var(--boxh)' }}>
+              <TbdSlot p={semis[0]} label="Semifinal 1" connClass="conn-r" />
+            </div>
           </div>
-        )}
-        {semis.length > 0 && (
-          <div>
-            <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">Semifinales</h3>
-            <div className="space-y-2">{semis.map((p, i) => <ResultCard key={i} p={p} />)}</div>
+          <div className="col-wrap">
+            <p className="col-label">Final</p>
+            <div className="col col-final" style={{ height: 'var(--boxh)' }}>
+              <div className="trophy-wrap">
+                <span className="trophy trophy-bronce">🏆</span>
+                <TbdSlot p={final} label="Final" />
+              </div>
+            </div>
           </div>
-        )}
-        {final && (
-          <div>
-            <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">Final</h3>
-            <ResultCard p={final} />
+          <div className="col-wrap">
+            <p className="col-label">Semifinal</p>
+            <div className="col col-semi" style={{ height: 'var(--boxh)' }}>
+              <TbdSlot p={semis[1]} label="Semifinal 2" connClass="conn-l" />
+            </div>
           </div>
-        )}
+        </div>
       </div>
     )
   }
@@ -182,72 +211,6 @@ export default function Copas({ data }) {
     </div>
   )
 
-  // Tabla de posiciones de la Liga, ahora a modo histórico (la fase de Liga ya terminó)
-  const tabla = useMemo(() => calcTabla(partidos, equipos), [partidos, equipos])
-
-  const TablaHistorica = () => (
-    <div>
-      <div className="bg-[#111] rounded-t-xl px-3 py-2 border border-green-900/30">
-        <div className="flex items-center text-[10px] text-gray-500 font-bold uppercase">
-          <span className="w-6 text-center">#</span>
-          <span className="flex-1 ml-2">Equipo</span>
-          <span className="w-7 text-center">PJ</span>
-          <span className="w-7 text-center">PG</span>
-          <span className="w-7 text-center">PE</span>
-          <span className="w-7 text-center">PP</span>
-          <span className="w-8 text-center">GF</span>
-          <span className="w-8 text-center">GC</span>
-          <span className="w-9 text-center font-black text-green-400">PTS</span>
-        </div>
-      </div>
-      <div className="border-x border-b border-green-900/30 rounded-b-xl overflow-hidden">
-        {tabla.map((eq, i) => {
-          const esOro = i < 8
-          const esBronce = i >= 8
-          return (
-            <div
-              key={eq.id}
-              className={`flex items-center px-3 py-2 border-b border-green-900/10 last:border-0
-                ${esOro ? 'bg-green-900/10' : esBronce ? 'bg-orange-900/5' : ''}`}
-            >
-              <span className={`w-6 text-center text-xs font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-500'}`}>{i + 1}</span>
-              <div className="flex-1 ml-2 flex items-center gap-1.5 min-w-0">
-                {eq.escudo && <img src={eq.escudo} className="w-6 h-6 object-contain rounded flex-shrink-0" />}
-                <span className="text-xs font-semibold text-white truncate">{eq.nombre}</span>
-              </div>
-              <span className="w-7 text-center text-xs text-gray-400">{eq.pj}</span>
-              <span className="w-7 text-center text-xs text-gray-400">{eq.pg}</span>
-              <span className="w-7 text-center text-xs text-gray-400">{eq.pe}</span>
-              <span className="w-7 text-center text-xs text-gray-400">{eq.pp}</span>
-              <span className="w-8 text-center text-xs text-gray-400">{eq.gf}</span>
-              <span className="w-8 text-center text-xs text-gray-400">{eq.gc}</span>
-              <span className="w-9 text-center text-sm font-black text-green-400">{eq.pts}</span>
-            </div>
-          )
-        })}
-      </div>
-      <p className="text-[11px] text-gray-500 mt-2">PG=ganados · PE=empatados · PP=perdidos</p>
-    </div>
-  )
-
-  // Fixture completo de la fase de Liga (11 fechas), agrupado por fecha
-  const fixtureLigaPorFecha = useMemo(() => {
-    const porFecha = {}
-    Object.entries(partidos).forEach(([id, p]) => {
-      if (p.fase !== 'liga') return
-      const n = Number(p.numero)
-      if (!porFecha[n]) porFecha[n] = []
-      porFecha[n].push({ id, ...p })
-    })
-    const horaDe = p => {
-      const t = p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : p.hora
-      return t ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : Infinity
-    }
-    return Object.entries(porFecha)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([n, ps]) => [n, ps.sort((a, b) => horaDe(a) - horaDe(b))])
-  }, [partidos])
-
   return (
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
@@ -260,7 +223,7 @@ export default function Copas({ data }) {
         </div>
       </div>
 
-      <div className="px-4 pb-4 space-y-6">
+      <div className="px-4 pb-6 space-y-6">
         <div>
           <SeccionTitulo>🥇 Copa de Oro</SeccionTitulo>
           <BracketOro />
@@ -274,25 +237,6 @@ export default function Copas({ data }) {
         <div>
           <SeccionTitulo>🥉 Copa de Bronce</SeccionTitulo>
           <BracketBronce />
-        </div>
-
-        <div className="border-t border-green-900/20 pt-2">
-          <SeccionTitulo>📊 Tabla de Posiciones <span className="text-gray-500 font-normal normal-case tracking-normal">· Histórico Fase Liga</span></SeccionTitulo>
-          <TablaHistorica />
-        </div>
-
-        <div>
-          <SeccionTitulo>📅 Fixture · Fase Liga</SeccionTitulo>
-          <div className="space-y-4">
-            {fixtureLigaPorFecha.map(([n, ps]) => (
-              <div key={n}>
-                <h3 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-2">Fecha {n}</h3>
-                <div className="space-y-2">
-                  {ps.map(p => <ResultCard key={p.id || `${p.local}-${p.visitante}-${n}`} p={p} />)}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
