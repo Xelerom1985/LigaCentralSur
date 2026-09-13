@@ -18,24 +18,27 @@ body {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
-/* ---- Bracket de Copas (Oro / Bronce): cuadro horizontal con líneas conectoras ---- */
+/* ---- Bracket de Copas (Oro / Plata / Bronce): cuadro horizontal con líneas conectoras ---- */
+/* Las columnas usan flex:1 para ocupar todo el ancho disponible de la pantalla */
 .bracket-scroll {
   --line: rgba(242, 183, 5, 0.5);
   --line-bronce: rgba(242, 121, 15, 0.55);
   --oro-dim: rgba(234, 179, 8, 0.12);
   --bronce-dim: rgba(249, 115, 22, 0.12);
-  --colw: 58px; --colgap: 6px; --colh: 196px; --boxh: 80px;
+  --colgap: 8px; --colh: 220px; --boxh: 92px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 .bracket-row { display: flex; align-items: center; gap: var(--colgap); width: 100%; }
-.bracket-row-3 { --line: var(--line-bronce); justify-content: center; }
-.col-wrap { display: flex; flex-direction: column; flex-shrink: 0; }
-.col { display: flex; flex-direction: column; width: var(--colw); flex-shrink: 0; height: var(--colh); }
+/* Copa de Plata/Bronce: menos columnas => cada una queda más ancha, se agranda todo */
+.bracket-row-3 { --line: var(--line-bronce); --boxh: 116px; }
+.col-wrap { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
+.col { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; height: var(--colh); }
 .col-label {
-  font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  color: #6b7178; text-align: center; margin: 0 0 5px;
+  font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: #6b7178; text-align: center; margin: 0 0 6px;
 }
+.bracket-row-3 .col-label { font-size: 9.5px; }
 .col-cuartos { justify-content: space-around; }
 .col-semi, .col-final { justify-content: center; align-items: center; }
 
@@ -43,41 +46,45 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   position: relative;
   background: #161616;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
+  border-radius: 9px;
   height: var(--boxh);
   width: 100%;
 }
 .match-box .team-row {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   height: calc(var(--boxh) / 2);
-  padding: 3px 2px;
+  padding: 3px 3px;
 }
 .match-box .team-row + .team-row { border-top: 1px solid rgba(255,255,255,0.08); }
-.match-box .team-row img { width: 16px; height: 16px; object-fit: contain; border-radius: 3px; flex-shrink: 0; background: #000; }
+.match-box .team-row img { width: 20px; height: 20px; object-fit: contain; border-radius: 4px; flex-shrink: 0; background: #000; }
 .match-box .team-row span {
-  font-size: 6.6px; font-weight: 700; line-height: 1.05; text-align: center;
+  font-size: 8px; font-weight: 700; line-height: 1.1; text-align: center;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   max-width: 100%; color: #f5f6f7;
 }
+.bracket-row-3 .team-row img { width: 30px; height: 30px; border-radius: 5px; }
+.bracket-row-3 .team-row span { font-size: 10.5px; }
 
 .tbd-slot {
   position: relative;
   height: var(--boxh); width: 100%;
   border: 1px dashed rgba(255,255,255,0.08);
-  border-radius: 8px;
+  border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
 }
-.tbd-slot span { font-size: 7px; color: #6b7178; text-align: center; padding: 0 3px; line-height: 1.25; }
+.tbd-slot span { font-size: 8px; color: #6b7178; text-align: center; padding: 0 4px; line-height: 1.3; }
+.bracket-row-3 .tbd-slot span { font-size: 10px; }
 
 .trophy-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; }
 .trophy {
   position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-  margin-bottom: 6px;
-  width: 24px; height: 24px; border-radius: 50%;
+  margin-bottom: 7px;
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--oro-dim); border: 1px solid rgba(242,183,5,0.45);
-  font-size: 11px;
+  font-size: 13px;
 }
+.bracket-row-3 .trophy { width: 36px; height: 36px; font-size: 17px; margin-bottom: 8px; }
 .trophy-bronce { background: var(--bronce-dim); border-color: rgba(242,121,15,0.5); }
 
 .conn-r-up::after, .conn-r-down::after, .conn-r::after {
