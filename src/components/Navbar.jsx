@@ -43,10 +43,10 @@ const IcoAdmin = () => (
 
 const TABS = [
   { id: 'home',    label: 'Inicio',  Icon: IcoHome },
-  { id: 'tabla',   label: 'Tabla',   Icon: IcoTabla },
   { id: 'copas',   label: 'Copas',   Icon: IcoCopas },
-  { id: 'equipos', label: 'Equipos', Icon: IcoEquipos },
   { id: 'fixture', label: 'Fixture', Icon: IcoCalendar },
+  { id: 'tabla',   label: 'Tabla',   Icon: IcoTabla },
+  { id: 'equipos', label: 'Equipos', Icon: IcoEquipos },
   { id: 'stats',   label: 'Stats',   Icon: IcoStats },
 ]
 
