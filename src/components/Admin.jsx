@@ -2128,7 +2128,9 @@ function TabFinanzas({ data }) {
   const totalFechas = cantEquipos > 1 ? (cantEquipos % 2 === 0 ? cantEquipos - 1 : cantEquipos) : 10
 
   // Sábados no lleva Finanzas de las fechas 1 a 3 (son previas a esta funcionalidad); Domingos sí, desde su Fecha 1
-  const primeraFechaFinanzas = getTorneoPrefix() === 'domingos/' ? 1 : 4
+  // Los torneos nuevos (Domingos, 2da Edición de Sábados) trackean Finanzas desde la Fecha 1;
+  // la 1ra Edición de Sábados arranca en la 4 (las fechas 1-3 son previas a esta funcionalidad)
+  const primeraFechaFinanzas = ['domingos/', 'sabados2/'].includes(getTorneoPrefix()) ? 1 : 4
 
   const [fechaSel, setFechaSel] = useState('1')
   const fechaInitRef = useRef(false)

@@ -34,6 +34,9 @@ const CRED_KEY = 'lcs_admin_cred'
 const SESSION_KEY = 'lcs_admin_session'
 const DATA_CACHE_KEY = 'lcs_data_cache'
 const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'analytics']
+// Prefijo de Firebase por torneo. 'sabados' (la 1ra edición) vive en la raíz ('').
+const TORNEO_PREFIJOS = { domingos: 'domingos/', sabados2: 'sabados2/' }
+const prefijoDe = t => TORNEO_PREFIJOS[t] || ''
 
 export default function App() {
   const [data, setData] = useState({})
@@ -43,10 +46,10 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem(DATA_CACHE_KEY) || '{}') } catch { return {} }
   })
   const TORNEO_KEY = 'lcs_torneo'
-  // null = lobby, 'sabados' | 'domingos' — se restaura desde localStorage para que un refresh no vuelva al lobby
+  // null = lobby, 'sabados' | 'sabados2' | 'domingos' — se restaura desde localStorage para que un refresh no vuelva al lobby
   const [torneo, setTorneo] = useState(() => {
     const guardado = localStorage.getItem(TORNEO_KEY)
-    return guardado === 'sabados' || guardado === 'domingos' ? guardado : null
+    return ['sabados', 'sabados2', 'domingos'].includes(guardado) ? guardado : null
   })
   // Ir al lobby (casita) borra la preferencia guardada; elegir un torneo la guarda
   const irAlLobby = () => { localStorage.removeItem(TORNEO_KEY); setTorneo(null) }
@@ -69,8 +72,7 @@ export default function App() {
 
   // Sincronizar prefix del torneo activo
   useEffect(() => {
-    const prefix = torneo === 'domingos' ? 'domingos/' : ''
-    setTorneoPrefix(prefix)
+    setTorneoPrefix(prefijoDe(torneo))
     setData({}) // limpiar datos al cambiar de torneo
   }, [torneo])
 
@@ -78,7 +80,7 @@ export default function App() {
   // dejar 'finanzas' protegido por Firebase Auth sin bloquear el resto del sitio
   useEffect(() => {
     if (!torneo) return
-    const prefix = torneo === 'domingos' ? 'domingos/' : ''
+    const prefix = prefijoDe(torneo)
     const unsubs = PUBLIC_PATHS.map(path =>
       onValue(ref(db, prefix + path), snap => setData(prev => ({ ...prev, [path]: snap.val() })))
     )
@@ -99,7 +101,7 @@ export default function App() {
   // Finanzas: privado, solo se escucha estando autenticado
   useEffect(() => {
     if (!authed || !torneo) return
-    const prefix = torneo === 'domingos' ? 'domingos/' : ''
+    const prefix = prefijoDe(torneo)
     const unsub = onValue(ref(db, prefix + 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
     return () => unsub()
   }, [authed, torneo])
@@ -289,6 +291,14 @@ export default function App() {
           {/* SÁBADOS */}
           <button onClick={() => elegirTorneo('sabados')}
             className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
+            <span>⚽ SÁBADOS LIBRE</span>
+            <span className="text-sm font-semibold text-green-200/80 tracking-widest uppercase">Pasco Central</span>
+          </button>
+
+          {/* SÁBADOS · 2DA EDICIÓN */}
+          <button onClick={() => elegirTorneo('sabados2')}
+            className="relative w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
+            <span className="absolute -top-2.5 -right-2 bg-yellow-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg tracking-wide">2DA EDICIÓN</span>
             <span>⚽ SÁBADOS LIBRE</span>
             <span className="text-sm font-semibold text-green-200/80 tracking-widest uppercase">Pasco Central</span>
           </button>
