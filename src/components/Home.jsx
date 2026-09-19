@@ -118,7 +118,8 @@ export default function Home({ data }) {
   }, [fechaPartidos])
 
   const MatchRow = ({ p }) => {
-    const hora = fmtHora(p.fechaHora)
+    // Si el partido tiene hora pero todavía no día (fechaHora), se muestra igual la hora guardada
+    const hora = fmtHora(p.fechaHora) || p.hora || null
     return (
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
