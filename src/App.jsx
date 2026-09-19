@@ -67,6 +67,11 @@ export default function App() {
   const [bioError, setBioError] = useState(false)
 
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW()
+  // Usuarios comunes: la nueva versión se activa en segundo plano, sin botón y sin recargar la pantalla.
+  // Solo el admin ve el banner "Actualizar".
+  useEffect(() => {
+    if (needRefresh && !authed) updateServiceWorker(false)
+  }, [needRefresh, authed])
   const [installPrompt, setInstallPrompt] = useState(null)
   const [showInstall, setShowInstall] = useState(false)
 
@@ -349,7 +354,7 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-[#0a0a0a] text-white pb-[72px]">
       {/* Banner nueva versión */}
-      {needRefresh && (
+      {needRefresh && authed && (
         <div className="fixed bottom-[72px] inset-x-0 z-50 px-3 pb-2">
           <div className="bg-green-700 text-white text-sm px-4 py-3 rounded-2xl flex items-center justify-between shadow-xl">
             <span className="font-medium">Nueva versión disponible</span>
