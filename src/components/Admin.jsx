@@ -2378,7 +2378,7 @@ function TabFinanzas({ data }) {
       {/* Gastos */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
         <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
-        {GASTOS_FIJOS.filter(g => !g.desde || Number(fechaSel) >= g.desde).map(g => (
+        {GASTOS_FIJOS.filter(g => !g.desde || COPA_JORNADAS[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
             <MoneyInput value={gastoInputs[g.key] ?? ''}
