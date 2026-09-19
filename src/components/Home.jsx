@@ -117,8 +117,6 @@ export default function Home({ data }) {
     } catch { return null }
   }, [fechaPartidos])
 
-  const hasOverlay = homeFecha || novedadesList.length > 0
-
   const MatchRow = ({ p }) => {
     const hora = fmtHora(p.fechaHora)
     return (
@@ -162,9 +160,9 @@ export default function Home({ data }) {
       {/* Gradiente siempre presente (cubre el footer al menos) */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/90" />
 
-      {/* Contenido fixture + novedades */}
-      {hasOverlay && (
-        <div className="absolute inset-x-0 top-[24%] bottom-[72px] px-4 pb-3 pt-2 space-y-3 overflow-y-auto">
+      {/* Contenido + footer en un mismo scroll: el footer queda al final (o pegado abajo si hay poco contenido) y nunca se encima */}
+      <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
+        <div className="px-4 pt-2 pb-3 space-y-3">
 
           {homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
@@ -214,10 +212,9 @@ export default function Home({ data }) {
             </div>
           ))}
         </div>
-      )}
 
-      {/* Footer: Redes + Contacto — siempre visible */}
-      <div className="absolute bottom-[72px] inset-x-0 px-4 pb-3">
+      {/* Footer: Redes + Contacto */}
+      <div className="mt-auto px-4 pb-3 pt-2">
 
         {/* Fila 1: labels — cols 1-2 "Nuestras Redes", cols 3-4 "Contáctanos · Organizadores" */}
         <div className="grid grid-cols-4 mb-2">
@@ -282,6 +279,7 @@ export default function Home({ data }) {
         {/* Crédito desarrollador */}
         <p className="text-center text-[9px] text-white/20 mt-1">App desarrollada por Fernando Flores</p>
 
+      </div>
       </div>
 
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
