@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 
 const FASES = [
+  { id: 'amistoso', label: 'Amistosos' },
   { id: 'liga', label: 'Liga' },
   { id: 'copa_oro', label: 'Copa de Oro' },
   { id: 'copa_plata', label: 'Copa de Plata' },
@@ -12,7 +13,7 @@ const PLATA_FASES = ['plata_semi', 'plata_final']
 const BRONCE_FASES = ['bronce_4tos', 'bronce_semi', 'bronce_final']
 
 const FASE_LABEL = {
-  liga: 'Liga', oro_4tos: '4tos de Final', oro_semi: 'Semifinal', oro_final: 'Final',
+  liga: 'Liga', amistoso: 'Amistosos', oro_4tos: '4tos de Final', oro_semi: 'Semifinal', oro_final: 'Final',
   plata_semi: 'Semifinal', plata_final: 'Final', bronce_4tos: '4tos', bronce_semi: 'Semifinal', bronce_final: 'Final',
 }
 
@@ -20,8 +21,10 @@ export default function Fixture({ data }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
 
-  const [fase, setFase] = useState('liga')
+  const [faseSel, setFase] = useState('liga')
   const [fechaSel, setFechaSel] = useState(null) // null = auto
+
+  const hayAmistosos = useMemo(() => Object.values(partidos).some(p => p.fase === 'amistoso'), [partidos])
 
   const fechasLiga = useMemo(() => {
     const nums = new Set(Object.values(partidos).filter(p => p.fase === 'liga').map(p => p.numero))
@@ -40,10 +43,15 @@ export default function Fixture({ data }) {
 
   const fechaMostrada = fechaSel ?? fechaActiva
 
+  // Si todavía no hay fechas de liga pero sí Amistosos, se muestran los Amistosos por defecto
+  const fase = (faseSel === 'liga' && !fechasLiga.length && hayAmistosos) ? 'amistoso' : faseSel
+
   const partidosFiltrados = useMemo(() => {
     let list
     if (fase === 'liga') {
       list = Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && Number(p.numero) === Number(fechaMostrada))
+    } else if (fase === 'amistoso') {
+      list = Object.entries(partidos).filter(([, p]) => p.fase === 'amistoso')
     } else if (fase === 'copa_oro') {
       list = Object.entries(partidos).filter(([, p]) => ORO_FASES.includes(p.fase))
     } else if (fase === 'copa_plata') {
@@ -142,7 +150,7 @@ export default function Fixture({ data }) {
         <h1 className="text-xl font-black text-white mb-4">Fixture</h1>
         {/* Selector de fase */}
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {FASES.map(f => (
+          {FASES.filter(f => f.id !== 'amistoso' || hayAmistosos).map(f => (
             <button
               key={f.id}
               onClick={() => { setFase(f.id); if (f.id === 'liga') setFechaSel(null) }}

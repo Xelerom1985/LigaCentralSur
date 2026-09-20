@@ -70,18 +70,19 @@ export default function Home({ data }) {
   const [lightbox, setLightbox] = useState(null)
 
   const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
+  const esAmistosoHome = homeFecha === 'amistoso'
 
   const fechaPartidos = useMemo(() => {
     if (!homeFecha) return []
     return Object.entries(partidos)
-      .filter(([, p]) => esCopaHome ? COPA_JORNADAS[homeFecha].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === Number(homeFecha)))
+      .filter(([, p]) => esAmistosoHome ? p.fase === 'amistoso' : esCopaHome ? COPA_JORNADAS[homeFecha].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === Number(homeFecha)))
       .map(([id, p]) => ({ id, ...p }))
       .sort((a, b) => {
         const ha = a.fechaHora ? a.fechaHora.split('T')[1]?.slice(0,5) : (a.hora || '99:99')
         const hb = b.fechaHora ? b.fechaHora.split('T')[1]?.slice(0,5) : (b.hora || '99:99')
         return ha.localeCompare(hb)
       })
-  }, [partidos, homeFecha, esCopaHome])
+  }, [partidos, homeFecha, esCopaHome, esAmistosoHome])
 
   // En Copa se muestra un bloque separado por cada torneo (Oro/Plata/Bronce) presente en la jornada
   const gruposCopa = useMemo(() => {
@@ -169,7 +170,7 @@ export default function Home({ data }) {
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
-                  Fecha {homeFecha} · Liga Central Sur
+                  {esAmistosoHome ? '🤝 Amistosos' : `Fecha ${homeFecha}`} · Liga Central Sur
                 </span>
                 {fechaLabel && (
                   <span className="text-gray-400 text-xs capitalize">{fechaLabel}</span>

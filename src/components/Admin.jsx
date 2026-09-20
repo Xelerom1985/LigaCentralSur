@@ -16,6 +16,9 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
+// La fecha de Amistosos se ofrece en los torneos nuevos (Domingos, 2da Edición), no en la 1ra Edición de Sábados (raíz)
+const torneoConAmistosos = () => getTorneoPrefix() !== ''
+
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
 const FINANZAS_PIN = '200514687'
@@ -877,6 +880,9 @@ function TabPartidos({ data }) {
       const enCurso = numeros.find(n => !fechasCerradas[n])
       setFechaSel(enCurso ?? numeros[numeros.length - 1])
       fechaInicializada.current = true
+    } else if (Object.values(partidos).some(p => p.fase === 'amistoso')) {
+      setFechaSel('amistoso')
+      fechaInicializada.current = true
     }
   }, [partidos, fechasCerradas])
 
@@ -895,8 +901,11 @@ function TabPartidos({ data }) {
   })
 
   const esCopa = typeof fechaSel === 'string' && !!COPA_JORNADAS[fechaSel]
-  const perteneceAFecha = p => esCopa ? COPA_JORNADAS[fechaSel].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === fechaSel)
-  const labelFecha = esCopa ? `Copa ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+  // Amistosos: fecha previa a la Fecha 1, sin puntos ni goles en Tabla/Stats, pero con Finanzas
+  const esAmistoso = fechaSel === 'amistoso'
+  const hayAmistosos = Object.values(partidos).some(p => p.fase === 'amistoso')
+  const perteneceAFecha = p => esAmistoso ? p.fase === 'amistoso' : esCopa ? COPA_JORNADAS[fechaSel].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === fechaSel)
+  const labelFecha = esAmistoso ? 'Amistosos' : esCopa ? `Copa ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
 
   useEffect(() => {
     const dias = [...new Set(
@@ -931,6 +940,43 @@ function TabPartidos({ data }) {
       const horaExist = partido.fechaHora ? partido.fechaHora.split('T')[1]?.slice(0, 5) : (partido.hora || '00:00')
       await update(rp(`partidos/${partido.id}`), { fechaHora: `${fechaDia}T${horaExist}` })
     }
+  }
+
+  // Amistosos: sorteo al azar entre los equipos activos (no usa el fixture maestro ni cuenta como fecha de liga)
+  const sortearAmistosos = async () => {
+    const ids = Object.keys(equiposActivos).filter(id => !suspendidos.has(id))
+    if (ids.length < 2) return alert('Necesitás al menos 2 equipos')
+    if (partidosFecha.length > 0 && !confirm('Los Amistosos ya tienen partidos. ¿Reemplazarlos?')) return
+    setGenerando(true)
+    for (const p of partidosFecha) {
+      await remove(rp(`partidos/${p.id}`))
+      await remove(rp(`goles/${p.id}`))
+      await remove(rp(`tarjetas/${p.id}`))
+    }
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    }
+    for (let i = 0; i + 1 < ids.length; i += 2) {
+      const hs = `${String(14 + Math.floor(i / 4)).padStart(2, '0')}:00`
+      await push(rp('partidos'), {
+        numero: null, fase: 'amistoso',
+        local: ids[i], visitante: ids[i + 1],
+        libre: false, hora: hs,
+        fechaHora: fechaDia ? `${fechaDia}T${hs}` : null,
+        jugado: false, golesLocal: null, golesVisitante: null,
+      })
+    }
+    if (ids.length % 2 === 1) {
+      await push(rp('partidos'), {
+        numero: null, fase: 'amistoso',
+        local: ids[ids.length - 1], visitante: null,
+        libre: true, hora: null, fechaHora: null,
+        jugado: false, golesLocal: null, golesVisitante: null,
+      })
+    }
+    setSuspendidos(new Set())
+    setGenerando(false)
   }
 
   const generarFecha = async () => {
@@ -1164,7 +1210,7 @@ function TabPartidos({ data }) {
     setAgregando(true)
     const esLibre = manualVisitante === '__libre__'
     await push(rp('partidos'), {
-      numero: fechaSel, fase: 'liga',
+      numero: esAmistoso ? null : fechaSel, fase: esAmistoso ? 'amistoso' : 'liga',
       local: manualLocal,
       visitante: esLibre ? null : manualVisitante,
       libre: esLibre,
@@ -1197,8 +1243,8 @@ function TabPartidos({ data }) {
           <div className="bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-xs border border-red-800 shadow-2xl">
             <div className="text-center mb-5">
               <div className="text-4xl mb-2">⚠️</div>
-              <p className="text-white font-bold text-lg">¿Borrar Fecha {fechaSel}?</p>
-              <p className="text-gray-400 text-sm mt-1">Realmente querés borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de la Fecha {fechaSel}. Esta acción no se puede deshacer.</p>
+              <p className="text-white font-bold text-lg">¿Borrar {labelFecha}?</p>
+              <p className="text-gray-400 text-sm mt-1">Realmente querés borrar esta fecha. Se van a eliminar los partidos, goles y tarjetas de {labelFecha}. Esta acción no se puede deshacer.</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowConfirmBorrar(false)} className="flex-1 bg-[#111] text-gray-400 rounded-xl py-3 font-medium text-sm">Cancelar</button>
@@ -1218,6 +1264,12 @@ function TabPartidos({ data }) {
             const fechaActual = nums.find(n => !fechasCerradas[n]) ?? null
             return (
               <div className="grid grid-cols-3 gap-2">
+                {(torneoConAmistosos() || hayAmistosos) && (
+                  <button onClick={() => setFechaSel('amistoso')}
+                    className={`col-span-3 rounded-lg py-2.5 text-sm font-bold transition-all active:scale-95 ${fechasCerradas.amistoso ? 'bg-gray-700 text-gray-300' : 'bg-sky-700 text-white'} ${fechaSel === 'amistoso' ? 'ring-2 ring-white' : ''}`}>
+                    🤝 Amistosos
+                  </button>
+                )}
                 {Array.from({ length: totalFechas }, (_, i) => i + 1).map(n => {
                   const estado = fechasCerradas[n] ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')
                   const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : estado === 'actual' ? 'bg-green-600 text-white' : 'bg-red-700 text-white'
@@ -1302,6 +1354,13 @@ function TabPartidos({ data }) {
           </div>
         )}
 
+        {/* Amistosos: fecha previa para que los equipos se conozcan */}
+        {esAmistoso && (
+          <div className="bg-sky-900/10 border border-sky-800/30 rounded-xl px-4 py-3">
+            <p className="text-xs text-sky-400">🤝 Fecha de <span className="font-bold">Amistosos</span>: no suma puntos en la Tabla ni goles/tarjetas en Stats, pero sí cuenta en Finanzas.</p>
+          </div>
+        )}
+
         {/* Aviso fecha cerrada */}
         {cerrada && (
           <div className="bg-gray-900/40 border border-gray-700/40 rounded-xl px-4 py-3 flex items-center gap-2">
@@ -1310,18 +1369,18 @@ function TabPartidos({ data }) {
           </div>
         )}
 
-        {/* Botón Generar (solo Liga: en Copa los cruces se arman en la pestaña Copas) */}
+        {/* Botón Generar (Liga: fixture maestro; Amistosos: sorteo al azar; Copa: los cruces se arman en la pestaña Copas) */}
         {!cerrada && !esCopa && (
           <button
-            onClick={generarFecha}
+            onClick={esAmistoso ? sortearAmistosos : generarFecha}
             disabled={generando || cantEquipos < 2}
             className="w-full bg-green-600 text-white rounded-xl py-3.5 text-base font-bold disabled:opacity-40 active:scale-95 transition-all"
           >
-            {generando ? '⏳ Generando...' : `🎲 Generar Fecha ${fechaSel}`}
+            {generando ? '⏳ Generando...' : esAmistoso ? '🎲 Sortear Amistosos' : `🎲 Generar Fecha ${fechaSel}`}
           </button>
         )}
 
-        {/* Agregar partido manualmente (solo Liga) */}
+        {/* Agregar partido manualmente (Liga y Amistosos) */}
         {!cerrada && !esCopa && (
         <div className="border border-dashed border-green-900/40 rounded-xl overflow-hidden">
           <button
@@ -1406,7 +1465,7 @@ function TabPartidos({ data }) {
         {cantEquipos < 2 && (
           <p className="text-[11px] text-yellow-600 text-center">Necesitás al menos 2 equipos registrados</p>
         )}
-        {!masterFixture && cantEquipos >= 2 && (
+        {!masterFixture && cantEquipos >= 2 && !esAmistoso && (
           <p className="text-[11px] text-gray-500 text-center">Primera vez: se crea el fixture completo para todas las fechas</p>
         )}
       </div>
@@ -1451,7 +1510,7 @@ function TabPartidos({ data }) {
               <button onClick={quitarDeHome} className="text-xs text-gray-500 underline">Quitar</button>
             </div>
           )}
-          {!esCopa && (
+          {!esCopa && !esAmistoso && (
             <button onClick={descargarFixture} disabled={descargando}
               className="w-full bg-[#111] border border-green-700/40 text-green-400 font-bold rounded-xl py-3 text-sm disabled:opacity-40 active:scale-95 transition-all">
               {descargando ? '⏳ Generando imagen...' : `📥 Descargar Fecha ${fechaSel}`}
@@ -1462,7 +1521,7 @@ function TabPartidos({ data }) {
 
       {partidosFecha.length === 0 && (
         <p className="text-center text-gray-600 text-sm py-8">
-          {esCopa ? 'Todavía no hay partidos generados para esta jornada de Copa' : 'Elegí una fecha, el día, y tocá "Generar"'}
+          {esCopa ? 'Todavía no hay partidos generados para esta jornada de Copa' : esAmistoso ? 'Elegí el día y tocá "Sortear Amistosos" (o agregá los partidos a mano)' : 'Elegí una fecha, el día, y tocá "Generar"'}
         </p>
       )}
     </div>
@@ -2138,7 +2197,11 @@ function TabFinanzas({ data }) {
   // Equipos que efectivamente juegan en una fecha (liga o copa) — solo esos pagan cuota
   const equiposQueJuegan = (fechaKey) => {
     const ids = new Set()
-    if (COPA_JORNADAS[fechaKey]) {
+    if (fechaKey === 'amistoso') {
+      Object.values(partidos).forEach(p => {
+        if (p.fase === 'amistoso' && !p.libre && !p.sinCuota && p.local && p.visitante) { ids.add(p.local); ids.add(p.visitante) }
+      })
+    } else if (COPA_JORNADAS[fechaKey]) {
       const fases = COPA_JORNADAS[fechaKey]
       Object.values(partidos).forEach(p => {
         if (fases.includes(p.fase) && p.local && p.visitante) { ids.add(p.local); ids.add(p.visitante) }
@@ -2165,7 +2228,9 @@ function TabFinanzas({ data }) {
   const fechaFinCerrada = (n) => !!fechasCerradas[n] || pagosCompletos(String(n))
 
   // Fecha en curso: la primera de liga (desde la 4) que todavía no está cerrada por pagos
+  const hayAmistosos = Object.values(partidos).some(p => p.fase === 'amistoso')
   const fechaActual = (() => {
+    if (hayAmistosos && !fechaFinCerrada('amistoso')) return 'amistoso'
     for (let n = primeraFechaFinanzas; n <= totalFechas; n++) {
       if (!fechaFinCerrada(n)) return n
     }
@@ -2228,7 +2293,7 @@ function TabFinanzas({ data }) {
   const ingresoCajaFecha = recaudadoFecha - gastosFecha - Number(gananciaOrg || 0)
 
   // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante) + las jornadas de copas
-  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= primeraFechaFinanzas || COPA_JORNADAS[n]))
+  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= primeraFechaFinanzas || COPA_JORNADAS[n] || n === 'amistoso'))
 
   const resumenGeneral = fechasFinanzas.reduce((acc, [, f]) => {
     const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
@@ -2264,7 +2329,7 @@ function TabFinanzas({ data }) {
     .sort((a, b) => b[1] - a[1])
 
   const idsQueJuegan = equiposQueJuegan(fechaSel)
-  const labelFecha = COPA_JORNADAS[fechaSel] ? `Copa · Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+  const labelFecha = fechaSel === 'amistoso' ? 'Amistosos' : COPA_JORNADAS[fechaSel] ? `Copa · Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
 
   return (
     <div className="pt-4 space-y-4">
@@ -2273,6 +2338,16 @@ function TabFinanzas({ data }) {
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
         <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Fecha del torneo</p>
         <div className="grid grid-cols-3 gap-2">
+          {(torneoConAmistosos() || hayAmistosos) && (() => {
+            const estado = fechaFinCerrada('amistoso') ? 'cerrada' : (fechaActual === 'amistoso' ? 'actual' : 'futura')
+            const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : estado === 'actual' ? 'bg-green-600 text-white' : 'bg-red-700 text-white'
+            return (
+              <button onClick={() => setFechaSel('amistoso')}
+                className={`col-span-3 rounded-lg py-2.5 text-sm font-bold transition-all active:scale-95 ${base} ${fechaSel === 'amistoso' ? 'ring-2 ring-white' : ''}`}>
+                🤝 Amistosos
+              </button>
+            )
+          })()}
           {Array.from({ length: totalFechas - primeraFechaFinanzas + 1 }, (_, i) => i + primeraFechaFinanzas).map(n => {
             const sel = String(fechaSel) === String(n)
             const estado = fechaFinCerrada(n) ? 'cerrada' : (n === fechaActual ? 'actual' : 'futura')

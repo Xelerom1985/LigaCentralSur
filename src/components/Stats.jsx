@@ -2,7 +2,10 @@ import { useMemo } from 'react'
 
 export default function Stats({ data }) {
   const equipos = data.equipos || {}
-  const partidos = data.partidos || {}
+  // Los Amistosos no suman goles ni tarjetas: se sacan de todas las estadísticas
+  const partidos = useMemo(() =>
+    Object.fromEntries(Object.entries(data.partidos || {}).filter(([, p]) => p.fase !== 'amistoso'))
+  , [data.partidos])
   const jugadores = data.jugadores || {}
   const goles = data.goles || {}
   const tarjetas = data.tarjetas || {}
