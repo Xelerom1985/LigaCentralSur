@@ -50,11 +50,15 @@ const TABS = [
   { id: 'stats',   label: 'Stats',   Icon: IcoStats },
 ]
 
-export default function Navbar({ seccion, navegar }) {
+// Domingos usa otro orden de íconos que Sábados
+const ORDEN_DOMINGOS = ['home', 'fixture', 'tabla', 'equipos', 'copas', 'stats']
+
+export default function Navbar({ seccion, navegar, torneo }) {
+  const tabs = torneo === 'domingos' ? ORDEN_DOMINGOS.map(id => TABS.find(t => t.id === id)) : TABS
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-t border-white/10">
       <div className="flex">
-        {TABS.map(({ id, label, Icon }) => {
+        {tabs.map(({ id, label, Icon }) => {
           const active = seccion === id
           return (
             <button

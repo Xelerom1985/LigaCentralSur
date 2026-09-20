@@ -452,7 +452,7 @@ export default function App() {
       {seccion === 'stats' && <Stats data={offlineData} />}
       {seccion === 'admin' && authed && <Admin data={data} />}
 
-      <Navbar seccion={seccion} navegar={navegar} />
+      <Navbar seccion={seccion} navegar={navegar} torneo={torneo} />
 
       {/* Botón volver al lobby — casita centrada arriba */}
       <button onClick={irAlLobby}
