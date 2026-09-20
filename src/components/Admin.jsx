@@ -16,8 +16,8 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-// La fecha de Amistosos se ofrece en los torneos nuevos (Domingos, 2da Edición), no en la 1ra Edición de Sábados (raíz)
-const torneoConAmistosos = () => getTorneoPrefix() !== ''
+// La fecha de Amistosos es solo para Domingos (una fecha antes de la Fecha 1); los Sábados no la tienen
+const torneoConAmistosos = () => getTorneoPrefix() === 'domingos/'
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
