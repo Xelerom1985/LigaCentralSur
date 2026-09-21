@@ -1,5 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { COPA_JORNADAS, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
+import { get } from 'firebase/database'
+import { db, ref } from '../firebase'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -62,12 +64,27 @@ function Lightbox({ src, onClose }) {
   )
 }
 
-export default function Home({ data }) {
+export default function Home({ data, torneo }) {
   const equipos  = data.equipos  || {}
   const partidos = data.partidos || {}
   const novedades = data.novedades || {}
   const homeFecha = data.home_fecha ?? null
   const [lightbox, setLightbox] = useState(null)
+  const [amistososEscudos, setAmistososEscudos] = useState(null)
+
+  useEffect(() => {
+    if (torneo !== 'sabados') return
+    get(ref(db, 'sabados2/equipos')).then(snap => {
+      const eq = snap.val() || {}
+      const buscar = q => Object.values(eq).find(e => e.nombre?.toLowerCase().includes(q)) || null
+      setAmistososEscudos({
+        candelabro: buscar('candelabro'),
+        la890:      buscar('890'),
+        jueves:     buscar('jueves'),
+        la193:      buscar('193'),
+      })
+    }).catch(() => {})
+  }, [torneo])
 
   const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
   const esAmistosoHome = homeFecha === 'amistoso'
@@ -165,6 +182,40 @@ export default function Home({ data }) {
       {/* Contenido + footer en un mismo scroll: el footer queda al final (o pegado abajo si hay poco contenido) y nunca se encima */}
       <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
         <div className="px-4 pt-2 pb-3 space-y-3">
+
+          {/* AMISTOSOS DE RECONOCIMIENTO — solo en SÁBADOS 1ra edición */}
+          {amistososEscudos && (
+            <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
+              <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
+                <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
+                <span className="text-gray-400 text-xs">Sáb, 26 Sep</span>
+              </div>
+              <div className="divide-y divide-white/5">
+                {[
+                  { local: amistososEscudos.candelabro, localNombre: 'Candelabro de Oro', visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
+                  { local: amistososEscudos.jueves, localNombre: 'Los pibes de los Jueves', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
+                ].map(({ local, localNombre, visitante, visitanteNombre }) => (
+                  <div key={localNombre} className="px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
+                      <span className="text-white text-xs font-bold truncate">{localNombre}</span>
+                      {local?.escudo
+                        ? <img src={local.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
+                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
+                    </div>
+                    <div className="flex-shrink-0 text-center w-20">
+                      <p className="text-gray-500 text-sm font-bold">vs</p>
+                    </div>
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                      {visitante?.escudo
+                        ? <img src={visitante.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
+                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
+                      <span className="text-white text-xs font-bold truncate">{visitanteNombre}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
