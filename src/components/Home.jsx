@@ -192,18 +192,18 @@ export default function Home({ data, torneo }) {
               </div>
               <div className="divide-y divide-white/5">
                 {[
-                  { local: amistososEscudos.candelabro, localNombre: 'Candelabro de Oro', visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
-                  { local: amistososEscudos.jueves, localNombre: 'Los pibes de los Jueves', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
-                ].map(({ local, localNombre, visitante, visitanteNombre }) => (
-                  <div key={localNombre} className="px-4 py-3 flex items-center gap-3">
+                  { local: amistososEscudos.candelabro, localLineas: ['Candelabro', 'de Oro'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
+                  { local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
+                ].map(({ local, localLineas, visitante, visitanteNombre }) => (
+                  <div key={localLineas[0]} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      <span className="text-white text-xs font-bold truncate">{localNombre}</span>
+                      <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br/>{localLineas[1]}</span>
                       {local?.escudo
                         ? <img src={local.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
                         : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
                     </div>
                     <div className="flex-shrink-0 text-center w-20">
-                      <p className="text-gray-500 text-sm font-bold">vs</p>
+                      <p className="text-white font-black text-xl leading-tight">14:00</p>
                     </div>
                     <div className="flex-1 flex items-center gap-2 min-w-0">
                       {visitante?.escudo
