@@ -192,9 +192,9 @@ export default function Home({ data, torneo }) {
               </div>
               <div className="divide-y divide-white/5">
                 {[
-                  { local: amistososEscudos.candelabro, localLineas: ['Candelabro', 'de Oro'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
-                  { local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
-                ].map(({ local, localLineas, visitante, visitanteNombre }) => (
+                  { local: amistososEscudos.candelabro, localLineas: ['Candelabro', 'de Oro'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC', gl: 3, gv: 5 },
+                  { local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis', gl: 3, gv: 4 },
+                ].map(({ local, localLineas, visitante, visitanteNombre, gl, gv }) => (
                   <div key={localLineas[0]} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
                       <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br/>{localLineas[1]}</span>
@@ -203,7 +203,14 @@ export default function Home({ data, torneo }) {
                         : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
                     </div>
                     <div className="flex-shrink-0 text-center w-20">
-                      <p className="text-white font-black text-xl leading-tight">14:00</p>
+                      {gl != null ? (
+                        <>
+                          <p className="text-white font-black text-xl leading-tight">{gl} - {gv}</p>
+                          <p className="text-green-400/50 text-[10px] leading-tight mt-1">14:00</p>
+                        </>
+                      ) : (
+                        <p className="text-white font-black text-xl leading-tight">14:00</p>
+                      )}
                     </div>
                     <div className="flex-1 flex items-center gap-2 min-w-0">
                       {visitante?.escudo
