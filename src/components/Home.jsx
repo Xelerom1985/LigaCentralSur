@@ -1,7 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { COPA_JORNADAS, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
-import { get } from 'firebase/database'
-import { db, ref } from '../firebase'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -70,21 +68,6 @@ export default function Home({ data, torneo }) {
   const novedades = data.novedades || {}
   const homeFecha = data.home_fecha ?? null
   const [lightbox, setLightbox] = useState(null)
-  const [amistososEscudos, setAmistososEscudos] = useState(null)
-
-  useEffect(() => {
-    if (torneo !== 'sabados') return
-    get(ref(db, 'sabados2/equipos')).then(snap => {
-      const eq = snap.val() || {}
-      const buscar = q => Object.values(eq).find(e => e.nombre?.toLowerCase().includes(q)) || null
-      setAmistososEscudos({
-        candelabro: buscar('candelabro'),
-        la890:      buscar('890'),
-        jueves:     buscar('jueves'),
-        la193:      buscar('193'),
-      })
-    }).catch(() => {})
-  }, [torneo])
 
   const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
   const esAmistosoHome = homeFecha === 'amistoso'
@@ -182,47 +165,6 @@ export default function Home({ data, torneo }) {
       {/* Contenido + footer en un mismo scroll: el footer queda al final (o pegado abajo si hay poco contenido) y nunca se encima */}
       <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
         <div className="px-4 pt-2 pb-3 space-y-3">
-
-          {/* AMISTOSOS DE RECONOCIMIENTO — solo en SÁBADOS 1ra edición */}
-          {amistososEscudos && (
-            <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
-              <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
-                <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
-                <span className="text-gray-400 text-xs">Sáb, 26 Sep</span>
-              </div>
-              <div className="divide-y divide-white/5">
-                {[
-                  { local: amistososEscudos.candelabro, localLineas: ['Candelabro', 'de Oro'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC', gl: 3, gv: 5 },
-                  { local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis', gl: 3, gv: 4 },
-                ].map(({ local, localLineas, visitante, visitanteNombre, gl, gv }) => (
-                  <div key={localLineas[0]} className="px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br/>{localLineas[1]}</span>
-                      {local?.escudo
-                        ? <img src={local.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-                    </div>
-                    <div className="flex-shrink-0 text-center w-20">
-                      {gl != null ? (
-                        <>
-                          <p className="text-white font-black text-xl leading-tight">{gl} - {gv}</p>
-                          <p className="text-green-400/50 text-[10px] leading-tight mt-1">14:00</p>
-                        </>
-                      ) : (
-                        <p className="text-white font-black text-xl leading-tight">14:00</p>
-                      )}
-                    </div>
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      {visitante?.escudo
-                        ? <img src={visitante.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-                      <span className="text-white text-xs font-bold truncate">{visitanteNombre}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
