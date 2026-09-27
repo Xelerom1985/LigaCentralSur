@@ -133,7 +133,9 @@ export default function Home({ data, torneo }) {
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
         </div>
         <div className="flex-shrink-0 text-center w-20">
-          {p.jugado ? (
+          {p.suspendido && !p.jugado ? (
+            <p className="text-red-400 font-black text-[11px] leading-tight">SUSPENDIDO</p>
+          ) : p.jugado ? (
             <>
               <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
               {hora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{hora}</p>}

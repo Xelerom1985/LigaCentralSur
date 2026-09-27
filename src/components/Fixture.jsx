@@ -128,7 +128,9 @@ export default function Fixture({ data }) {
           </div>
           {/* Resultado o VS */}
           <div className="w-20 text-center flex-shrink-0">
-            {p.jugado ? (
+            {p.suspendido && !p.jugado ? (
+              <p className="text-[11px] font-black text-red-400 leading-tight">SUSPENDIDO</p>
+            ) : p.jugado ? (
               <p className="text-2xl font-black text-white">{p.golesLocal ?? '?'} - {p.golesVisitante ?? '?'}</p>
             ) : (
               <p className="text-sm font-bold text-gray-600">VS</p>
