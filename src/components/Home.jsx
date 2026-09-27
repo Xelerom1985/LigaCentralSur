@@ -92,7 +92,10 @@ export default function Home({ data, torneo }) {
       if (!byFase[p.fase]) byFase[p.fase] = []
       byFase[p.fase].push(p)
     })
-    return Object.entries(byFase).map(([fase, ps]) => ({ fase, partidos: ps }))
+    const orden = { bronce: 0, plata: 1, oro: 2 }
+    return Object.entries(byFase)
+      .map(([fase, ps]) => ({ fase, partidos: ps }))
+      .sort((a, b) => (orden[a.fase.split('_')[0]] ?? 9) - (orden[b.fase.split('_')[0]] ?? 9))
   }, [fechaPartidos, esCopaHome])
 
   const novedadesList = useMemo(() =>
@@ -124,7 +127,7 @@ export default function Home({ data, torneo }) {
     return (
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-          <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || '?'}</span>
+          <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || (p.local ? '?' : 'A definir')}</span>
           {equipos[p.local]?.escudo
             ? <img src={equipos[p.local].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
@@ -145,7 +148,7 @@ export default function Home({ data, torneo }) {
           {equipos[p.visitante]?.escudo
             ? <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-          <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+          <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || (p.visitante ? '?' : 'A definir')}</span>
         </div>
       </div>
     )
