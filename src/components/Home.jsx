@@ -78,10 +78,10 @@ export default function Home({ data, torneo }) {
       const eq = snap.val() || {}
       const buscar = q => Object.values(eq).find(e => e.nombre?.toLowerCase().includes(q)) || null
       setAmistososEscudos({
-        candelabro: buscar('candelabro'),
-        la890:      buscar('890'),
-        jueves:     buscar('jueves'),
-        la193:      buscar('193'),
+        flamengo: buscar('flamengo'),
+        la193:    buscar('193'),
+        jueves:   buscar('jueves'),
+        la890:    buscar('890'),
       })
     }).catch(() => {})
   }, [torneo])
@@ -136,7 +136,6 @@ export default function Home({ data, torneo }) {
   }, [fechaPartidos])
 
   const MatchRow = ({ p }) => {
-    // Si el partido tiene hora pero todavía no día (fechaHora), se muestra igual la hora guardada
     const hora = fmtHora(p.fechaHora) || p.hora || null
     return (
       <div className="px-4 py-3 flex items-center gap-3">
@@ -168,6 +167,11 @@ export default function Home({ data, torneo }) {
     )
   }
 
+  const amistososData = amistososEscudos ? [
+    { hora: '14:00', local: amistososEscudos.flamengo, localNombre: 'Flamengo', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
+    { hora: '15:00', local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
+  ] : []
+
   return (
     <div className="relative min-h-screen">
       {/* Fondo */}
@@ -179,7 +183,7 @@ export default function Home({ data, torneo }) {
       {/* Gradiente siempre presente (cubre el footer al menos) */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/90" />
 
-      {/* Contenido + footer en un mismo scroll: el footer queda al final (o pegado abajo si hay poco contenido) y nunca se encima */}
+      {/* Contenido + footer en un mismo scroll */}
       <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
         <div className="px-4 pt-2 pb-3 space-y-3">
 
@@ -188,22 +192,21 @@ export default function Home({ data, torneo }) {
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
-                <span className="text-gray-400 text-xs">Sáb, 26 Sep</span>
+                <span className="text-gray-400 text-xs">Sáb, 4 Oct</span>
               </div>
               <div className="divide-y divide-white/5">
-                {[
-                  { local: amistososEscudos.candelabro, localLineas: ['Candelabro', 'de Oro'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
-                  { local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
-                ].map(({ local, localLineas, visitante, visitanteNombre }) => (
-                  <div key={localLineas[0]} className="px-4 py-3 flex items-center gap-3">
+                {amistososData.map(({ hora, local, localNombre, localLineas, visitante, visitanteNombre }) => (
+                  <div key={hora} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br/>{localLineas[1]}</span>
+                      {localLineas
+                        ? <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br />{localLineas[1]}</span>
+                        : <span className="text-white text-xs font-bold text-right leading-tight truncate">{localNombre}</span>}
                       {local?.escudo
                         ? <img src={local.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
                         : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
                     </div>
                     <div className="flex-shrink-0 text-center w-20">
-                      <p className="text-white font-black text-xl leading-tight">14:00</p>
+                      <p className="text-white font-black text-xl leading-tight">{hora}</p>
                     </div>
                     <div className="flex-1 flex items-center gap-2 min-w-0">
                       {visitante?.escudo
@@ -269,13 +272,13 @@ export default function Home({ data, torneo }) {
       {/* Footer: Redes + Contacto */}
       <div className="mt-auto px-4 pb-3 pt-2">
 
-        {/* Fila 1: labels — cols 1-2 "Nuestras Redes", cols 3-4 "Contáctanos · Organizadores" */}
+        {/* Fila 1: labels */}
         <div className="grid grid-cols-4 mb-2">
           <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Nuestras Redes</div>
           <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Contáctanos · Organizadores</div>
         </div>
 
-        {/* Fila 2: íconos — misma fila de grid = mismo nivel */}
+        {/* Fila 2: íconos */}
         <div className="grid grid-cols-4">
           <div className="flex justify-center">
             <a href="https://www.instagram.com/ligacentralsur/" target="_blank" rel="noopener noreferrer">
@@ -321,7 +324,7 @@ export default function Home({ data, torneo }) {
           </div>
         </div>
 
-        {/* Fila 3: nombres — invisible para Instagram, visible para Drive/Fernando/Sasha */}
+        {/* Fila 3: nombres */}
         <div className="grid grid-cols-4 mt-1">
           <div className="text-center text-[9px] text-transparent select-none">·</div>
           <div className="text-center text-[9px] text-white/40">Fotos y Videos</div>
