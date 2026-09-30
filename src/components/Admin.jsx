@@ -621,6 +621,7 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
 
   const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
   const toggleSinCuota = () => update(rp(`partidos/${p.id}`), { sinCuota: !p.sinCuota })
+  const toggleSuspendido = () => update(rp(`partidos/${p.id}`), { suspendido: !p.suspendido })
 
   const partidoCerrado = !!p.cerrado
   const bloqueado = cerrada || partidoCerrado
@@ -666,6 +667,12 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
         <label className="flex items-center gap-2 mt-2 text-[11px] text-gray-400 cursor-pointer select-none">
           <input type="checkbox" checked={!!p.sinCuota} onChange={toggleSinCuota} className="accent-yellow-500 w-3.5 h-3.5" />
           🚫 Walkover — no cobrar cuota esta fecha a ninguno de los dos
+        </label>
+
+        {/* Suspendido: no se jugó, se muestra "SUSPENDIDO" en vez de la hora en Inicio y Fixture */}
+        <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 cursor-pointer select-none">
+          <input type="checkbox" checked={!!p.suspendido} onChange={toggleSuspendido} className="accent-red-500 w-3.5 h-3.5" />
+          ⛔ Partido suspendido
         </label>
       </div>
 

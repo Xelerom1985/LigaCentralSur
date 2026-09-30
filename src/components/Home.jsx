@@ -109,7 +109,10 @@ export default function Home({ data, torneo }) {
       if (!byFase[p.fase]) byFase[p.fase] = []
       byFase[p.fase].push(p)
     })
-    return Object.entries(byFase).map(([fase, ps]) => ({ fase, partidos: ps }))
+    const orden = { bronce: 0, plata: 1, oro: 2 }
+    return Object.entries(byFase)
+      .map(([fase, ps]) => ({ fase, partidos: ps }))
+      .sort((a, b) => (orden[a.fase.split('_')[0]] ?? 9) - (orden[b.fase.split('_')[0]] ?? 9))
   }, [fechaPartidos, esCopaHome])
 
   const novedadesList = useMemo(() =>
@@ -136,17 +139,20 @@ export default function Home({ data, torneo }) {
   }, [fechaPartidos])
 
   const MatchRow = ({ p }) => {
+    // Si el partido tiene hora pero todavía no día (fechaHora), se muestra igual la hora guardada
     const hora = fmtHora(p.fechaHora) || p.hora || null
     return (
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-          <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || '?'}</span>
+          <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || (p.local ? '?' : 'A definir')}</span>
           {equipos[p.local]?.escudo
             ? <img src={equipos[p.local].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
         </div>
         <div className="flex-shrink-0 text-center w-20">
-          {p.jugado ? (
+          {p.suspendido && !p.jugado ? (
+            <p className="text-red-400 font-black text-[11px] leading-tight">SUSPENDIDO</p>
+          ) : p.jugado ? (
             <>
               <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
               {hora && <p className="text-green-400/50 text-[10px] leading-tight mt-1">{hora}</p>}
@@ -161,7 +167,7 @@ export default function Home({ data, torneo }) {
           {equipos[p.visitante]?.escudo
             ? <img src={equipos[p.visitante].escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-          <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+          <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || (p.visitante ? '?' : 'A definir')}</span>
         </div>
       </div>
     )
@@ -183,7 +189,7 @@ export default function Home({ data, torneo }) {
       {/* Gradiente siempre presente (cubre el footer al menos) */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/90" />
 
-      {/* Contenido + footer en un mismo scroll */}
+      {/* Contenido + footer en un mismo scroll: el footer queda al final (o pegado abajo si hay poco contenido) y nunca se encima */}
       <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
         <div className="px-4 pt-2 pb-3 space-y-3">
 
@@ -272,13 +278,13 @@ export default function Home({ data, torneo }) {
       {/* Footer: Redes + Contacto */}
       <div className="mt-auto px-4 pb-3 pt-2">
 
-        {/* Fila 1: labels */}
+        {/* Fila 1: labels — cols 1-2 "Nuestras Redes", cols 3-4 "Contáctanos · Organizadores" */}
         <div className="grid grid-cols-4 mb-2">
           <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Nuestras Redes</div>
           <div className="col-span-2 text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide">Contáctanos · Organizadores</div>
         </div>
 
-        {/* Fila 2: íconos */}
+        {/* Fila 2: íconos — misma fila de grid = mismo nivel */}
         <div className="grid grid-cols-4">
           <div className="flex justify-center">
             <a href="https://www.instagram.com/ligacentralsur/" target="_blank" rel="noopener noreferrer">
@@ -324,7 +330,7 @@ export default function Home({ data, torneo }) {
           </div>
         </div>
 
-        {/* Fila 3: nombres */}
+        {/* Fila 3: nombres — invisible para Instagram, visible para Drive/Fernando/Sasha */}
         <div className="grid grid-cols-4 mt-1">
           <div className="text-center text-[9px] text-transparent select-none">·</div>
           <div className="text-center text-[9px] text-white/40">Fotos y Videos</div>
