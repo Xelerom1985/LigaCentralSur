@@ -198,7 +198,7 @@ export default function Home({ data, torneo }) {
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
-                <span className="text-gray-400 text-xs">Sáb, 4 Oct</span>
+                <span className="text-gray-400 text-xs">Sáb, 3 Oct</span>
               </div>
               <div className="divide-y divide-white/5">
                 {amistososData.map(({ hora, local, localNombre, localLineas, visitante, visitanteNombre }) => (
