@@ -70,7 +70,7 @@ export default function Home({ data, torneo }) {
   const novedades = data.novedades || {}
   const homeFecha = data.home_fecha ?? null
   const [lightbox, setLightbox] = useState(null)
-  const [amistososEscudos, setAmistososEscudos] = useState(null)
+  const [amistososEscudos, setAmistososEscudos] = useState({})
 
   useEffect(() => {
     if (torneo !== 'sabados') return
@@ -139,7 +139,6 @@ export default function Home({ data, torneo }) {
   }, [fechaPartidos])
 
   const MatchRow = ({ p }) => {
-    // Si el partido tiene hora pero todavía no día (fechaHora), se muestra igual la hora guardada
     const hora = fmtHora(p.fechaHora) || p.hora || null
     return (
       <div className="px-4 py-3 flex items-center gap-3">
@@ -173,10 +172,10 @@ export default function Home({ data, torneo }) {
     )
   }
 
-  const amistososData = amistososEscudos ? [
+  const amistososData = [
     { hora: '14:00', local: amistososEscudos.flamengo, localNombre: 'Flamengo', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
     { hora: '15:00', local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
-  ] : []
+  ]
 
   return (
     <div className="relative min-h-screen">
@@ -194,7 +193,7 @@ export default function Home({ data, torneo }) {
         <div className="px-4 pt-2 pb-3 space-y-3">
 
           {/* AMISTOSOS DE RECONOCIMIENTO — solo en SÁBADOS 1ra edición */}
-          {amistososEscudos && (
+          {torneo === 'sabados' && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
