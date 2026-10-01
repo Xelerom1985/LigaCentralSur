@@ -454,12 +454,14 @@ export default function App() {
 
       <Navbar seccion={seccion} navegar={navegar} torneo={torneo} />
 
-      {/* Botón volver al lobby — casita centrada arriba */}
+      {/* Botón volver al lobby — píldora con nombre del torneo */}
       <button onClick={irAlLobby}
-        className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-11 h-11 flex items-center justify-center text-white/30 active:text-white/60 transition-colors">
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-        </svg>
+        className="fixed top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full px-3.5 py-2 active:scale-95 transition-all">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+        <span className="text-white text-[11px] font-semibold tracking-wide">
+          {{ sabados: 'Sábados Libre', sabados2: 'Sábados · 2da Ed.', domingos: 'Domingos' }[torneo] ?? torneo}
+        </span>
+        <span className="text-white/40 text-[10px]">▾</span>
       </button>
 
       {/* Engranaje admin — visible solo cuando authed */}
