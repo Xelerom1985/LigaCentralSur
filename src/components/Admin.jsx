@@ -16,8 +16,8 @@ const FASES_OPT = [
   { value: 'bronce_final', label: 'Copa Bronce · Final' },
 ]
 
-// La fecha de Amistosos es solo para Domingos (una fecha antes de la Fecha 1); los Sábados no la tienen
-const torneoConAmistosos = () => getTorneoPrefix() === 'domingos/'
+// El botón Amistosos solo aparece si ya existen partidos amistosos en Firebase
+const torneoConAmistosos = () => false
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas', 'Objetivo']
 
@@ -489,6 +489,11 @@ function buildRoundRobin(equiposIds, equipos) {
   const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseFCId, pibesId, milanId, candId].filter(Boolean)
   const known  = [romaId, ...middle, joseId].filter(Boolean)
   const rest   = permIds.filter(id => !known.includes(id))
+  // Sorteo aleatorio: shufflear los equipos sin posición fija
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[rest[i], rest[j]] = [rest[j], rest[i]]
+  }
   const last   = known[known.length - 1]
   const ids    = [...known.slice(0, -1), ...rest, last].filter(Boolean)
   if (ids.length % 2 !== 0) ids.push('bye')
@@ -655,7 +660,8 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
         {!bloqueado && (
           <div className="flex gap-2">
             <input type="time" value={hora} onChange={e => { setHora(e.target.value); setSavedHora(false) }}
-              className="flex-1 bg-[#111] border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
+              className="flex-1 bg-transparent border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none"
+              style={{ colorScheme: 'dark', fontSize: '16px' }} />
             <button onClick={guardarHora}
               className={`px-3 rounded-lg text-sm font-bold transition-all active:scale-95 ${savedHora ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}>
               {savedHora ? '✓' : '💾'}
@@ -991,7 +997,8 @@ function TabPartidos({ data }) {
     const yaExiste = partidosFecha.length > 0
     if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
     setGenerando(true)
-    let fixture = masterFixture
+    // Al generar Fecha 1, siempre hacer un nuevo sorteo aleatorio (borra el fixture anterior)
+    let fixture = fechaSel === 1 ? null : masterFixture
     if (!fixture) {
       fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(rp('master_fixture'), fixture)
@@ -1302,35 +1309,24 @@ function TabPartidos({ data }) {
           })()}
         </div>
 
-        {/* Día de partidos — botón que abre calendario nativo */}
+        {/* Día de partidos */}
         <div>
           <p className="text-[10px] text-gray-500 mb-1.5 font-semibold uppercase tracking-wider">Día de los partidos</p>
-          <div className="relative">
-            <button
-              className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 flex items-center gap-3 text-left active:scale-[0.98] transition-all"
-              onClick={() => dateInputRef.current?.click()}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 text-green-400 flex-shrink-0">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>
-              <span className={`flex-1 text-sm font-semibold ${fechaDia ? 'text-white' : 'text-gray-500'}`}>
-                {fechaDia ? fmtDia(fechaDia) : 'Tocar para elegir fecha'}
-              </span>
-              {fechaDia && (
-                <span
-                  onClick={e => { e.stopPropagation(); setFechaDia('') }}
-                  className="text-gray-500 text-base px-1"
-                >✕</span>
-              )}
-            </button>
+          <div className="w-full bg-[#111] border border-green-600/30 rounded-xl px-4 py-3 flex items-center gap-3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 text-green-400 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
             <input
               ref={dateInputRef}
               type="date"
               value={fechaDia}
               onChange={e => setFechaDia(e.target.value)}
-              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-              style={{ fontSize: '16px' }}
+              className="flex-1 bg-transparent text-sm font-semibold outline-none min-w-0"
+              style={{ colorScheme: 'dark', fontSize: '16px', color: fechaDia ? 'white' : '#6b7280' }}
             />
+            {fechaDia && (
+              <button onClick={() => setFechaDia('')} className="text-gray-500 text-base px-1 flex-shrink-0">✕</button>
+            )}
           </div>
         </div>
 
