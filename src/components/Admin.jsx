@@ -533,7 +533,6 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
   const [saving, setSaving] = useState(false)
-  const [savedHora, setSavedHora] = useState(false)
   const [showTarj, setShowTarj] = useState(false)
   const [tarjEq, setTarjEq] = useState('')
   const [tarjJug, setTarjJug] = useState('')
@@ -615,14 +614,14 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
     })
     setSaving(false)
   }
-  const guardarHora = async () => {
+  // Un toque en una franja horaria = guarda la hora del partido
+  const guardarHora = async nueva => {
+    setHora(nueva)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     await update(rp(`partidos/${p.id}`), {
-      hora: hora || null,
-      fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
+      hora: nueva,
+      fechaHora: dia ? `${dia}T${nueva}` : null,
     })
-    setSavedHora(true)
-    setTimeout(() => setSavedHora(false), 2000)
   }
 
   const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
@@ -657,16 +656,18 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
           </div>
         </div>
 
-        {/* Solo hora */}
+        {/* Hora: botones con las franjas del torneo (se guarda al tocar) */}
         {!bloqueado && (
           <div className="flex gap-2">
-            <input type="time" value={hora} onChange={e => { setHora(e.target.value); setSavedHora(false) }}
-              className="flex-1 bg-transparent border border-green-900/30 rounded-lg px-3 py-1.5 text-white text-sm outline-none"
-              style={{ colorScheme: 'dark', fontSize: '16px' }} />
-            <button onClick={guardarHora}
-              className={`px-3 rounded-lg text-sm font-bold transition-all active:scale-95 ${savedHora ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}>
-              {savedHora ? '✓' : '💾'}
-            </button>
+            {gameSlots().map(n => {
+              const h = `${n}:00`
+              return (
+                <button key={h} onClick={() => guardarHora(h)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all active:scale-95 ${hora === h ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-gray-400'}`}>
+                  {h}
+                </button>
+              )
+            })}
           </div>
         )}
 
