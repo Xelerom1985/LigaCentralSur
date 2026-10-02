@@ -2154,12 +2154,24 @@ function TabObjetivo({ data }) {
 /* ─── FINANZAS ─── */
 const soloDigitos = str => str.replace(/[^\d]/g, '')
 const PRIMERA_FECHA_FINANZAS = 4
-const GASTOS_FIJOS = [
-  { key: 'cancha', label: 'Cancha' },
-  { key: 'arbitros', label: 'Árbitros' },
-  { key: 'bebidas', label: 'Bebidas' },
-  { key: 'facu', label: 'Facu', desde: 6 },
-]
+const GASTOS_POR_TORNEO = {
+  '': [
+    { key: 'cancha', label: 'Cancha' },
+    { key: 'arbitros', label: 'Árbitros' },
+    { key: 'bebidas', label: 'Bebidas' },
+    { key: 'facu', label: 'Facu', desde: 6 },
+  ],
+  'sabados2/': [
+    { key: 'cancha', label: 'Cancha' },
+    { key: 'arbitros', label: 'Árbitros' },
+    { key: 'facu', label: 'Facu' },
+  ],
+  'domingos/': [
+    { key: 'cancha', label: 'Cancha' },
+    { key: 'arbitros', label: 'Árbitros' },
+  ],
+}
+const gastosFijosDe = () => GASTOS_POR_TORNEO[getTorneoPrefix()] || GASTOS_POR_TORNEO['']
 
 // Input de monto: muestra "$ 55.000" mientras se escribe, guarda solo dígitos
 function MoneyInput({ value, onChange, onBlur, placeholder, className, disabled }) {
@@ -2272,7 +2284,7 @@ function TabFinanzas({ data }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fechaSel, JSON.stringify(pagos)])
   useEffect(() => {
-    setGastoInputs(Object.fromEntries(GASTOS_FIJOS.map(g => [g.key, String(gastos[g.key] ?? '')])))
+    setGastoInputs(Object.fromEntries(gastosFijosDe().map(g => [g.key, String(gastos[g.key] ?? '')])))
   }, [fechaSel, JSON.stringify(gastos)])
   useEffect(() => { setCajaBaseInput(String(config.cajaBase ?? '')) }, [config.cajaBase])
   useEffect(() => { setObjetivoInput(String(config.objetivo ?? '')) }, [config.objetivo])
@@ -2456,7 +2468,7 @@ function TabFinanzas({ data }) {
       {/* Gastos */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
         <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
-        {GASTOS_FIJOS.filter(g => !g.desde || COPA_JORNADAS[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
+        {gastosFijosDe().filter(g => !g.desde || COPA_JORNADAS[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
             <MoneyInput value={gastoInputs[g.key] ?? ''}
