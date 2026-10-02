@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
+import { calcPremiosPorFecha } from '../premiosPorFecha'
 
-export default function Stats({ data }) {
+export default function Stats({ data, torneo }) {
   const equipos = data.equipos || {}
   // Los Amistosos no suman goles ni tarjetas: se sacan de todas las estadísticas
   const partidos = useMemo(() =>
@@ -18,6 +19,12 @@ export default function Stats({ data }) {
   const tarjetasValidas = useMemo(() =>
     Object.fromEntries(Object.entries(tarjetas).filter(([pid]) => partidos[pid]))
   , [tarjetas, partidos])
+
+  // Premios por fecha: solo en la 2da Edición de Sábados
+  const premiosFecha = useMemo(() => {
+    if (torneo !== 'sabados2') return []
+    return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos }).reverse()
+  }, [torneo, data.partidos, data.goles, jugadores, equipos])
 
   const goleadores = useMemo(() => {
     const cnt = {}
@@ -191,6 +198,57 @@ export default function Stats({ data }) {
         <p className="text-green-400 text-xs mt-1">Fútbol 6 · Liga Central Sur</p>
       </div>
       <div className="px-4 pb-4">
+        {torneo === 'sabados2' && (
+          <Section title="Premios por Fecha" emoji="🏅" empty={premiosFecha.length === 0}>
+            <div className="space-y-2">
+              {premiosFecha.map(f => (
+                <div key={f.fecha} className="bg-[#1a1a1a] rounded-xl overflow-hidden border border-green-900/20">
+                  <div className="flex items-center justify-between px-3 py-2 bg-[#161616]">
+                    <span className="text-xs font-black text-green-400 uppercase tracking-widest">Fecha {f.fecha}</span>
+                    {!f.completa && <span className="text-[9px] font-bold text-yellow-400 bg-yellow-900/20 px-2 py-0.5 rounded-full uppercase">En curso</span>}
+                  </div>
+
+                  <div className="px-3 py-2.5 border-t border-green-900/10">
+                    <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">⚽ Goleador de la fecha</p>
+                    {f.goleador ? f.goleador.ganadores.map(g => (
+                      <div key={g.equipoId + g.jugadorId} className="flex items-center gap-3 py-0.5">
+                        {g.escudo ? <img src={g.escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" /> : <div className="w-7 h-7 rounded bg-green-900/20 flex-shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-1">
+                            {g.numero && <span className="text-[11px] font-black text-green-400/60 flex-shrink-0">#{g.numero}</span>}
+                            <p className="text-sm font-semibold text-white truncate">{g.nombre}</p>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate">{g.equipo}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-lg font-black text-green-400">{g.total}</span>
+                          <p className="text-[9px] text-gray-500 uppercase">goles</p>
+                        </div>
+                      </div>
+                    )) : <p className="text-xs text-gray-600">Sin goles cargados</p>}
+                    {f.goleador?.desempate && <p className="text-[10px] text-gray-600 mt-1">Desempate: {f.goleador.desempate}</p>}
+                  </div>
+
+                  <div className="px-3 py-2.5 border-t border-green-900/10">
+                    <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">🧤 Valla menos vencida</p>
+                    {f.valla ? (
+                      <div className="flex items-center gap-3 py-0.5">
+                        {f.valla.escudo ? <img src={f.valla.escudo} className="w-7 h-7 object-contain rounded flex-shrink-0" /> : <div className="w-7 h-7 rounded bg-green-900/20 flex-shrink-0" />}
+                        <p className="flex-1 min-w-0 text-sm font-semibold text-white truncate">{f.valla.nombre}</p>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-lg font-black text-blue-400">{f.valla.gc}</span>
+                          <p className="text-[9px] text-gray-500 uppercase">en contra</p>
+                        </div>
+                      </div>
+                    ) : <p className="text-xs text-gray-600">Sin partidos jugados</p>}
+                    {f.valla?.desempate && <p className="text-[10px] text-gray-600 mt-1">Desempate: {f.valla.desempate}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
         <Section title="Máximo Goleador" emoji="⚽" empty={goleadores.length === 0}>
           <div className="overflow-hidden rounded-xl">
             {goleadores.map((g, i) => <RankRow key={i} pos={i + 1} nombre={g.nombre} numero={g.numero} equipo={g.equipo} escudo={g.escudo} valor={g.total} tag="goles" />)}

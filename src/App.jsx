@@ -449,7 +449,7 @@ export default function App() {
       {seccion === 'tabla' && <Tabla data={offlineData} />}
       {seccion === 'copas' && <Copas data={data} />}
       {seccion === 'equipos' && <Equipos data={data} />}
-      {seccion === 'stats' && <Stats data={offlineData} />}
+      {seccion === 'stats' && <Stats data={offlineData} torneo={torneo} />}
       {seccion === 'admin' && authed && <Admin data={data} />}
 
       <Navbar seccion={seccion} navegar={navegar} torneo={torneo} />
