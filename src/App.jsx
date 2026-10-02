@@ -456,8 +456,8 @@ export default function App() {
 
       {/* Botón volver al lobby — píldora con nombre del torneo */}
       <button onClick={irAlLobby}
-        className="fixed top-3.5 z-40 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full px-2.5 py-1 active:scale-95 transition-all"
-        style={{ left: 'calc(50% + 28px)', transform: 'translateX(-50%)' }}>
+        className="fixed z-40 flex items-center gap-1 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full px-2.5 py-1 active:scale-95 transition-all"
+        style={{ top: '34px', right: authed ? '106px' : '62px', transform: 'translateY(-50%)' }}>
         <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
         <span className="text-white text-[10px] font-semibold tracking-wide">
           {{ sabados: 'Sábados Libre', sabados2: 'Sábados · 2da Ed.', domingos: 'Domingos' }[torneo] ?? torneo}
