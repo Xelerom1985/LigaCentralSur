@@ -455,13 +455,14 @@ function TabJugadores({ data }) {
 }
 
 /* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
-const GAME_SLOTS = [14, 15, 16]
+// Franjas horarias de los partidos (Sábados 2da Edición juega desde las 13)
+const gameSlots = () => getTorneoPrefix() === 'sabados2/' ? [13, 14, 15, 16] : [14, 15, 16]
 
 // Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
 function assignMatchSlots(matches) {
   const res = new Map()
   const shuffled = [...matches].sort(() => Math.random() - 0.5)
-  shuffled.forEach((m, i) => res.set(m, GAME_SLOTS[Math.floor(i / 2) % GAME_SLOTS.length]))
+  shuffled.forEach((m, i) => res.set(m, gameSlots()[Math.floor(i / 2) % gameSlots().length]))
   return res
 }
 
@@ -1119,7 +1120,7 @@ function TabPartidos({ data }) {
       })
     }))
     // agrupar por hora
-    const slotOrder = ['14:00','15:00','16:00']
+    const slotOrder = gameSlots().map(h => `${h}:00`)
     const bySlot = {}, libres = []
     const sorted = [...partidosFecha].sort((a,b)=>{
       const ha=a.fechaHora?a.fechaHora.split('T')[1]?.slice(0,5):(a.hora||'99:99')
@@ -1431,7 +1432,7 @@ function TabPartidos({ data }) {
                 <div>
                   <p className="text-[10px] text-gray-500 mb-1 font-semibold uppercase tracking-wider">Horario</p>
                   <div className="flex gap-2">
-                    {['14:00', '15:00', '16:00'].map(h => (
+                    {gameSlots().map(h => `${h}:00`).map(h => (
                       <button
                         key={h}
                         onClick={() => setManualHora(h)}
