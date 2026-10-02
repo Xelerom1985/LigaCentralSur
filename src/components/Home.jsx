@@ -78,6 +78,8 @@ export default function Home({ data, torneo }) {
       const eq = snap.val() || {}
       const buscar = q => Object.values(eq).find(e => e.nombre?.toLowerCase().includes(q)) || null
       setAmistososEscudos({
+        chamacos: buscar('chamaco'),
+        plaza:    buscar('plaza'),
         flamengo: buscar('flamengo'),
         la193:    buscar('193'),
         jueves:   buscar('jueves'),
@@ -173,6 +175,7 @@ export default function Home({ data, torneo }) {
   }
 
   const amistososData = [
+    { hora: '13:00', local: amistososEscudos.chamacos, localNombre: 'Los Chamacos', visitante: amistososEscudos.plaza, visitanteNombre: 'La Plaza' },
     { hora: '14:00', local: amistososEscudos.flamengo, localNombre: 'Flamengo', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
     { hora: '15:00', local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
   ]
