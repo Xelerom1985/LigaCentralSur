@@ -1042,8 +1042,8 @@ function TabPartidos({ data }) {
         return m
       }).filter(Boolean)
     }
-    // Fecha 1: La Roma LIBRE; su rival Berger (San Jose) juega con El Mirasol (provisorio)
-    if (fechaSel === 1) {
+    // Fecha 1 (solo 1ra Edición): La Roma LIBRE; su rival Berger (San Jose) juega con El Mirasol (provisorio)
+    if (fechaSel === 1 && getTorneoPrefix() === '') {
       const romaIdF1 = Object.entries(equipos).find(([, e]) => /\broma\b/i.test(e.nombre || ''))?.[0]
       const mirIdF1  = Object.entries(equipos).find(([, e]) => /mirasol/i.test(e.nombre || ''))?.[0]
       if (romaIdF1) {
