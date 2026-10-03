@@ -305,6 +305,7 @@ export default function App() {
           <button onClick={() => elegirTorneo('domingos')}
             className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
             <span>⚽ DOMINGOS</span>
+            <span className="text-sm font-semibold text-green-200/80 tracking-widest uppercase">Pasco Central</span>
           </button>
 
           {/* SÁBADOS · 1RA EDICIÓN (terminada) */}
