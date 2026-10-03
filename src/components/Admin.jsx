@@ -2066,6 +2066,7 @@ const GASTOS_POR_TORNEO = {
     { key: 'cancha', label: 'Cancha' },
     { key: 'arbitros', label: 'Árbitros' },
     { key: 'facu', label: 'Facu' },
+    { key: 'marmol_poli', label: 'Marmol / Poli' },
   ],
   'domingos/': [
     { key: 'cancha', label: 'Cancha' },
