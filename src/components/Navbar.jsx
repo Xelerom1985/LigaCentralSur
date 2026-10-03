@@ -51,10 +51,11 @@ const TABS = [
 ]
 
 // Domingos usa otro orden de íconos que Sábados
-const ORDEN_DOMINGOS = ['home', 'fixture', 'tabla', 'equipos', 'copas', 'stats']
+// Domingos y Sábados 2da Edición comparten este orden; la 1ra Edición usa el orden de TABS
+const ORDEN_NORMAL = ['home', 'fixture', 'tabla', 'equipos', 'copas', 'stats']
 
 export default function Navbar({ seccion, navegar, torneo }) {
-  const tabs = torneo === 'domingos' ? ORDEN_DOMINGOS.map(id => TABS.find(t => t.id === id)) : TABS
+  const tabs = torneo === 'domingos' || torneo === 'sabados2' ? ORDEN_NORMAL.map(id => TABS.find(t => t.id === id)) : TABS
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-t border-white/10">
       <div className="flex">
