@@ -1,23 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { db, ref, push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
+import { push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 import { jornadasCopa } from '../copaJornadas'
-
-const FASES_OPT = [
-  { value: 'liga', label: 'Liga' },
-  { value: 'oro_4tos', label: 'Copa Oro · Cuartos' },
-  { value: 'oro_semi', label: 'Copa Oro · Semifinal' },
-  { value: 'oro_final', label: 'Copa Oro · Final' },
-  { value: 'plata_semi', label: 'Copa Plata · Semifinal' },
-  { value: 'plata_final', label: 'Copa Plata · Final' },
-  { value: 'bronce_4tos', label: 'Copa Bronce · Cuartos' },
-  { value: 'bronce_semi', label: 'Copa Bronce · Semifinal' },
-  { value: 'bronce_final', label: 'Copa Bronce · Final' },
-]
-
-// El botón Amistosos solo aparece si ya existen partidos amistosos en Firebase
-const torneoConAmistosos = () => false
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
 
@@ -1287,7 +1272,7 @@ function TabPartidos({ data }) {
             const fechaActual = nums.find(n => !fechasCerradas[n]) ?? null
             return (
               <div className="grid grid-cols-3 gap-2">
-                {(torneoConAmistosos() || hayAmistosos) && (
+                {hayAmistosos && (
                   <button onClick={() => setFechaSel('amistoso')}
                     className={`col-span-3 rounded-lg py-2.5 text-sm font-bold transition-all active:scale-95 ${fechasCerradas.amistoso ? 'bg-gray-700 text-gray-300' : 'bg-sky-700 text-white'} ${fechaSel === 'amistoso' ? 'ring-2 ring-white' : ''}`}>
                     🤝 Amistosos
@@ -2065,7 +2050,6 @@ const fmtMoney = n => `$ ${Number(n || 0).toLocaleString('es-AR')}`
 
 /* ─── FINANZAS ─── */
 const soloDigitos = str => str.replace(/[^\d]/g, '')
-const PRIMERA_FECHA_FINANZAS = 4
 const GASTOS_POR_TORNEO = {
   '': [
     { key: 'cancha', label: 'Cancha' },
@@ -2265,7 +2249,7 @@ function TabFinanzas({ data }) {
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-600/40">
         <p className="text-[10px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">Fecha del torneo</p>
         <div className="grid grid-cols-3 gap-2">
-          {(torneoConAmistosos() || hayAmistosos) && (() => {
+          {hayAmistosos && (() => {
             const estado = fechaFinCerrada('amistoso') ? 'cerrada' : (fechaActual === 'amistoso' ? 'actual' : 'futura')
             const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : estado === 'actual' ? 'bg-green-600 text-white' : 'bg-red-700 text-white'
             return (

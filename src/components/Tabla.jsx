@@ -2,9 +2,6 @@ import { useMemo } from 'react'
 
 export function calcTabla(partidos, equipos) {
   const stats = {}
-  Object.values(equipos).forEach((_, idx) => {
-    // init
-  })
   Object.values(partidos)
     .filter(p => p.fase === 'liga' && p.jugado && p.golesLocal != null && p.golesVisitante != null && p.local && p.visitante)
     .forEach(p => {
