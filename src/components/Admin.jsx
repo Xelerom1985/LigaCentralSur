@@ -451,10 +451,31 @@ const gameSlots = () => {
 }
 
 // Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
-function assignMatchSlots(matches) {
+// Equipos que NO pueden jugar en ciertas franjas (por torneo). Se respeta al sortear cada fecha.
+const EXCLUSIONES_HORARIO = {
+  'sabados2/': [{ equipo: /197/, horas: [13] }],
+}
+
+function assignMatchSlots(matches, equipos = {}) {
   const res = new Map()
   const shuffled = [...matches].sort(() => Math.random() - 0.5)
   shuffled.forEach((m, i) => res.set(m, gameSlots()[Math.floor(i / 2) % gameSlots().length]))
+
+  // Horas prohibidas de un partido según las exclusiones del torneo
+  const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
+  const prohibidas = m => reglas
+    .filter(r => [m.local, m.visitante].some(id => id && r.equipo.test(equipos[id]?.nombre || '')))
+    .flatMap(r => r.horas)
+  for (const m of shuffled) {
+    if (!prohibidas(m).includes(res.get(m))) continue
+    // intercambiar franja con otro partido al que le sirva la de este y a este la del otro
+    const otro = shuffled.find(k => k !== m
+      && !prohibidas(m).includes(res.get(k))
+      && !prohibidas(k).includes(res.get(m)))
+    if (otro) {
+      const h = res.get(m); res.set(m, res.get(otro)); res.set(otro, h)
+    }
+  }
   return res
 }
 
@@ -1059,7 +1080,7 @@ function TabPartidos({ data }) {
     // Separar LIBRE de activos y asignar franjas horarias automáticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
-    const slotMap = assignMatchSlots(activos)
+    const slotMap = assignMatchSlots(activos, equipos)
     const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
