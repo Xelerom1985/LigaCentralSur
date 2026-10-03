@@ -509,7 +509,8 @@ function buildRoundRobin(equiposIds, equipos) {
 }
 
 /* ─── PARTIDO CARD (usado en TabPartidos) ─── */
-function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
+function PartidoCard(props) {
+  const { p, equipos } = props
   if (p.libre) {
     const eq = equipos[p.local] || {}
     return (
@@ -520,7 +521,11 @@ function PartidoCard({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada
       </div>
     )
   }
+  return <PartidoJugable {...props} />
+}
 
+// Tarjeta de un partido real (separada de PartidoCard para que los hooks no queden después de un return)
+function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
   const [gl, setGl] = useState(String(p.golesLocal ?? ''))
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
