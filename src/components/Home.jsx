@@ -1,7 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { jornadasCopa, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
-import { get } from 'firebase/database'
-import { db, ref } from '../firebase'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -64,30 +62,19 @@ function Lightbox({ src, onClose }) {
   )
 }
 
+// Campeones de la 1ra Edición (Sábados): se muestran en el Inicio de ese torneo
+const CAMPEONES = [
+  { copa: 'Oro',    emoji: '🥇', buscar: /antidoping/i },
+  { copa: 'Plata',  emoji: '🥈', buscar: /goat/i },
+  { copa: 'Bronce', emoji: '🥉', buscar: /197/ },
+]
+
 export default function Home({ data, torneo }) {
   const equipos  = data.equipos  || {}
   const partidos = data.partidos || {}
   const novedades = data.novedades || {}
   const homeFecha = data.home_fecha ?? null
   const [lightbox, setLightbox] = useState(null)
-  const [amistososEscudos, setAmistososEscudos] = useState({})
-
-  useEffect(() => {
-    if (torneo !== 'sabados') return
-    get(ref(db, 'sabados2/equipos')).then(snap => {
-      const eq = snap.val() || {}
-      const buscar = q => Object.values(eq).find(e => e.nombre?.toLowerCase().includes(q)) || null
-      setAmistososEscudos({
-        chamacos: buscar('chamaco'),
-        plaza:    buscar('plaza'),
-        flamengo: buscar('flamengo'),
-        la193:    buscar('193'),
-        jueves:   buscar('jueves'),
-        la890:    buscar('890'),
-      })
-    }).catch(() => {})
-  }, [torneo])
-
   const COPA_JORNADAS = jornadasCopa(torneo)
   const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
   const esAmistosoHome = homeFecha === 'amistoso'
@@ -175,12 +162,6 @@ export default function Home({ data, torneo }) {
     )
   }
 
-  const amistososData = [
-    { hora: '13:00', local: amistososEscudos.chamacos, localNombre: 'Los Chamacos', visitante: amistososEscudos.plaza, visitanteNombre: 'La Plaza' },
-    { hora: '14:00', local: amistososEscudos.flamengo, localNombre: 'Flamengo', visitante: amistososEscudos.la193, visitanteNombre: 'La 193 Bis' },
-    { hora: '15:00', local: amistososEscudos.jueves, localLineas: ['Los pibes', 'de los Jueves'], visitante: amistososEscudos.la890, visitanteNombre: 'La 890 FC' },
-  ]
-
   return (
     <div className="relative min-h-screen">
       {/* Fondo */}
@@ -196,40 +177,32 @@ export default function Home({ data, torneo }) {
       <div className="absolute inset-x-0 top-[24%] bottom-[72px] overflow-y-auto flex flex-col">
         <div className="px-4 pt-2 pb-3 space-y-3">
 
-          {/* AMISTOSOS DE RECONOCIMIENTO — solo en SÁBADOS 1ra edición */}
+          {/* CAMPEONES — Sábados 1ra Edición terminada */}
           {torneo === 'sabados' && (
-            <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
-              <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
-                <span className="text-green-400 text-xs font-black uppercase tracking-widest">⚽ Amistosos de Reconocimiento</span>
-                <span className="text-gray-400 text-xs">Sáb, 3 Oct</span>
+            <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-yellow-500/30">
+              <div className="px-4 py-2.5 border-b border-white/10 text-center">
+                <span className="text-yellow-400 text-xs font-black uppercase tracking-widest">🏆 Campeones · 1ra Edición</span>
               </div>
               <div className="divide-y divide-white/5">
-                {amistososData.map(({ hora, local, localNombre, localLineas, visitante, visitanteNombre }) => (
-                  <div key={hora} className="px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      {localLineas
-                        ? <span className="text-white text-xs font-bold text-right leading-tight">{localLineas[0]}<br />{localLineas[1]}</span>
-                        : <span className="text-white text-xs font-bold text-right leading-tight truncate">{localNombre}</span>}
-                      {local?.escudo
-                        ? <img src={local.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
+                {CAMPEONES.map(({ copa, emoji, buscar }) => {
+                  const eq = Object.values(equipos).find(e => buscar.test(e.nombre || '')) || {}
+                  return (
+                    <div key={copa} className="px-4 py-4 flex items-center gap-4">
+                      {eq.escudo
+                        ? <img src={eq.escudo} className="w-16 h-16 object-contain rounded flex-shrink-0" />
+                        : <div className="w-16 h-16 rounded bg-green-900/30 flex-shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-white font-black text-lg leading-tight truncate">{eq.nombre || '?'}</p>
+                        <p className="text-yellow-400 text-xs font-black uppercase tracking-widest mt-1">{emoji} Campeón de {copa}</p>
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 text-center w-20">
-                      <p className="text-white font-black text-xl leading-tight">{hora}</p>
-                    </div>
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      {visitante?.escudo
-                        ? <img src={visitante.escudo} className="w-8 h-8 object-contain rounded flex-shrink-0" />
-                        : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
-                      <span className="text-white text-xs font-bold truncate">{visitanteNombre}</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
+          {torneo !== 'sabados' && homeFecha && !esCopaHome && fechaPartidos.length > 0 && (
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
@@ -245,7 +218,7 @@ export default function Home({ data, torneo }) {
             </div>
           )}
 
-          {homeFecha && esCopaHome && gruposCopa.map(({ fase, partidos: ps }) => (
+          {torneo !== 'sabados' && homeFecha && esCopaHome && gruposCopa.map(({ fase, partidos: ps }) => (
             <div key={fase} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
