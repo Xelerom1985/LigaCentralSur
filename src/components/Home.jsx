@@ -187,12 +187,12 @@ export default function Home({ data, torneo }) {
                 {CAMPEONES.map(({ copa, emoji, buscar }) => {
                   const eq = Object.values(equipos).find(e => buscar.test(e.nombre || '')) || {}
                   return (
-                    <div key={copa} className="px-4 py-4 flex items-center gap-4">
+                    <div key={copa} className="px-4 py-4 flex flex-col items-center gap-2 text-center">
                       {eq.escudo
                         ? <img src={eq.escudo} className="w-16 h-16 object-contain rounded flex-shrink-0" />
                         : <div className="w-16 h-16 rounded bg-green-900/30 flex-shrink-0" />}
                       <div className="min-w-0">
-                        <p className="text-white font-black text-lg leading-tight truncate">{eq.nombre || '?'}</p>
+                        <p className="text-white font-black text-lg leading-tight">{eq.nombre || '?'}</p>
                         <p className="text-yellow-400 text-xs font-black uppercase tracking-widest mt-1">{emoji} Campeón de {copa}</p>
                       </div>
                     </div>
