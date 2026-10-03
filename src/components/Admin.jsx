@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { db, ref, push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
-import { COPA_JORNADAS } from '../copaJornadas'
+import { jornadasCopa } from '../copaJornadas'
 
 const FASES_OPT = [
   { value: 'liga', label: 'Liga' },
@@ -455,6 +455,9 @@ function TabJugadores({ data }) {
 }
 
 /* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
+// Jornadas de copa (Copa 1/2/3) del torneo activo
+const copaJornadasActual = () => jornadasCopa(getTorneoPrefix())
+
 // Franjas horarias de los partidos según el torneo
 const gameSlots = () => {
   const p = getTorneoPrefix()
@@ -920,12 +923,12 @@ function TabPartidos({ data }) {
     return s
   })
 
-  const esCopa = typeof fechaSel === 'string' && !!COPA_JORNADAS[fechaSel]
+  const esCopa = typeof fechaSel === 'string' && !!copaJornadasActual()[fechaSel]
   // Amistosos: fecha previa a la Fecha 1, sin puntos ni goles en Tabla/Stats, pero con Finanzas
   const esAmistoso = fechaSel === 'amistoso'
   const hayAmistosos = Object.values(partidos).some(p => p.fase === 'amistoso')
-  const perteneceAFecha = p => esAmistoso ? p.fase === 'amistoso' : esCopa ? COPA_JORNADAS[fechaSel].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === fechaSel)
-  const labelFecha = esAmistoso ? 'Amistosos' : esCopa ? `Copa ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+  const perteneceAFecha = p => esAmistoso ? p.fase === 'amistoso' : esCopa ? copaJornadasActual()[fechaSel].includes(p.fase) : (p.fase === 'liga' && Number(p.numero) === fechaSel)
+  const labelFecha = esAmistoso ? 'Amistosos' : esCopa ? `Copa ${Object.keys(copaJornadasActual()).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
 
   useEffect(() => {
     const dias = [...new Set(
@@ -1301,7 +1304,7 @@ function TabPartidos({ data }) {
                     </button>
                   )
                 })}
-                {Object.keys(COPA_JORNADAS).map((key, i) => {
+                {Object.keys(copaJornadasActual()).map((key, i) => {
                   const estado = fechasCerradas[key] ? 'cerrada' : 'futura'
                   const base = estado === 'cerrada' ? 'bg-gray-700 text-gray-300' : 'bg-yellow-700 text-white'
                   return (
@@ -1554,6 +1557,7 @@ function TabCopas({ data }) {
     { id: 'bronce', label: 'Copa Bronce', icon: '🥉' },
   ]
 
+  const es2da = getTorneoPrefix() === 'sabados2/'
   const RONDAS = {
     oro:    [
       { fase: 'oro_4tos',  label: '4tos de Final', minEq: 4 },
@@ -1564,7 +1568,11 @@ function TabCopas({ data }) {
       { fase: 'plata_semi',  label: 'Semifinales', minEq: 2 },
       { fase: 'plata_final', label: 'Final',        minEq: 2 },
     ],
-    bronce: [
+    bronce: es2da ? [
+      { fase: 'bronce_4tos',  label: 'Cuartos (el 1° y 2° de la lista pasan directo)', minEq: 6 },
+      { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
+      { fase: 'bronce_final', label: 'Final',      minEq: 2 },
+    ] : [
       { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
       { fase: 'bronce_final', label: 'Final',      minEq: 2 },
     ],
@@ -1609,8 +1617,68 @@ function TabCopas({ data }) {
     return out
   }
 
+  const mezclar = arr => {
+    const m = [...arr]
+    for (let i = m.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[m[i], m[j]] = [m[j], m[i]]
+    }
+    return m
+  }
+  const emparejar = ids => {
+    const m = mezclar(ids), out = []
+    for (let i = 0; i + 1 < m.length; i += 2) out.push({ local: m[i], visitante: m[i + 1] })
+    return out
+  }
+  // Ganadores/perdedores de una ronda ya jugada (null si falta jugar o hay empate sin definir)
+  const resultadoRonda = (fase) => {
+    const ps = Object.values(partidos).filter(p => p.fase === fase)
+    if (ps.length === 0) return { error: 'Primero generá la ronda anterior' }
+    if (ps.some(p => !p.jugado)) return { error: 'Faltan jugar partidos de la ronda anterior' }
+    const ganadores = [], perdedores = []
+    for (const p of ps) {
+      const gl = Number(p.golesLocal), gv = Number(p.golesVisitante)
+      if (gl === gv) return { error: 'Hay un empate en la ronda anterior: cargá el ganador (por penales) antes de sortear' }
+      ganadores.push(gl > gv ? p.local : p.visitante)
+      perdedores.push(gl > gv ? p.visitante : p.local)
+    }
+    return { ganadores, perdedores }
+  }
+  // Sábados 2da: cada ronda se sortea sola con los equipos que corresponden (todo al azar)
+  const cruces2da = (fase) => {
+    const sorteo = ids => ({ cruces: emparejar(ids) })
+    if (fase === 'oro_4tos') {
+      if (equiposCopa.length !== 8) return { error: 'La Copa de Oro necesita exactamente 8 equipos en la lista' }
+      return sorteo(equiposCopa)
+    }
+    if (fase === 'oro_semi' || fase === 'oro_final' || fase === 'plata_final' || fase === 'bronce_final') {
+      const previa = { oro_semi: 'oro_4tos', oro_final: 'oro_semi', plata_final: 'plata_semi', bronce_final: 'bronce_semi' }[fase]
+      const r = resultadoRonda(previa); if (r.error) return r
+      return sorteo(r.ganadores)
+    }
+    if (fase === 'plata_semi') {
+      const r = resultadoRonda('oro_4tos'); if (r.error) return r
+      return sorteo(r.perdedores)
+    }
+    if (fase === 'bronce_4tos') {
+      if (equiposCopa.length !== 6) return { error: 'La Copa de Bronce necesita exactamente 6 equipos en la lista (el 1° y 2° pasan directo)' }
+      return sorteo(equiposCopa.slice(2))
+    }
+    if (fase === 'bronce_semi') {
+      const r = resultadoRonda('bronce_4tos'); if (r.error) return r
+      return sorteo([...equiposCopa.slice(0, 2), ...r.ganadores])
+    }
+    return null
+  }
+
   const generarRonda = async (fase, minEq) => {
-    if (equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
+    let crucesAuto = null
+    if (es2da) {
+      const r = cruces2da(fase)
+      if (r?.error) return alert(r.error)
+      crucesAuto = r?.cruces || null
+    }
+    if (!crucesAuto && equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
     const yaHay = Object.values(partidos).some(p => p.fase === fase)
     if (yaHay && !confirm('Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
     setGen(fase)
@@ -1620,7 +1688,7 @@ function TabCopas({ data }) {
         await remove(rp(`goles/${id}`))
         await remove(rp(`tarjetas/${id}`))
       }
-    for (const { local, visitante } of buildBracket(equiposCopa))
+    for (const { local, visitante } of (crucesAuto || buildBracket(equiposCopa)))
       await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
     setGen(false)
   }
@@ -1691,7 +1759,7 @@ function TabCopas({ data }) {
                 <p className="flex-1 text-sm font-bold text-white">{copaInfo?.icon} {label}</p>
                 <button
                   onClick={() => generarRonda(fase, minEq)}
-                  disabled={!!gen || equiposCopa.length < minEq}
+                  disabled={!!gen || (equiposCopa.length < minEq && !(es2da && fase !== 'oro_4tos' && fase !== 'bronce_4tos'))}
                   className="bg-green-700 text-white rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-30 active:scale-95 transition-all whitespace-nowrap"
                 >
                   {gen === fase ? '⏳' : ps.length > 0 ? '↺ Regenerar' : '🎲 Generar'}
@@ -1711,7 +1779,7 @@ function TabCopas({ data }) {
                   ))}
                 </div>
               )}
-              {ps.length === 0 && equiposCopa.length < minEq && (
+              {ps.length === 0 && equiposCopa.length < minEq && !(es2da && fase !== 'oro_4tos' && fase !== 'bronce_4tos') && (
                 <p className="px-4 pb-3 text-[11px] text-gray-600">Necesitás al menos {minEq} equipos en la lista</p>
               )}
             </div>
@@ -2223,8 +2291,8 @@ function TabFinanzas({ data }) {
       Object.values(partidos).forEach(p => {
         if (p.fase === 'amistoso' && !p.libre && !p.sinCuota && p.local && p.visitante) { ids.add(p.local); ids.add(p.visitante) }
       })
-    } else if (COPA_JORNADAS[fechaKey]) {
-      const fases = COPA_JORNADAS[fechaKey]
+    } else if (copaJornadasActual()[fechaKey]) {
+      const fases = copaJornadasActual()[fechaKey]
       Object.values(partidos).forEach(p => {
         if (fases.includes(p.fase) && p.local && p.visitante) { ids.add(p.local); ids.add(p.visitante) }
       })
@@ -2315,7 +2383,7 @@ function TabFinanzas({ data }) {
   const ingresoCajaFecha = recaudadoFecha - gastosFecha - Number(gananciaOrg || 0)
 
   // Solo se cuentan las fechas desde que arrancamos a llevar Finanzas (Fecha 4 en adelante) + las jornadas de copas
-  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= primeraFechaFinanzas || COPA_JORNADAS[n] || n === 'amistoso'))
+  const fechasFinanzas = Object.entries(finanzas).filter(([n]) => n !== 'config' && (Number(n) >= primeraFechaFinanzas || copaJornadasActual()[n] || n === 'amistoso'))
 
   const resumenGeneral = fechasFinanzas.reduce((acc, [, f]) => {
     const rec = Object.values(f.pagos || {}).reduce((s, p) => s + Number(p.efectivo || 0) + Number(p.transferencia || 0), 0)
@@ -2351,7 +2419,7 @@ function TabFinanzas({ data }) {
     .sort((a, b) => b[1] - a[1])
 
   const idsQueJuegan = equiposQueJuegan(fechaSel)
-  const labelFecha = fechaSel === 'amistoso' ? 'Amistosos' : COPA_JORNADAS[fechaSel] ? `Copa · Fecha ${Object.keys(COPA_JORNADAS).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
+  const labelFecha = fechaSel === 'amistoso' ? 'Amistosos' : copaJornadasActual()[fechaSel] ? `Copa · Fecha ${Object.keys(copaJornadasActual()).indexOf(fechaSel) + 1}` : `Fecha ${fechaSel}`
 
   return (
     <div className="pt-4 space-y-4">
@@ -2385,7 +2453,7 @@ function TabFinanzas({ data }) {
               </button>
             )
           })}
-          {Object.entries(COPA_JORNADAS).map(([key], i) => {
+          {Object.entries(copaJornadasActual()).map(([key], i) => {
             const sel = fechaSel === key
             return (
               <button key={key} onClick={() => setFechaSel(key)}
@@ -2475,7 +2543,7 @@ function TabFinanzas({ data }) {
       {/* Gastos */}
       <div className="bg-[#1a1a1a] rounded-xl p-4 border border-green-900/30 space-y-2">
         <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
-        {gastosFijosDe().filter(g => !g.desde || COPA_JORNADAS[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
+        {gastosFijosDe().filter(g => !g.desde || copaJornadasActual()[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
             <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
             <MoneyInput value={gastoInputs[g.key] ?? ''}

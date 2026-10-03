@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { COPA_JORNADAS, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
+import { jornadasCopa, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
 import { get } from 'firebase/database'
 import { db, ref } from '../firebase'
 
@@ -88,6 +88,7 @@ export default function Home({ data, torneo }) {
     }).catch(() => {})
   }, [torneo])
 
+  const COPA_JORNADAS = jornadasCopa(torneo)
   const esCopaHome = typeof homeFecha === 'string' && !!COPA_JORNADAS[homeFecha]
   const esAmistosoHome = homeFecha === 'amistoso'
 

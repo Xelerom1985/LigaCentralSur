@@ -1,4 +1,4 @@
-export default function Copas({ data }) {
+export default function Copas({ data, torneo }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
 
@@ -144,8 +144,23 @@ export default function Copas({ data }) {
   const BracketBronce = () => {
     const semis = getPartidosByFase('bronce_semi')
     const final = getPartidosByFase('bronce_final')[0]
+    const cuartos = getPartidosByFase('bronce_4tos')
+    const directos = (data.copas_equipos?.bronce || []).slice(0, 2)
     return (
       <div className="bracket-scroll">
+        {torneo === 'sabados2' && (cuartos.length > 0 || directos.length > 0) && (
+          <div className="mb-3">
+            <p className="col-label">Cuartos</p>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {[0, 1].map(i => <MatchBox key={i} p={cuartos[i]} />)}
+            </div>
+            {directos.length === 2 && (
+              <p className="text-[10px] text-gray-400">
+                Pasan directo a semifinales: {directos.map(id => getEq(id).nombre || '?').join(' y ')}
+              </p>
+            )}
+          </div>
+        )}
         <div className="bracket-row bracket-row-3">
           <div className="col-wrap">
             <p className="col-label">Semifinal</p>
@@ -202,13 +217,23 @@ export default function Copas({ data }) {
           <tr><td colSpan={4} className="h-1.5"></td></tr>
           <tr>
             <td className="text-orange-400 font-bold text-left pr-0.5">🥉 Bronce</td>
-            <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
-            <td className="text-gray-600 py-2 px-0.5">No juega</td>
-            <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
+            {torneo === 'sabados2' ? (
+              <>
+                <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">4tos<br />de Final</td>
+                <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
+                <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
+              </>
+            ) : (
+              <>
+                <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
+                <td className="text-gray-600 py-2 px-0.5">No juega</td>
+                <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
+              </>
+            )}
           </tr>
         </tbody>
       </table>
-      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. Copa Bronce: los últimos 4 de la Liga.</p>
+      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. {torneo === 'sabados2' ? 'Copa Bronce: del 9° al 14° de la Liga; el 9° y el 10° pasan directo a la Semifinal.' : 'Copa Bronce: los últimos 4 de la Liga.'}</p>
     </div>
   )
 
