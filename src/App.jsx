@@ -293,13 +293,6 @@ export default function App() {
         <h1 className="text-white text-3xl font-black tracking-tight text-center drop-shadow-lg">Liga Central Sur</h1>
 
         <div className="w-full max-w-xs flex flex-col gap-4 mt-2">
-          {/* SÁBADOS */}
-          <button onClick={() => elegirTorneo('sabados')}
-            className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
-            <span>⚽ SÁBADOS LIBRE</span>
-            <span className="text-sm font-semibold text-green-200/80 tracking-widest uppercase">Pasco Central</span>
-          </button>
-
           {/* SÁBADOS · 2DA EDICIÓN */}
           <button onClick={() => elegirTorneo('sabados2')}
             className="relative w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
@@ -312,6 +305,14 @@ export default function App() {
           <button onClick={() => elegirTorneo('domingos')}
             className="w-full bg-green-700/60 backdrop-blur-sm border border-green-500/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
             <span>⚽ DOMINGOS</span>
+          </button>
+
+          {/* SÁBADOS · 1RA EDICIÓN (terminada) */}
+          <button onClick={() => elegirTorneo('sabados')}
+            className="relative w-full bg-gray-600/60 backdrop-blur-sm border border-gray-400/40 text-white rounded-2xl py-5 text-xl font-black active:scale-95 transition-all shadow-2xl flex flex-col items-center gap-0.5">
+            <span className="absolute -top-2.5 -right-2 bg-yellow-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg tracking-wide">1RA EDICIÓN</span>
+            <span>⚽ SÁBADOS LIBRE</span>
+            <span className="text-sm font-semibold text-gray-200/80 tracking-widest uppercase">Pasco Central</span>
           </button>
         </div>
       </div>
@@ -460,7 +461,7 @@ export default function App() {
         style={{ top: '34px', right: authed ? '106px' : '62px', transform: 'translateY(-50%)' }}>
         <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
         <span className="text-white text-[10px] font-semibold tracking-wide">
-          {{ sabados: 'Sábados Libre', sabados2: 'Sábados · 2da Ed.', domingos: 'Domingos' }[torneo] ?? torneo}
+          {{ sabados: 'Sábados · 1ra Ed.', sabados2: 'Sábados · 2da Ed.', domingos: 'Domingos' }[torneo] ?? torneo}
         </span>
         <span className="text-white/40 text-[9px]">▾</span>
       </button>
