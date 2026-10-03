@@ -455,8 +455,13 @@ function TabJugadores({ data }) {
 }
 
 /* ─── HORARIOS POR FRANJA (2 canchas simultáneas: 14hs, 15hs, 16hs) ─── */
-// Franjas horarias de los partidos (Sábados 2da Edición juega desde las 13)
-const gameSlots = () => getTorneoPrefix() === 'sabados2/' ? [13, 14, 15, 16] : [14, 15, 16]
+// Franjas horarias de los partidos según el torneo
+const gameSlots = () => {
+  const p = getTorneoPrefix()
+  if (p === 'sabados2/') return [13, 14, 15, 16]
+  if (p === 'domingos/') return [10, 11, 12, 13]
+  return [14, 15, 16]
+}
 
 // Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
 function assignMatchSlots(matches) {
@@ -880,7 +885,7 @@ function TabPartidos({ data }) {
   const [showManual, setShowManual] = useState(false)
   const [manualLocal, setManualLocal] = useState('')
   const [manualVisitante, setManualVisitante] = useState('')
-  const [manualHora, setManualHora] = useState('14:00')
+  const [manualHora, setManualHora] = useState(() => `${gameSlots()[0]}:00`)
   const [agregando, setAgregando] = useState(false)
   const [descargando, setDescargando] = useState(false)
   const [showConfirmBorrar, setShowConfirmBorrar] = useState(false)
@@ -1236,7 +1241,7 @@ function TabPartidos({ data }) {
     })
     setManualLocal('')
     setManualVisitante('')
-    setManualHora('14:00')
+    setManualHora(`${gameSlots()[0]}:00`)
     setAgregando(false)
   }
 
