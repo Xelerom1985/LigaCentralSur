@@ -237,6 +237,28 @@ export default function Copas({ data, torneo }) {
     </div>
   )
 
+  if (torneo === 'sabados2') {
+    return (
+      <div className="min-h-screen">
+        <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
+          <h1 className="text-xl font-black text-white mb-4">Copas</h1>
+        </div>
+        <div className="px-4 pb-6">
+          <div className="bg-[#1a1a1a] border border-green-900/30 rounded-2xl px-5 py-8 text-center space-y-4">
+            <div className="text-5xl">🏆</div>
+            <p className="text-white font-bold text-base leading-snug">
+              En construcción la Fase de Copas en base a la cantidad de equipos anotados en la Liga.
+            </p>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Llegada la fecha, se informará el tipo de eliminación correspondiente.
+            </p>
+            <p className="text-green-500 font-bold text-sm">¡Gracias! 🙌</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
