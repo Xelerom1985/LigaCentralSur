@@ -237,7 +237,7 @@ export default function Copas({ data, torneo }) {
     </div>
   )
 
-  if (torneo === 'sabados2') {
+  if (torneo === 'sabados2' || torneo === 'domingos') {
     return (
       <div className="min-h-screen">
         <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
