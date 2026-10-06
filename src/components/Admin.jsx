@@ -485,6 +485,8 @@ function buildRoundRobin(equiposIds, equipos) {
   const mirId   = equiposIds.find(id => /mirasol/i.test(equipos[id]?.nombre || ''))
   const permIds = equiposIds.filter(id => id !== mirId)
 
+  // Posiciones fijas por nombre: solo 1ra Edición. El resto de los torneos se sortean completos.
+  const esPrimera = getTorneoPrefix() === ''
   const find = pat => permIds.find(id => pat.test(equipos[id]?.nombre || ''))
   const romaId   = find(/\broma\b/i)
   const joseFCId = find(/san jose fc/i)                 // San Jose FC (sin restricción)
@@ -501,7 +503,7 @@ function buildRoundRobin(equiposIds, equipos) {
 
   // LaRoma ancla (pos 0), SanJose original al final (pos n-1) → emparejado con LaRoma en F1
   const middle = [la18Id, antiId, tucaId, bandaId, julioId, restoId, joseFCId, pibesId, milanId, candId].filter(Boolean)
-  const known  = [romaId, ...middle, joseId].filter(Boolean)
+  const known  = esPrimera ? [romaId, ...middle, joseId].filter(Boolean) : []
   const rest   = permIds.filter(id => !known.includes(id))
   // Sorteo aleatorio: shufflear los equipos sin posición fija
   for (let i = rest.length - 1; i > 0; i--) {
