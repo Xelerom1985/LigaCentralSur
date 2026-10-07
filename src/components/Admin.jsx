@@ -2126,7 +2126,7 @@ function TabInscripciones({ data }) {
     .filter(([, eq]) => !eq.retirado)
     .sort((a, b) => (a[1].nombre || '').localeCompare(b[1].nombre || ''))
 
-  // valores: { [id]: { pagado: string, cuota: string } }
+  // valores: { [id]: { pagado: string, beneficio: string } }
   const [valores, setValores] = useState({})
   const [guardado, setGuardado] = useState({})
 
@@ -2134,37 +2134,34 @@ function TabInscripciones({ data }) {
     const init = {}
     equiposLista.forEach(([id]) => {
       const insc = inscripciones[id] || {}
-      const cuotaFb = insc.cuota
       init[id] = {
         pagado: (insc.pagado ?? '').toString(),
-        cuota: cuotaFb != null ? cuotaFb.toString() : TOTAL_BASE.toString(),
+        beneficio: (insc.beneficio ?? 0).toString(),
       }
     })
     setValores(init)
   }, [JSON.stringify(inscripciones)])
 
-  const setCampo = (id, val) =>
-    setValores(v => ({ ...v, [id]: { ...v[id], pagado: val } }))
+  const setCampo = (id, campo, val) =>
+    setValores(v => ({ ...v, [id]: { ...v[id], [campo]: val } }))
 
   const guardar = async (id) => {
     const pagado = parseInt(valores[id]?.pagado) || 0
-    const cuotaActual = inscripciones[id]?.cuota
-    const obj = { pagado }
-    if (cuotaActual != null) obj.cuota = cuotaActual
-    await set(rp(`inscripciones/${id}`), obj)
+    const beneficio = Math.min(100, Math.max(0, parseInt(valores[id]?.beneficio) || 0))
+    await set(rp(`inscripciones/${id}`), { pagado, beneficio })
     setGuardado(s => ({ ...s, [id]: true }))
     setTimeout(() => setGuardado(s => ({ ...s, [id]: false })), 1500)
   }
 
-  const cuotaEfectiva = id => {
-    const c = parseInt(valores[id]?.cuota)
-    return isNaN(c) ? TOTAL_BASE : c
+  const cuotaDeId = id => {
+    const ben = Math.min(100, Math.max(0, parseInt(valores[id]?.beneficio) || 0))
+    return Math.round(TOTAL_BASE * (1 - ben / 100))
   }
 
   const totalPagado = equiposLista.reduce((acc, [id]) => acc + (inscripciones[id]?.pagado || 0), 0)
   const totalEsperado = equiposLista.reduce((acc, [id]) => {
-    const c = inscripciones[id]?.cuota
-    return acc + (c != null ? c : TOTAL_BASE)
+    const ben = inscripciones[id]?.beneficio ?? 0
+    return acc + Math.round(TOTAL_BASE * (1 - ben / 100))
   }, 0)
   const pct = totalEsperado > 0 ? Math.round((totalPagado / totalEsperado) * 100) : 0
 
@@ -2184,7 +2181,7 @@ function TabInscripciones({ data }) {
           <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
         </div>
         <p className="text-[10px] text-gray-500 mt-2">
-          Cuota base: <span className="text-white font-semibold">{fmt(TOTAL_BASE)}</span> · {equiposLista.length} equipos
+          Inscripción base: <span className="text-white font-semibold">{fmt(TOTAL_BASE)}</span> · {equiposLista.length} equipos
         </p>
       </div>
 
@@ -2192,12 +2189,11 @@ function TabInscripciones({ data }) {
       <div className="space-y-2">
         {equiposLista.map(([id, eq]) => {
           const pagado = inscripciones[id]?.pagado || 0
-          const cuota = cuotaEfectiva(id)
-          const bonificado = cuota === 0
-          const descuento = !bonificado && cuota < TOTAL_BASE
-          const pctDesc = descuento ? Math.round((1 - cuota / TOTAL_BASE) * 100) : 0
+          const cuota = cuotaDeId(id)
+          const beneficio = Math.min(100, Math.max(0, parseInt(valores[id]?.beneficio) || 0))
+          const bonificado = beneficio === 100
           const falta = Math.max(0, cuota - pagado)
-          const pctEq = cuota === 0 ? 100 : Math.min(100, Math.round((pagado / cuota) * 100))
+          const pctEq = bonificado ? 100 : Math.min(100, Math.round((pagado / cuota) * 100))
           const completo = bonificado || pagado >= cuota
 
           return (
@@ -2211,8 +2207,8 @@ function TabInscripciones({ data }) {
                 <p className="text-sm font-bold text-white flex-1">{eq.nombre}</p>
                 {bonificado
                   ? <span className="text-[10px] bg-blue-900/40 text-blue-400 font-bold px-2 py-0.5 rounded-full">Bonificado</span>
-                  : descuento
-                    ? <span className="text-[10px] bg-yellow-900/30 text-yellow-400 font-bold px-2 py-0.5 rounded-full">{pctDesc}% desc.</span>
+                  : beneficio > 0
+                    ? <span className="text-[10px] bg-yellow-900/30 text-yellow-400 font-bold px-2 py-0.5 rounded-full">{beneficio}% desc.</span>
                     : completo
                       ? <span className="text-[10px] bg-green-900/40 text-green-400 font-bold px-2 py-0.5 rounded-full">✓ Completo</span>
                       : <span className="text-[10px] text-gray-400">Falta {fmt(falta)}</span>
@@ -2227,15 +2223,27 @@ function TabInscripciones({ data }) {
                 />
               </div>
 
-              {/* Input pagado */}
-              {!bonificado && (
-                <div className="flex gap-2 items-center">
+              {/* Inputs */}
+              <div className="flex gap-2 items-center">
+                {/* Beneficio % */}
+                <div className="flex items-center bg-[#111] border border-green-900/20 rounded-lg px-2 py-2 gap-1 w-[72px] flex-shrink-0">
+                  <input
+                    type="number" inputMode="numeric" min="0" max="100"
+                    value={valores[id]?.beneficio ?? '0'}
+                    onChange={e => setCampo(id, 'beneficio', e.target.value)}
+                    className="w-full bg-transparent text-white text-sm text-center outline-none"
+                    style={{ colorScheme: 'dark', fontSize: '16px' }}
+                  />
+                  <span className="text-gray-500 text-xs flex-shrink-0">%</span>
+                </div>
+                {/* Pagado */}
+                {!bonificado && (
                   <div className="flex-1 flex items-center bg-[#111] border border-green-900/30 rounded-lg px-3 py-2 gap-2">
                     <span className="text-gray-500 text-sm flex-shrink-0">$</span>
                     <input
                       type="number" inputMode="numeric"
                       value={valores[id]?.pagado ?? ''}
-                      onChange={e => setCampo(id, e.target.value)}
+                      onChange={e => setCampo(id, 'pagado', e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && guardar(id)}
                       placeholder="0"
                       className="flex-1 bg-transparent text-white text-sm outline-none min-w-0"
@@ -2243,14 +2251,15 @@ function TabInscripciones({ data }) {
                     />
                     <span className="text-gray-600 text-xs flex-shrink-0">de {fmt(cuota)}</span>
                   </div>
-                  <button
-                    onClick={() => guardar(id)}
-                    className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${guardado[id] ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}
-                  >
-                    {guardado[id] ? '✓' : '💾'}
-                  </button>
-                </div>
-              )}
+                )}
+                {bonificado && <div className="flex-1" />}
+                <button
+                  onClick={() => guardar(id)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-95 flex-shrink-0 ${guardado[id] ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}
+                >
+                  {guardado[id] ? '✓' : '💾'}
+                </button>
+              </div>
             </div>
           )
         })}
