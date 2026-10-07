@@ -2197,7 +2197,7 @@ function TabInscripciones({ data }) {
           const completo = bonificado || pagado >= cuota
 
           return (
-            <div key={id} className="bg-[#1a1a1a] border border-green-900/20 rounded-xl p-3">
+            <div key={id} className={`rounded-xl p-3 border transition-colors ${completo ? 'bg-green-900/20 border-green-700/40' : 'bg-[#1a1a1a] border-green-900/20'}`}>
               {/* Header */}
               <div className="flex items-center gap-2 mb-2">
                 {eq.escudo
