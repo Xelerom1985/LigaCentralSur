@@ -2143,16 +2143,14 @@ function TabInscripciones({ data }) {
     setValores(init)
   }, [JSON.stringify(inscripciones)])
 
-  const setCampo = (id, campo, val) =>
-    setValores(v => ({ ...v, [id]: { ...v[id], [campo]: val } }))
+  const setCampo = (id, val) =>
+    setValores(v => ({ ...v, [id]: { ...v[id], pagado: val } }))
 
   const guardar = async (id) => {
     const pagado = parseInt(valores[id]?.pagado) || 0
-    const cuota = parseInt(valores[id]?.cuota)
-    const cuotaFinal = isNaN(cuota) ? TOTAL_BASE : cuota
-    // Solo guarda cuota en Firebase si difiere del base (para no llenar con defaults)
+    const cuotaActual = inscripciones[id]?.cuota
     const obj = { pagado }
-    if (cuotaFinal !== TOTAL_BASE) obj.cuota = cuotaFinal
+    if (cuotaActual != null) obj.cuota = cuotaActual
     await set(rp(`inscripciones/${id}`), obj)
     setGuardado(s => ({ ...s, [id]: true }))
     setTimeout(() => setGuardado(s => ({ ...s, [id]: false })), 1500)
@@ -2229,37 +2227,30 @@ function TabInscripciones({ data }) {
                 />
               </div>
 
-              {/* Inputs: cuota + pagado */}
-              <div className="flex gap-2 items-center">
-                <div className="relative w-[38%]">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500 pointer-events-none">Cuota $</span>
-                  <input
-                    type="number" inputMode="numeric"
-                    value={valores[id]?.cuota ?? TOTAL_BASE}
-                    onChange={e => setCampo(id, 'cuota', e.target.value)}
-                    className="w-full bg-[#111] border border-green-900/20 rounded-lg pt-4 pb-1 px-2 text-white text-xs outline-none"
-                    style={{ colorScheme: 'dark' }}
-                  />
+              {/* Input pagado */}
+              {!bonificado && (
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1 flex items-center bg-[#111] border border-green-900/30 rounded-lg px-3 py-2 gap-2">
+                    <span className="text-gray-500 text-sm flex-shrink-0">$</span>
+                    <input
+                      type="number" inputMode="numeric"
+                      value={valores[id]?.pagado ?? ''}
+                      onChange={e => setCampo(id, e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && guardar(id)}
+                      placeholder="0"
+                      className="flex-1 bg-transparent text-white text-sm outline-none min-w-0"
+                      style={{ colorScheme: 'dark', fontSize: '16px' }}
+                    />
+                    <span className="text-gray-600 text-xs flex-shrink-0">de {fmt(cuota)}</span>
+                  </div>
+                  <button
+                    onClick={() => guardar(id)}
+                    className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${guardado[id] ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}
+                  >
+                    {guardado[id] ? '✓' : '💾'}
+                  </button>
                 </div>
-                <div className="relative flex-1">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500 pointer-events-none">Pagado $</span>
-                  <input
-                    type="number" inputMode="numeric"
-                    value={valores[id]?.pagado ?? ''}
-                    onChange={e => setCampo(id, 'pagado', e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && guardar(id)}
-                    placeholder="0"
-                    className="w-full bg-[#111] border border-green-900/30 rounded-lg pt-4 pb-1 px-2 text-white text-sm outline-none"
-                    style={{ colorScheme: 'dark' }}
-                  />
-                </div>
-                <button
-                  onClick={() => guardar(id)}
-                  className={`px-3 py-3 rounded-lg text-sm font-bold transition-all active:scale-95 ${guardado[id] ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}
-                >
-                  {guardado[id] ? '✓' : '💾'}
-                </button>
-              </div>
+              )}
             </div>
           )
         })}
