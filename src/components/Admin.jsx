@@ -4,7 +4,7 @@ import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 import { jornadasCopa } from '../copaJornadas'
 
-const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Finanzas']
+const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Inscripciones', 'Finanzas']
 
 const FINANZAS_PIN = '200514687'
 const FINANZAS_CRED_KEY = 'lcs_finanzas_cred'
@@ -189,8 +189,9 @@ export default function Admin({ data }) {
         {tab === 'Partidos'   && <TabPartidos data={data} />}
         {tab === 'Copas'      && <TabCopas data={data} />}
         {tab === 'Resultados' && <TabResultados data={data} />}
-        {tab === 'Novedades'  && <TabNovedades data={data} />}
-        {tab === 'Finanzas'   && finanzasAuthed && <TabFinanzas data={data} />}
+        {tab === 'Novedades'      && <TabNovedades data={data} />}
+        {tab === 'Inscripciones'  && <TabInscripciones data={data} />}
+        {tab === 'Finanzas'       && finanzasAuthed && <TabFinanzas data={data} />}
       </div>
     </div>
   )
@@ -2110,6 +2111,121 @@ function MoneyInput({ value, onChange, onBlur, placeholder, className, disabled 
       disabled={disabled}
       className={`${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     />
+  )
+}
+
+/* ─── INSCRIPCIONES ─── */
+function TabInscripciones({ data }) {
+  const equipos = data.equipos || {}
+  const inscripciones = data.inscripciones || {}
+
+  const TOTAL = getTorneoPrefix() === 'domingos/' ? 90000 : 100000
+  const fmt = n => `$${Number(n).toLocaleString('es-AR')}`
+
+  const equiposLista = Object.entries(equipos)
+    .filter(([, eq]) => !eq.retirado)
+    .sort((a, b) => (a[1].nombre || '').localeCompare(b[1].nombre || ''))
+
+  const [valores, setValores] = useState({})
+  const [guardado, setGuardado] = useState({})
+
+  useEffect(() => {
+    const init = {}
+    equiposLista.forEach(([id]) => {
+      init[id] = (inscripciones[id]?.pagado ?? '').toString()
+    })
+    setValores(init)
+  }, [JSON.stringify(inscripciones)])
+
+  const guardar = async (id) => {
+    const monto = parseInt(valores[id]) || 0
+    await set(rp(`inscripciones/${id}`), { pagado: monto })
+    setGuardado(s => ({ ...s, [id]: true }))
+    setTimeout(() => setGuardado(s => ({ ...s, [id]: false })), 1500)
+  }
+
+  const totalPagado = equiposLista.reduce((acc, [id]) => acc + (inscripciones[id]?.pagado || 0), 0)
+  const totalEsperado = equiposLista.length * TOTAL
+  const pct = totalEsperado > 0 ? Math.round((totalPagado / totalEsperado) * 100) : 0
+
+  return (
+    <div className="space-y-4 pt-4">
+      {/* Resumen general */}
+      <div className="bg-[#1a1a1a] border border-green-900/30 rounded-2xl p-4">
+        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-2">Resumen general</p>
+        <div className="flex justify-between items-end mb-2">
+          <div>
+            <p className="text-xl font-black text-white">{fmt(totalPagado)}</p>
+            <p className="text-xs text-gray-400">de {fmt(totalEsperado)} esperados</p>
+          </div>
+          <p className="text-2xl font-black text-green-400">{pct}%</p>
+        </div>
+        <div className="w-full bg-[#111] rounded-full h-2">
+          <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+        </div>
+        <p className="text-[10px] text-gray-500 mt-2">
+          Cuota por equipo: <span className="text-white font-semibold">{fmt(TOTAL)}</span> · {equiposLista.length} equipos
+        </p>
+      </div>
+
+      {/* Lista de equipos */}
+      <div className="space-y-2">
+        {equiposLista.map(([id, eq]) => {
+          const pagado = inscripciones[id]?.pagado || 0
+          const falta = Math.max(0, TOTAL - pagado)
+          const pctEq = Math.min(100, Math.round((pagado / TOTAL) * 100))
+          const completo = pagado >= TOTAL
+
+          return (
+            <div key={id} className="bg-[#1a1a1a] border border-green-900/20 rounded-xl p-3">
+              {/* Equipo header */}
+              <div className="flex items-center gap-2 mb-2">
+                {eq.escudo
+                  ? <img src={eq.escudo} alt="" className="w-7 h-7 object-contain rounded-full bg-[#111]" />
+                  : <div className="w-7 h-7 rounded-full bg-green-900/40 flex items-center justify-center text-[10px] text-green-400 font-bold">{(eq.nombre || '?')[0]}</div>
+                }
+                <p className="text-sm font-bold text-white flex-1">{eq.nombre}</p>
+                {completo
+                  ? <span className="text-[10px] bg-green-900/40 text-green-400 font-bold px-2 py-0.5 rounded-full">✓ Completo</span>
+                  : <span className="text-[10px] text-gray-400">Falta {fmt(falta)}</span>
+                }
+              </div>
+
+              {/* Barra */}
+              <div className="w-full bg-[#111] rounded-full h-1.5 mb-2">
+                <div
+                  className={`h-1.5 rounded-full transition-all ${completo ? 'bg-green-500' : pctEq > 50 ? 'bg-yellow-500' : 'bg-red-500/70'}`}
+                  style={{ width: `${pctEq}%` }}
+                />
+              </div>
+
+              {/* Input */}
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={valores[id] ?? ''}
+                    onChange={e => setValores(v => ({ ...v, [id]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && guardar(id)}
+                    placeholder="0"
+                    className="w-full bg-[#111] border border-green-900/30 rounded-lg pl-7 pr-3 py-2 text-white text-sm outline-none"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </div>
+                <button
+                  onClick={() => guardar(id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all active:scale-95 ${guardado[id] ? 'bg-green-600 text-white' : 'bg-[#111] border border-green-900/30 text-green-400'}`}
+                >
+                  {guardado[id] ? '✓' : '💾'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

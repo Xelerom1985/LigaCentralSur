@@ -107,8 +107,9 @@ export default function App() {
   useEffect(() => {
     if (!authed || !torneo) return
     const prefix = prefijoDe(torneo)
-    const unsub = onValue(ref(db, prefix + 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
-    return () => unsub()
+    const unsubF = onValue(ref(db, prefix + 'finanzas'), snap => setData(prev => ({ ...prev, finanzas: snap.val() })))
+    const unsubI = onValue(ref(db, prefix + 'inscripciones'), snap => setData(prev => ({ ...prev, inscripciones: snap.val() })))
+    return () => { unsubF(); unsubI() }
   }, [authed, torneo])
 
   // Registrar visita al abrir la app
