@@ -2238,20 +2238,18 @@ function TabInscripciones({ data }) {
                 </div>
                 {/* Pagado */}
                 {!bonificado && (
-                  <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center bg-[#111] border border-green-900/30 rounded-lg px-3 py-2 gap-2">
-                      <span className="text-gray-500 text-sm flex-shrink-0">$</span>
-                      <input
-                        type="number" inputMode="numeric"
-                        value={valores[id]?.pagado ?? ''}
-                        onChange={e => setCampo(id, 'pagado', e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && guardar(id)}
-                        placeholder="0"
-                        className="flex-1 bg-transparent text-white text-sm outline-none min-w-0"
-                        style={{ colorScheme: 'dark', fontSize: '16px' }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-gray-600 text-right pr-1">de {fmt(cuota)}</p>
+                  <div className="flex-1 min-w-0 flex items-center bg-[#111] border border-green-900/30 rounded-lg px-3 py-2 gap-1.5">
+                    <span className="text-gray-500 text-sm flex-shrink-0">$</span>
+                    <input
+                      type="number" inputMode="numeric"
+                      value={valores[id]?.pagado ?? ''}
+                      onChange={e => setCampo(id, 'pagado', e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && guardar(id)}
+                      placeholder="0"
+                      className="flex-1 min-w-0 bg-transparent text-white text-sm outline-none"
+                      style={{ colorScheme: 'dark', fontSize: '16px' }}
+                    />
+                    <span className="text-[11px] text-gray-600 flex-shrink-0 whitespace-nowrap">/{fmt(cuota)}</span>
                   </div>
                 )}
                 {bonificado && <div className="flex-1" />}
