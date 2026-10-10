@@ -142,7 +142,10 @@ export default function Home({ data, torneo }) {
           {p.suspendido && !p.jugado ? (
             <p className="text-red-400 font-black text-[11px] leading-tight">SUSPENDIDO</p>
           ) : p.reprogramado && !p.jugado ? (
-            <p className="text-amber-400 font-black text-[10px] leading-tight">REPROGRAMADO</p>
+            <>
+              <p className="text-gray-500 text-sm font-bold leading-tight">vs</p>
+              <p className="text-amber-400 font-black text-[10px] leading-tight mt-1">REPROGRAMADO</p>
+            </>
           ) : p.jugado ? (
             <>
               <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
