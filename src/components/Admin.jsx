@@ -642,12 +642,16 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
     await update(rp(`partidos/${p.id}`), {
       hora: nueva,
       fechaHora: dia ? `${dia}T${nueva}` : null,
+      reprogramado: null,   // al elegir una hora nueva deja de figurar como reprogramado
     })
   }
 
   const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
   const toggleSinCuota = () => update(rp(`partidos/${p.id}`), { sinCuota: !p.sinCuota })
   const toggleSuspendido = () => update(rp(`partidos/${p.id}`), { suspendido: !p.suspendido })
+  // Reprogramado: se saca la hora y Inicio/Fixture muestran "REPROGRAMADO" hasta que se elija una hora nueva
+  const toggleReprogramado = () => update(rp(`partidos/${p.id}`),
+    p.reprogramado ? { reprogramado: null } : { reprogramado: true, hora: null, fechaHora: null })
 
   const partidoCerrado = !!p.cerrado
   const bloqueado = cerrada || partidoCerrado
@@ -702,6 +706,12 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
         <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 cursor-pointer select-none">
           <input type="checkbox" checked={!!p.suspendido} onChange={toggleSuspendido} className="accent-red-500 w-3.5 h-3.5" />
           ⛔ Partido suspendido
+        </label>
+
+        {/* Reprogramado: sin hora, se muestra "REPROGRAMADO" en Inicio y Fixture; al elegir una hora nueva se destilda solo */}
+        <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 cursor-pointer select-none">
+          <input type="checkbox" checked={!!p.reprogramado} onChange={toggleReprogramado} className="accent-amber-500 w-3.5 h-3.5" />
+          🔄 Partido reprogramado (sin hora)
         </label>
       </div>
 

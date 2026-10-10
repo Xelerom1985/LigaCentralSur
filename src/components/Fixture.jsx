@@ -130,6 +130,8 @@ export default function Fixture({ data }) {
           <div className="w-20 text-center flex-shrink-0">
             {p.suspendido && !p.jugado ? (
               <p className="text-[11px] font-black text-red-400 leading-tight">SUSPENDIDO</p>
+            ) : p.reprogramado && !p.jugado ? (
+              <p className="text-[10px] font-black text-amber-400 leading-tight">REPROGRAMADO</p>
             ) : p.jugado ? (
               <p className="text-2xl font-black text-white">{p.golesLocal ?? '?'} - {p.golesVisitante ?? '?'}</p>
             ) : (
