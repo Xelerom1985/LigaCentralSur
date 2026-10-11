@@ -509,6 +509,80 @@ function assignMatchSlots(matches, equipos = {}) {
   return res
 }
 
+/* ─── SORTEO AL AZAR SIN REPETIR CRUCES (Sábados 2da y Domingos, Fecha 2 en adelante) ─── */
+const claveCruce = (a, b) => [a, b].sort().join('|')
+
+// Cruces de liga ya armados en OTRAS fechas (un equipo libre cuenta como cruce contra 'bye')
+function crucesUsados(partidos, fechaActual) {
+  const usados = new Set()
+  Object.values(partidos || {}).forEach(p => {
+    if (p.fase !== 'liga' || p.numero == null || Number(p.numero) === Number(fechaActual) || !p.local) return
+    if (p.libre || !p.visitante) usados.add(claveCruce(p.local, 'bye'))
+    else usados.add(claveCruce(p.local, p.visitante))
+  })
+  return usados
+}
+
+const mezclar = arr => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// Busca (con retroceso) un emparejamiento completo entre los nodos usando solo pares permitidos
+function emparejar(nodos, permitido, aleatorio) {
+  if (nodos.length === 0) return []
+  const [v, ...resto] = nodos
+  const opciones = aleatorio ? mezclar(resto) : resto
+  for (const u of opciones) {
+    if (!permitido(v, u)) continue
+    const sub = emparejar(resto.filter(x => x !== u), permitido, aleatorio)
+    if (sub) return [[v, u], ...sub]
+  }
+  return null
+}
+
+// ¿Se pueden armar TODAS las fechas que faltan con los cruces que quedan? Prueba varios repartos al azar.
+function sePuedeCompletar(nodos, permitido) {
+  for (let prueba = 0; prueba < 40; prueba++) {
+    const gastados = new Set()
+    const libre = (a, b) => permitido(a, b) && !gastados.has(claveCruce(a, b))
+    let ok = true
+    while (nodos.some((a, i) => nodos.slice(i + 1).some(b => libre(a, b)))) {
+      const par = emparejar(mezclar(nodos), libre, true)
+      if (!par) { ok = false; break }
+      par.forEach(([a, b]) => gastados.add(claveCruce(a, b)))
+    }
+    if (ok) return true
+  }
+  return false
+}
+
+// Sortea todos los cruces de una fecha al azar. Elige un reparto que no repita cruces y que
+// además deje posible armar la fecha siguiente. Devuelve null si ya no hay forma.
+function sortearFechaAlAzar(ids, usados) {
+  const nodos = ids.length % 2 === 0 ? [...ids] : [...ids, 'bye']
+  const libreEntre = (a, b) => !usados.has(claveCruce(a, b))
+  for (let intento = 0; intento < 400; intento++) {
+    const orden = mezclar(nodos)
+    const par = emparejar(orden, libreEntre, true)
+    if (!par) return null
+    // lo que queda sin jugar después de esta fecha tiene que poder completarse
+    const nuevos = new Set(par.map(([a, b]) => claveCruce(a, b)))
+    const quedan = (a, b) => libreEntre(a, b) && !nuevos.has(claveCruce(a, b))
+    if (sePuedeCompletar(nodos, quedan)) {
+      return par.map(([a, b]) => (Math.random() < 0.5 ? [a, b] : [b, a]))
+        .map(([a, b]) => (a === 'bye' ? { local: b, visitante: null, libre: true }
+          : b === 'bye' ? { local: a, visitante: null, libre: true }
+          : { local: a, visitante: b }))
+    }
+  }
+  return null
+}
+
 /* ─── ROUND ROBIN (Berger determinístico) ─── */
 function buildRoundRobin(equiposIds, equipos) {
   // El Mirasol es provisional (solo Fecha 1) → no va al Berger permanente
@@ -1067,6 +1141,16 @@ function TabPartidos({ data }) {
       fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(rp('master_fixture'), fixture)
     }
+    // Sábados 2da y Domingos (Fecha 2 en adelante): cada vez que se toca el botón se sortea de nuevo,
+    // al azar entre todos los equipos, sin repetir cruces de otras fechas
+    let crucesAzar = null
+    if (getTorneoPrefix() !== '' && fechaSel !== 1) {
+      crucesAzar = sortearFechaAlAzar(Object.keys(equiposActivos), crucesUsados(partidos, fechaSel))
+      if (!crucesAzar) {
+        setGenerando(false)
+        return alert('No se pudo sortear la fecha: ya no quedan cruces posibles sin repetir partidos.')
+      }
+    }
     for (const [id, p] of Object.entries(partidos)) {
       if (p.fase === 'liga' && p.numero === fechaSel) {
         await remove(rp(`partidos/${id}`))
@@ -1075,7 +1159,7 @@ function TabPartidos({ data }) {
       }
     }
     const ronda = fixture[fechaSel] || []
-    let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    let arr = crucesAzar ? [...crucesAzar] : (Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)])
     // Equipos retirados → ya no juegan más; sus rivales ("huérfanos") se emparejan entre sí
     const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
     if (retirados.size > 0) {
