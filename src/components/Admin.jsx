@@ -452,30 +452,59 @@ const gameSlots = () => {
 }
 
 // Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
-// Equipos que NO pueden jugar en ciertas franjas (por torneo). Se respeta al sortear cada fecha.
+// Excepciones de horario por torneo (Sábados 2da Edición):
+//  - horas: franjas en las que el equipo NO puede jugar
+//  - soloHoras: únicas franjas en las que el equipo SÍ puede jugar
+// Se respetan al sortear la fecha y también al cargar o cambiar un horario a mano.
 const EXCLUSIONES_HORARIO = {
-  'sabados2/': [{ equipo: /197/, horas: [13] }],
+  'sabados2/': [
+    { equipo: /197/, horas: [13] },
+    { equipo: /calzada/i, soloHoras: [15, 16] },
+  ],
+}
+
+// Horas (números) que NO se pueden usar para un partido entre estos dos equipos
+function horasNoPermitidas(local, visitante, equipos = {}) {
+  const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
+  const out = new Set()
+  for (const r of reglas) {
+    const juega = [local, visitante].some(id => id && r.equipo.test(equipos[id]?.nombre || ''))
+    if (!juega) continue
+    if (r.horas) r.horas.forEach(h => out.add(h))
+    if (r.soloHoras) gameSlots().filter(h => !r.soloHoras.includes(h)).forEach(h => out.add(h))
+  }
+  return out
+}
+
+// Si la hora ("15:00" o 15) no está permitida devuelve el aviso para mostrar, si no null
+function avisoHorario(local, visitante, hora, equipos = {}) {
+  const h = typeof hora === 'number' ? hora : parseInt(String(hora).split(':')[0], 10)
+  if (!horasNoPermitidas(local, visitante, equipos).has(h)) return null
+  const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
+  for (const r of reglas) {
+    const eq = [local, visitante].find(id => id && r.equipo.test(equipos[id]?.nombre || ''))
+    if (!eq) continue
+    if (r.soloHoras && !r.soloHoras.includes(h))
+      return `${equipos[eq]?.nombre} solo puede jugar a las ${r.soloHoras.join(' y ')} hs.`
+    if (r.horas && r.horas.includes(h))
+      return `${equipos[eq]?.nombre} no puede jugar a las ${h}:00 hs.`
+  }
+  return 'Ese horario no está permitido para este partido.'
 }
 
 function assignMatchSlots(matches, equipos = {}) {
-  const res = new Map()
-  const shuffled = [...matches].sort(() => Math.random() - 0.5)
-  shuffled.forEach((m, i) => res.set(m, gameSlots()[Math.floor(i / 2) % gameSlots().length]))
-
-  // Horas prohibidas de un partido según las exclusiones del torneo
-  const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
-  const prohibidas = m => reglas
-    .filter(r => [m.local, m.visitante].some(id => id && r.equipo.test(equipos[id]?.nombre || '')))
-    .flatMap(r => r.horas)
-  for (const m of shuffled) {
-    if (!prohibidas(m).includes(res.get(m))) continue
-    // intercambiar franja con otro partido al que le sirva la de este y a este la del otro
-    const otro = shuffled.find(k => k !== m
-      && !prohibidas(m).includes(res.get(k))
-      && !prohibidas(k).includes(res.get(m)))
-    if (otro) {
-      const h = res.get(m); res.set(m, res.get(otro)); res.set(otro, h)
-    }
+  const slots = gameSlots()
+  const asignar = () => {
+    const res = new Map()
+    const mezclados = [...matches].sort(() => Math.random() - 0.5)
+    mezclados.forEach((m, i) => res.set(m, slots[Math.floor(i / 2) % slots.length]))
+    return res
+  }
+  // Se reparte al azar y se repite hasta que ningún partido caiga en un horario prohibido
+  let res = asignar()
+  for (let intento = 0; intento < 500; intento++) {
+    if (matches.every(m => !horasNoPermitidas(m.local, m.visitante, equipos).has(res.get(m)))) break
+    res = asignar()
   }
   return res
 }
@@ -637,6 +666,8 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
   }
   // Un toque en una franja horaria = guarda la hora del partido
   const guardarHora = async nueva => {
+    const aviso = avisoHorario(p.local, p.visitante, nueva, equipos)
+    if (aviso) { alert(aviso); return }
     setHora(nueva)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     await update(rp(`partidos/${p.id}`), {
@@ -1254,6 +1285,10 @@ function TabPartidos({ data }) {
     if (!manualLocal) return alert('Elegí el equipo local')
     if (!manualVisitante) return alert('Elegí el visitante (o LIBRE)')
     if (manualLocal === manualVisitante) return alert('Local y visitante no pueden ser el mismo')
+    if (manualVisitante !== '__libre__') {
+      const aviso = avisoHorario(manualLocal, manualVisitante, manualHora, equipos)
+      if (aviso) return alert(aviso)
+    }
     setAgregando(true)
     const esLibre = manualVisitante === '__libre__'
     await push(rp('partidos'), {
