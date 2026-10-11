@@ -492,19 +492,28 @@ function avisoHorario(local, visitante, hora, equipos = {}) {
   return 'Ese horario no está permitido para este partido.'
 }
 
-function assignMatchSlots(matches, equipos = {}) {
+// 'ocupadas' = horas (números) de partidos que ya están cargados en la fecha: se reparte el resto alrededor de ellos
+function assignMatchSlots(matches, equipos = {}, ocupadas = []) {
   const slots = gameSlots()
-  const asignar = () => {
+  // 'extra' sube el cupo de partidos por franja cuando las reglas de horario no entran en el reparto parejo
+  const asignar = extra => {
     const res = new Map()
+    const cupo = Math.ceil((matches.length + ocupadas.length) / slots.length) + extra
+    let fichas = slots.flatMap(h => Array(Math.max(0, cupo - ocupadas.filter(o => o === h).length)).fill(h))
+    while (fichas.length < matches.length) fichas = fichas.concat(slots)
+    fichas = [...fichas].sort(() => Math.random() - 0.5)
     const mezclados = [...matches].sort(() => Math.random() - 0.5)
-    mezclados.forEach((m, i) => res.set(m, slots[Math.floor(i / 2) % slots.length]))
+    mezclados.forEach((m, i) => res.set(m, fichas[i]))
     return res
   }
+  const cumple = res => matches.every(m => !horasNoPermitidas(m.local, m.visitante, equipos).has(res.get(m)))
   // Se reparte al azar y se repite hasta que ningún partido caiga en un horario prohibido
-  let res = asignar()
-  for (let intento = 0; intento < 500; intento++) {
-    if (matches.every(m => !horasNoPermitidas(m.local, m.visitante, equipos).has(res.get(m)))) break
-    res = asignar()
+  let res = asignar(0)
+  for (let extra = 0; extra <= 3; extra++) {
+    for (let intento = 0; intento < 300; intento++) {
+      res = asignar(extra)
+      if (cumple(res)) return res
+    }
   }
   return res
 }
@@ -561,19 +570,22 @@ function sePuedeCompletar(nodos, permitido) {
   return false
 }
 
-// Sortea todos los cruces de una fecha al azar. Elige un reparto que no repita cruces y que
-// además deje posible armar la fecha siguiente. Devuelve null si ya no hay forma.
-function sortearFechaAlAzar(ids, usados) {
-  const nodos = ids.length % 2 === 0 ? [...ids] : [...ids, 'bye']
+// Sortea los cruces de una fecha al azar. Elige un reparto que no repita cruces y que además deje posible
+// armar todas las fechas siguientes. 'fijos' son partidos ya cargados a mano que se conservan: solo se
+// sortean los equipos que no están en ellos. Devuelve null si ya no hay forma.
+function sortearFechaAlAzar(ids, usados, fijos = []) {
+  const todos = ids.length % 2 === 0 ? [...ids] : [...ids, 'bye']
+  const ocupados = new Set(fijos.flatMap(([a, b]) => [a, b]))
+  const nodos = todos.filter(x => !ocupados.has(x))
+  const clavesFijas = fijos.map(([a, b]) => claveCruce(a, b))
   const libreEntre = (a, b) => !usados.has(claveCruce(a, b))
   for (let intento = 0; intento < 400; intento++) {
-    const orden = mezclar(nodos)
-    const par = emparejar(orden, libreEntre, true)
+    const par = emparejar(mezclar(nodos), libreEntre, true)
     if (!par) return null
     // lo que queda sin jugar después de esta fecha tiene que poder completarse
-    const nuevos = new Set(par.map(([a, b]) => claveCruce(a, b)))
+    const nuevos = new Set([...par.map(([a, b]) => claveCruce(a, b)), ...clavesFijas])
     const quedan = (a, b) => libreEntre(a, b) && !nuevos.has(claveCruce(a, b))
-    if (sePuedeCompletar(nodos, quedan)) {
+    if (sePuedeCompletar(todos, quedan)) {
       return par.map(([a, b]) => (Math.random() < 0.5 ? [a, b] : [b, a]))
         .map(([a, b]) => (a === 'bye' ? { local: b, visitante: null, libre: true }
           : b === 'bye' ? { local: a, visitante: null, libre: true }
@@ -1133,10 +1145,18 @@ function TabPartidos({ data }) {
   const generarFecha = async () => {
     if (cantEquipos < 2) return alert('Necesitás al menos 2 equipos')
     const yaExiste = partidosFecha.length > 0
-    if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    // Partidos reales ya cargados en esta fecha (por ejemplo a mano)
+    const fijosLiga = partidosFecha.filter(p => !p.libre && p.local && p.visitante)
+    let completar = false
+    if (yaExiste) {
+      if (getTorneoPrefix() !== '' && fijosLiga.length > 0) {
+        completar = confirm(`La Fecha ${fechaSel} ya tiene ${fijosLiga.length} partido(s) cargado(s).\n\nACEPTAR: conservarlos y sortear solo los que faltan.\nCANCELAR: más opciones.`)
+        if (!completar && !confirm(`¿Reemplazar TODOS los partidos de la Fecha ${fechaSel} por un sorteo nuevo?`)) return
+      } else if (!confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    }
     setGenerando(true)
     // Al generar Fecha 1, siempre hacer un nuevo sorteo aleatorio (borra el fixture anterior)
-    let fixture = fechaSel === 1 ? null : masterFixture
+    let fixture = completar ? {} : (fechaSel === 1 ? null : masterFixture)
     if (!fixture) {
       fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(rp('master_fixture'), fixture)
@@ -1144,15 +1164,21 @@ function TabPartidos({ data }) {
     // Sábados 2da y Domingos (Fecha 2 en adelante): cada vez que se toca el botón se sortea de nuevo,
     // al azar entre todos los equipos, sin repetir cruces de otras fechas
     let crucesAzar = null
-    if (getTorneoPrefix() !== '' && fechaSel !== 1) {
-      crucesAzar = sortearFechaAlAzar(Object.keys(equiposActivos), crucesUsados(partidos, fechaSel))
+    if (getTorneoPrefix() !== '' && (fechaSel !== 1 || completar)) {
+      const fijosPares = completar ? fijosLiga.map(p => [p.local, p.visitante]) : []
+      crucesAzar = sortearFechaAlAzar(Object.keys(equiposActivos), crucesUsados(partidos, fechaSel), fijosPares)
       if (!crucesAzar) {
         setGenerando(false)
         return alert('No se pudo sortear la fecha: ya no quedan cruces posibles sin repetir partidos.')
       }
+      if (completar && crucesAzar.length === 0) {
+        setGenerando(false)
+        return alert('La fecha ya tiene todos los partidos cargados: no falta ningún cruce.')
+      }
     }
     for (const [id, p] of Object.entries(partidos)) {
       if (p.fase === 'liga' && p.numero === fechaSel) {
+        if (completar && !p.libre && p.local && p.visitante) continue   // los partidos cargados se conservan
         await remove(rp(`partidos/${id}`))
         await remove(rp(`goles/${id}`))
         await remove(rp(`tarjetas/${id}`))
@@ -1208,7 +1234,11 @@ function TabPartidos({ data }) {
     // Separar LIBRE de activos y asignar franjas horarias automáticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
-    const slotMap = assignMatchSlots(activos, equipos)
+    // Horas de los partidos que se conservaron, para repartir los nuevos alrededor
+    const horasFijas = completar
+      ? fijosLiga.map(p => parseInt(String(p.fechaHora ? p.fechaHora.split('T')[1] : (p.hora || '')).split(':')[0], 10)).filter(h => !isNaN(h))
+      : []
+    const slotMap = assignMatchSlots(activos, equipos, horasFijas)
     const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
