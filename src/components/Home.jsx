@@ -69,12 +69,14 @@ const CAMPEONES = [
   { copa: 'Bronce', emoji: '🥉', buscar: /197/ },
 ]
 
-// Sponsors de Sábados 2da Edición: logos en /public/sponsors, link a su Instagram
-const SPONSORS = [
-  { nombre: 'SB Sports',   logo: '/sponsors/sb.png',      instagram: 'https://www.instagram.com/sbsports.ar/' },
-  { nombre: 'Román Logic', logo: '/sponsors/roman.png',   instagram: 'https://www.instagram.com/romanlogic.sj/' },
-  { nombre: 'Bombers',     logo: '/sponsors/bombers.png', instagram: 'https://www.instagram.com/bombers_sj/' },
-]
+// Sponsors por torneo: logos en /public/sponsors, link a su Instagram
+const SB      = { nombre: 'SB Sports',   logo: '/sponsors/sb.png',      instagram: 'https://www.instagram.com/sbsports.ar/' }
+const ROMAN   = { nombre: 'Román Logic', logo: '/sponsors/roman.png',   instagram: 'https://www.instagram.com/romanlogic.sj/' }
+const BOMBERS = { nombre: 'Bombers',     logo: '/sponsors/bombers.png', instagram: 'https://www.instagram.com/bombers_sj/' }
+const SPONSORS = {
+  sabados2: [SB, ROMAN, BOMBERS],
+  domingos: [SB],
+}
 
 export default function Home({ data, torneo }) {
   const equipos  = data.equipos  || {}
@@ -326,12 +328,14 @@ export default function Home({ data, torneo }) {
           <div className="text-center text-[9px] text-white/40">Sasha</div>
         </div>
 
-        {/* Sponsors — solo Sábados 2da Edición */}
-        {torneo === 'sabados2' && (
+        {/* Sponsors del torneo (Sábados 2da: 3, Domingos: 1) */}
+        {SPONSORS[torneo] && (
           <div className="mt-3 pt-2 border-t border-white/10">
-            <div className="text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide mb-2">Sponsors</div>
-            <div className="grid grid-cols-3 items-center">
-              {SPONSORS.map(s => (
+            <div className="text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide mb-2">
+              {SPONSORS[torneo].length > 1 ? 'Sponsors' : 'Sponsor'}
+            </div>
+            <div className={`grid items-center ${SPONSORS[torneo].length > 1 ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {SPONSORS[torneo].map(s => (
                 <a key={s.nombre} href={s.instagram} target="_blank" rel="noopener noreferrer"
                   className="flex justify-center">
                   <img src={s.logo} alt={s.nombre} className="h-12 max-w-[80%] object-contain" />
