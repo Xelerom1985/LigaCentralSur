@@ -69,6 +69,13 @@ const CAMPEONES = [
   { copa: 'Bronce', emoji: '🥉', buscar: /197/ },
 ]
 
+// Sponsors de Sábados 2da Edición: logos en /public/sponsors, link a su Instagram
+const SPONSORS = [
+  { nombre: 'SB Sports',   logo: '/sponsors/sb.png',      instagram: 'https://www.instagram.com/sbsports.ar/' },
+  { nombre: 'Román Logic', logo: '/sponsors/roman.png',   instagram: 'https://www.instagram.com/romanlogic.sj/' },
+  { nombre: 'Bombers',     logo: '/sponsors/bombers.png', instagram: 'https://www.instagram.com/bombers_sj/' },
+]
+
 export default function Home({ data, torneo }) {
   const equipos  = data.equipos  || {}
   const partidos = data.partidos || {}
@@ -318,6 +325,21 @@ export default function Home({ data, torneo }) {
           <div className="text-center text-[9px] text-white/40">Fernando</div>
           <div className="text-center text-[9px] text-white/40">Sasha</div>
         </div>
+
+        {/* Sponsors — solo Sábados 2da Edición */}
+        {torneo === 'sabados2' && (
+          <div className="mt-3 pt-2 border-t border-white/10">
+            <div className="text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide mb-2">Sponsors</div>
+            <div className="grid grid-cols-3 items-center">
+              {SPONSORS.map(s => (
+                <a key={s.nombre} href={s.instagram} target="_blank" rel="noopener noreferrer"
+                  className="flex justify-center">
+                  <img src={s.logo} alt={s.nombre} className="h-12 max-w-[80%] object-contain" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Crédito desarrollador */}
         <p className="text-center text-[9px] text-white/20 mt-1">App desarrollada por Fernando Flores</p>
