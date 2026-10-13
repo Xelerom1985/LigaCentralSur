@@ -104,7 +104,7 @@ export default function Copas({ data, torneo }) {
     const semis = getPartidosByFase('plata_semi')
     const final = getPartidosByFase('plata_final')[0]
     const hayEquipos = semis.length > 0
-    if (!hayEquipos && torneo !== 'sabados2') {
+    if (!hayEquipos && torneo !== 'sabados2' && torneo !== 'domingos') {
       return (
         <div className="bg-[#1a1a1a] border border-dashed border-green-900/30 rounded-2xl px-4 py-5 text-center">
           <p className="text-xl mb-2 opacity-50">🥈</p>
@@ -204,8 +204,8 @@ export default function Copas({ data, torneo }) {
             <td className="bg-gray-500/10 rounded-lg py-2 px-0.5 text-white">Semifinal</td>
             <td className="bg-gray-500/10 rounded-lg py-2 px-0.5 text-white">Final</td>
           </tr>
-          <tr><td colSpan={4} className="h-1.5"></td></tr>
-          <tr>
+          {torneo !== 'domingos' && <tr><td colSpan={4} className="h-1.5"></td></tr>}
+          {torneo !== 'domingos' && <tr>
             <td className="text-orange-400 font-bold text-left pr-0.5">🥉 Bronce</td>
             {torneo === 'sabados2' ? (
               <>
@@ -220,34 +220,12 @@ export default function Copas({ data, torneo }) {
                 <td className="bg-orange-900/20 rounded-lg py-2 px-0.5 text-white">Final</td>
               </>
             )}
-          </tr>
+          </tr>}
         </tbody>
       </table>
-      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. {torneo === 'sabados2' ? 'Copa de Oro: del 1° al 8° de la Liga. Copa de Bronce: del 9° al 16°.' : 'Copa Bronce: los últimos 4 de la Liga.'}</p>
+      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. {torneo === 'domingos' ? 'Los 8 equipos juegan los 4tos de la Copa de Oro.' : torneo === 'sabados2' ? 'Copa de Oro: del 1° al 8° de la Liga. Copa de Bronce: del 9° al 16°.' : 'Copa Bronce: los últimos 4 de la Liga.'}</p>
     </div>
   )
-
-  if (torneo === 'domingos') {
-    return (
-      <div className="min-h-screen">
-        <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
-          <h1 className="text-xl font-black text-white mb-4">Copas</h1>
-        </div>
-        <div className="px-4 pb-6">
-          <div className="bg-[#1a1a1a] border border-green-900/30 rounded-2xl px-5 py-8 text-center space-y-4">
-            <div className="text-5xl">🏆</div>
-            <p className="text-white font-bold text-base leading-snug">
-              En construcción la Fase de Copas en base a la cantidad de equipos anotados en la Liga.
-            </p>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Llegada la fecha, se informará el tipo de eliminación correspondiente.
-            </p>
-            <p className="text-green-500 font-bold text-sm">¡Gracias! 🙌</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen">
@@ -256,7 +234,7 @@ export default function Copas({ data, torneo }) {
         <EsquemaCopas />
         <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3">
           <p className="text-xs text-yellow-200 leading-relaxed">
-            <span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa (Oro, Plata y Bronce).
+            <span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa ({torneo === 'domingos' ? 'Oro y Plata' : 'Oro, Plata y Bronce'}).
           </p>
         </div>
       </div>
@@ -272,10 +250,12 @@ export default function Copas({ data, torneo }) {
           <BracketPlata />
         </div>
 
-        <div>
-          <SeccionTitulo>🥉 Copa de Bronce</SeccionTitulo>
-          <BracketBronce />
-        </div>
+        {torneo !== 'domingos' && (
+          <div>
+            <SeccionTitulo>🥉 Copa de Bronce</SeccionTitulo>
+            <BracketBronce />
+          </div>
+        )}
       </div>
     </div>
   )

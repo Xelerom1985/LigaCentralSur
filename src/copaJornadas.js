@@ -13,8 +13,19 @@ export const COPA_JORNADAS_2DA = {
   copa_3: ['oro_final', 'plata_final', 'bronce_final'],
 }
 
+// Domingos (8 equipos, solo Oro y Plata): los 8 juegan cuartos de Oro y los 4 que pierden pasan a Plata
+export const COPA_JORNADAS_DOMINGOS = {
+  copa_1: ['oro_4tos'],
+  copa_2: ['oro_semi', 'plata_semi'],
+  copa_3: ['oro_final', 'plata_final'],
+}
+
 // Jornadas de copa según el torneo ('sabados2' o prefijo 'sabados2/')
-export const jornadasCopa = torneo => (torneo === 'sabados2' || torneo === 'sabados2/') ? COPA_JORNADAS_2DA : COPA_JORNADAS
+export const jornadasCopa = torneo => {
+  if (torneo === 'sabados2' || torneo === 'sabados2/') return COPA_JORNADAS_2DA
+  if (torneo === 'domingos' || torneo === 'domingos/') return COPA_JORNADAS_DOMINGOS
+  return COPA_JORNADAS
+}
 
 export const FASE_LABELS = {
   oro_4tos: 'Cuartos de Final',

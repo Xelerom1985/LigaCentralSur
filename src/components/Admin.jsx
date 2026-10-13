@@ -1727,9 +1727,9 @@ function TabCopas({ data }) {
     { id: 'oro',    label: 'Copa Oro',    icon: '🥇' },
     { id: 'plata',  label: 'Copa Plata',  icon: '🥈' },
     { id: 'bronce', label: 'Copa Bronce', icon: '🥉' },
-  ]
+  ].filter(cp => !(getTorneoPrefix() === 'domingos/' && cp.id === 'bronce'))
 
-  const es2da = getTorneoPrefix() === 'sabados2/'
+  const es2da = getTorneoPrefix() === 'sabados2/' || getTorneoPrefix() === 'domingos/'   // 2da y Domingos: rondas armadas solas con los resultados
   const RONDAS = {
     oro:    [
       { fase: 'oro_4tos',  label: '4tos de Final', minEq: 4 },
