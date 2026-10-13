@@ -1741,7 +1741,7 @@ function TabCopas({ data }) {
       { fase: 'plata_final', label: 'Final',        minEq: 2 },
     ],
     bronce: es2da ? [
-      { fase: 'bronce_4tos',  label: 'Cuartos (el 1° y 2° de la lista pasan directo)', minEq: 6 },
+      { fase: 'bronce_4tos',  label: 'Cuartos de Final', minEq: 8 },
       { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
       { fase: 'bronce_final', label: 'Final',      minEq: 2 },
     ] : [
@@ -1833,12 +1833,12 @@ function TabCopas({ data }) {
       return sorteo(r.perdedores)
     }
     if (fase === 'bronce_4tos') {
-      if (equiposCopa.length !== 6) return { error: 'La Copa de Bronce necesita exactamente 6 equipos en la lista (el 1° y 2° pasan directo)' }
-      return sorteo(equiposCopa.slice(2))
+      if (equiposCopa.length !== 8) return { error: 'La Copa de Bronce necesita exactamente 8 equipos en la lista (puestos 9° a 16°)' }
+      return sorteo(equiposCopa)
     }
     if (fase === 'bronce_semi') {
       const r = resultadoRonda('bronce_4tos'); if (r.error) return r
-      return sorteo([...equiposCopa.slice(0, 2), ...r.ganadores])
+      return sorteo(r.ganadores)
     }
     return null
   }

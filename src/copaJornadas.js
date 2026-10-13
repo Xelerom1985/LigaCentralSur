@@ -6,7 +6,7 @@ export const COPA_JORNADAS = {
   copa_3: ['oro_final', 'plata_final', 'bronce_final'],
 }
 
-// Sábados 2da Edición (14 equipos): el Bronce son 6 equipos → cuartos (9° y 10° pasan directo), semifinal y final
+// Sábados 2da Edición (16 equipos): Oro 1° al 8°, Bronce 9° al 16° (ambos cuartos, semifinal y final) y Plata con los 4 que pierden en cuartos de Oro
 export const COPA_JORNADAS_2DA = {
   copa_1: ['oro_4tos', 'bronce_4tos'],
   copa_2: ['oro_semi', 'plata_semi', 'bronce_semi'],

@@ -46,10 +46,11 @@ export default function Copas({ data, torneo }) {
   )
 
   // Cuadro horizontal (cuartos -> semifinal -> final <- semifinal <- cuartos), como Copa Argentina
-  const BracketOro = () => {
-    const cuartos = getPartidosByFase('oro_4tos')
-    const semis = getPartidosByFase('oro_semi')
-    const final = getPartidosByFase('oro_final')[0]
+  // Cuadro horizontal completo de 8 equipos: cuartos -> semifinal -> final <- semifinal <- cuartos
+  const BracketCompleto = ({ prefijo, trofeoClase }) => {
+    const cuartos = getPartidosByFase(prefijo + '_4tos')
+    const semis = getPartidosByFase(prefijo + '_semi')
+    const final = getPartidosByFase(prefijo + '_final')[0]
     return (
       <div className="bracket-scroll">
         <div className="bracket-row">
@@ -72,7 +73,7 @@ export default function Copas({ data, torneo }) {
             <p className="col-label">Final</p>
             <div className="col col-final">
               <div className="trophy-wrap">
-                <span className="trophy">🏆</span>
+                <span className={trofeoClase}>🏆</span>
                 <TbdSlot p={final} label="Final" />
               </div>
             </div>
@@ -97,11 +98,13 @@ export default function Copas({ data, torneo }) {
     )
   }
 
+  const BracketOro = () => <BracketCompleto prefijo="oro" trofeoClase="trophy" />
+
   const BracketPlata = () => {
     const semis = getPartidosByFase('plata_semi')
     const final = getPartidosByFase('plata_final')[0]
     const hayEquipos = semis.length > 0
-    if (!hayEquipos) {
+    if (!hayEquipos && torneo !== 'sabados2') {
       return (
         <div className="bg-[#1a1a1a] border border-dashed border-green-900/30 rounded-2xl px-4 py-5 text-center">
           <p className="text-xl mb-2 opacity-50">🥈</p>
@@ -140,27 +143,14 @@ export default function Copas({ data, torneo }) {
     )
   }
 
-  // Cuadro horizontal simplificado: semifinal -> final <- semifinal (sin cuartos)
+  // Cuadro horizontal simplificado: semifinal -> final <- semifinal (sin cuartos) en la 1ra Edición;
+  // en Sábados 2da el Bronce son 8 equipos y usa el cuadro completo
   const BracketBronce = () => {
+    if (torneo === 'sabados2') return <BracketCompleto prefijo="bronce" trofeoClase="trophy trophy-bronce" />
     const semis = getPartidosByFase('bronce_semi')
     const final = getPartidosByFase('bronce_final')[0]
-    const cuartos = getPartidosByFase('bronce_4tos')
-    const directos = (data.copas_equipos?.bronce || []).slice(0, 2)
     return (
       <div className="bracket-scroll">
-        {torneo === 'sabados2' && (cuartos.length > 0 || directos.length > 0) && (
-          <div className="mb-3">
-            <p className="col-label">Cuartos</p>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {[0, 1].map(i => <MatchBox key={i} p={cuartos[i]} />)}
-            </div>
-            {directos.length === 2 && (
-              <p className="text-[10px] text-gray-400">
-                Pasan directo a semifinales: {directos.map(id => getEq(id).nombre || '?').join(' y ')}
-              </p>
-            )}
-          </div>
-        )}
         <div className="bracket-row bracket-row-3">
           <div className="col-wrap">
             <p className="col-label">Semifinal</p>
@@ -233,11 +223,11 @@ export default function Copas({ data, torneo }) {
           </tr>
         </tbody>
       </table>
-      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. {torneo === 'sabados2' ? 'Copa Bronce: del 9° al 14° de la Liga; el 9° y el 10° pasan directo a la Semifinal.' : 'Copa Bronce: los últimos 4 de la Liga.'}</p>
+      <p className="text-[10px] text-gray-500 mt-2">Los perdedores de los 4tos de Oro pasan a jugar la Semifinal de Plata. {torneo === 'sabados2' ? 'Copa de Oro: del 1° al 8° de la Liga. Copa de Bronce: del 9° al 16°.' : 'Copa Bronce: los últimos 4 de la Liga.'}</p>
     </div>
   )
 
-  if (torneo === 'sabados2' || torneo === 'domingos') {
+  if (torneo === 'domingos') {
     return (
       <div className="min-h-screen">
         <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
