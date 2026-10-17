@@ -3,6 +3,7 @@ import { push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 import { jornadasCopa } from '../copaJornadas'
+import { cuartosIdaVuelta, resultadoCuartos, partidosDeCuartos, seriePorPartido, esFaseVuelta, esFaseCuartosIda, copaDeFase } from '../copasSeries'
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Inscripciones', 'Finanzas']
 
@@ -664,7 +665,7 @@ function PartidoCard(props) {
 }
 
 // Tarjeta de un partido real (separada de PartidoCard para que los hooks no queden después de un return)
-function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
+function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada, partidos = {} }) {
   const [gl, setGl] = useState(String(p.golesLocal ?? ''))
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
@@ -675,6 +676,8 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
   const [tarjTipo, setTarjTipo] = useState('amarilla')
   const [selGol, setSelGol] = useState({ [p.local]: '', [p.visitante]: '' })
   const [quickNames, setQuickNames] = useState({ [p.local]: '', [p.visitante]: '' })
+  const [penL, setPenL] = useState(String(p.penalesLocal ?? ''))
+  const [penV, setPenV] = useState(String(p.penalesVisitante ?? ''))
 
   // Separado: la hora se sincroniza siempre (puede cambiar con "Aplicar a todos")
   // Los goles NO se sincronizan cuando cambia la hora — evita resetear lo que el usuario está escribiendo
@@ -686,6 +689,20 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
     setGl(String(p.golesLocal ?? ''))
     setGv(String(p.golesVisitante ?? ''))
   }, [p.golesLocal, p.golesVisitante])
+
+  useEffect(() => {
+    setPenL(String(p.penalesLocal ?? ''))
+    setPenV(String(p.penalesVisitante ?? ''))
+  }, [p.penalesLocal, p.penalesVisitante])
+
+  // Cuartos de final a ida y vuelta: en la vuelta el local es el equipo B y el visitante el equipo A de la ida
+  const esVuelta = esFaseVuelta(p.fase)
+  const esIda = esFaseCuartosIda(p.fase)
+  const idaDeSerie = esVuelta ? (seriePorPartido(partidos, p)?.ida || null) : null
+  const globalA = (idaDeSerie?.jugado ? Number(idaDeSerie.golesLocal) || 0 : 0) + (Number(gv) || 0)
+  const globalB = (idaDeSerie?.jugado ? Number(idaDeSerie.golesVisitante) || 0 : 0) + (Number(gl) || 0)
+  const marcadorCargado = gl !== '' && gv !== ''
+  const empateGlobal = esVuelta && !!idaDeSerie?.jugado && marcadorCargado && globalA === globalB
 
   const golesPartido = Object.entries(goles[p.id] || {})
   const tarjetasPartido = Object.entries(tarjetas[p.id] || {})
@@ -740,6 +757,14 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
 
   // Cerrar partido: guarda resultado + hora de una y bloquea la tarjeta (reemplaza los dos tildes sueltos)
   const cerrarPartido = async () => {
+    // Global empatado en la vuelta de cuartos: tiene que haber un ganador por penales
+    if (empateGlobal) {
+      const pl = penL === '' ? null : Number(penL), pv = penV === '' ? null : Number(penV)
+      if (pl == null || pv == null || pl === pv) {
+        alert('El global quedó empatado: cargá los penales de los dos equipos (tiene que haber un ganador).')
+        return
+      }
+    }
     setSaving(true)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     await update(rp(`partidos/${p.id}`), {
@@ -747,6 +772,7 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
       hora: hora || null,
       fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
       cerrado: true,
+      ...(esVuelta ? { penalesLocal: empateGlobal ? Number(penL) : null, penalesVisitante: empateGlobal ? Number(penV) : null } : {}),
     })
     setSaving(false)
   }
@@ -797,6 +823,38 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
             <span className="text-sm font-bold text-white truncate">{equipos[p.visitante]?.nombre || '?'}</span>
           </div>
         </div>
+
+        {/* Cuartos de final a ida y vuelta: qué partido es, resultado de la ida, global y penales */}
+        {(esVuelta || esIda) && (
+          <div className="mb-2 rounded-lg bg-[#111] border border-green-900/20 px-2.5 py-2 text-[11px] text-gray-300 space-y-1">
+            <p className="font-bold text-green-400 text-[10px] uppercase tracking-wider">{esVuelta ? 'Cuartos de final · Vuelta' : 'Cuartos de final · Ida'}</p>
+            {esIda && <p className="text-gray-500">Se suma con la vuelta: pasa el equipo con mejor diferencia de gol global.</p>}
+            {esVuelta && !idaDeSerie && <p className="text-amber-400">No se encontró el partido de ida de este cruce.</p>}
+            {esVuelta && idaDeSerie && !idaDeSerie.jugado && <p className="text-amber-400">Falta cargar el resultado de la ida.</p>}
+            {esVuelta && idaDeSerie?.jugado && (
+              <>
+                <p>Ida: {equipos[idaDeSerie.local]?.nombre || '?'} {idaDeSerie.golesLocal} - {idaDeSerie.golesVisitante} {equipos[idaDeSerie.visitante]?.nombre || '?'}</p>
+                {marcadorCargado && (
+                  <p className="font-bold text-white">Global: {equipos[idaDeSerie.local]?.nombre || '?'} {globalA} - {globalB} {equipos[idaDeSerie.visitante]?.nombre || '?'}</p>
+                )}
+              </>
+            )}
+            {empateGlobal && (
+              <div className="pt-1">
+                <p className="text-yellow-300 font-bold mb-1">Empate en el global: se define por penales</p>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-right truncate">{equipos[p.local]?.nombre || '?'}</span>
+                  <input type="number" min="0" value={penL} onChange={e => setPenL(e.target.value)} disabled={bloqueado} aria-label="Penales del local"
+                    className="w-10 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-base font-black text-center outline-none py-0.5 disabled:opacity-50" />
+                  <span className="text-gray-600 font-black">-</span>
+                  <input type="number" min="0" value={penV} onChange={e => setPenV(e.target.value)} disabled={bloqueado} aria-label="Penales del visitante"
+                    className="w-10 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-base font-black text-center outline-none py-0.5 disabled:opacity-50" />
+                  <span className="flex-1 truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Hora: botones con las franjas del torneo (se guarda al tocar) */}
         {!bloqueado && (
@@ -1682,6 +1740,7 @@ function TabPartidos({ data }) {
               tarjetas={tarjetas}
               fechaDia={fechaDia}
               cerrada={cerrada}
+              partidos={partidos}
             />
           ))}
 
@@ -1730,9 +1789,10 @@ function TabCopas({ data }) {
   ].filter(cp => !(getTorneoPrefix() === 'domingos/' && cp.id === 'bronce'))
 
   const es2da = getTorneoPrefix() === 'sabados2/' || getTorneoPrefix() === 'domingos/'   // 2da y Domingos: rondas armadas solas con los resultados
+  const idaVuelta = cuartosIdaVuelta(getTorneoPrefix())   // 2da y Domingos: los cuartos son a ida y vuelta
   const RONDAS = {
     oro:    [
-      { fase: 'oro_4tos',  label: '4tos de Final', minEq: 4 },
+      { fase: 'oro_4tos',  label: idaVuelta ? 'Cuartos de Final (ida y vuelta)' : '4tos de Final', minEq: es2da ? 8 : 4 },
       { fase: 'oro_semi',  label: 'Semifinales',   minEq: 2 },
       { fase: 'oro_final', label: 'Final',          minEq: 2 },
     ],
@@ -1741,7 +1801,7 @@ function TabCopas({ data }) {
       { fase: 'plata_final', label: 'Final',        minEq: 2 },
     ],
     bronce: es2da ? [
-      { fase: 'bronce_4tos',  label: 'Cuartos de Final', minEq: 8 },
+      { fase: 'bronce_4tos',  label: idaVuelta ? 'Cuartos de Final (ida y vuelta)' : 'Cuartos de Final', minEq: 8 },
       { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
       { fase: 'bronce_final', label: 'Final',      minEq: 2 },
     ] : [
@@ -1804,6 +1864,8 @@ function TabCopas({ data }) {
   }
   // Ganadores/perdedores de una ronda ya jugada (null si falta jugar o hay empate sin definir)
   const resultadoRonda = (fase) => {
+    // Cuartos a ida y vuelta: gana el que tiene mejor diferencia de gol global; si empatan, penales
+    if (idaVuelta && fase.endsWith('_4tos')) return resultadoCuartos(partidos, copaDeFase(fase))
     const ps = Object.values(partidos).filter(p => p.fase === fase)
     if (ps.length === 0) return { error: 'Primero generá la ronda anterior' }
     if (ps.some(p => !p.jugado)) return { error: 'Faltan jugar partidos de la ronda anterior' }
@@ -1851,17 +1913,25 @@ function TabCopas({ data }) {
       crucesAuto = r?.cruces || null
     }
     if (!crucesAuto && equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
-    const yaHay = Object.values(partidos).some(p => p.fase === fase)
-    if (yaHay && !confirm('Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
+    // En cuartos a ida y vuelta se arman los dos partidos de cada cruce (ida y vuelta)
+    const esCuartosIV = idaVuelta && fase.endsWith('_4tos')
+    const fasesRonda = esCuartosIV ? [fase, fase + '_vuelta'] : [fase]
+    const yaHay = Object.values(partidos).some(p => fasesRonda.includes(p.fase))
+    if (yaHay && !confirm(esCuartosIV ? 'Ya hay cuartos de final (ida y vuelta) generados. ¿Reemplazarlos?' : 'Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
     setGen(fase)
     for (const [id, p] of Object.entries(partidos))
-      if (p.fase === fase) {
+      if (fasesRonda.includes(p.fase)) {
         await remove(rp(`partidos/${id}`))
         await remove(rp(`goles/${id}`))
         await remove(rp(`tarjetas/${id}`))
       }
-    for (const { local, visitante } of (crucesAuto || buildBracket(equiposCopa)))
-      await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+    const cruces = crucesAuto || buildBracket(equiposCopa)
+    if (esCuartosIV) {
+      for (const partido of partidosDeCuartos(cruces, fase)) await push(rp('partidos'), partido)
+    } else {
+      for (const { local, visitante } of cruces)
+        await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+    }
     setGen(false)
   }
 
@@ -1923,8 +1993,9 @@ function TabCopas({ data }) {
         <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Rondas</p>
         {rondasCopa.map(({ fase, label, minEq }) => {
           const ps = Object.entries(partidos)
-            .filter(([, p]) => p.fase === fase)
+            .filter(([, p]) => p.fase === fase || (idaVuelta && fase.endsWith('_4tos') && p.fase === fase + '_vuelta'))
             .map(([id, p]) => ({ id, ...p }))
+            .sort((a, b) => (a.serie ?? 0) - (b.serie ?? 0) || (esFaseVuelta(a.fase) ? 1 : 0) - (esFaseVuelta(b.fase) ? 1 : 0))
           return (
             <div key={fase} className="bg-[#1a1a1a] rounded-xl border border-green-900/20 overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
@@ -1941,6 +2012,9 @@ function TabCopas({ data }) {
                 <div className="border-t border-green-900/10 divide-y divide-green-900/5">
                   {ps.map(p => (
                     <div key={p.id} className="flex items-center gap-2 px-4 py-2 text-xs">
+                      {idaVuelta && p.serie != null && (
+                        <span className="w-12 flex-shrink-0 text-[9px] text-gray-500 uppercase">{esFaseVuelta(p.fase) ? 'Vuelta' : 'Ida'} {p.serie}</span>
+                      )}
                       <span className="flex-1 text-right text-white font-semibold truncate">{equipos[p.local]?.nombre || '?'}</span>
                       <span className={`flex-shrink-0 px-2 font-black ${p.jugado ? 'text-green-400' : 'text-gray-600'}`}>
                         {p.jugado ? `${p.golesLocal}-${p.golesVisitante}` : 'vs'}
@@ -1972,6 +2046,8 @@ function TabResultados({ data }) {
   const [partidoId, setPartidoId] = useState('')
   const [gl, setGl] = useState('')
   const [gv, setGv] = useState('')
+  const [penL, setPenL] = useState('')
+  const [penV, setPenV] = useState('')
   const [savingRes, setSavingRes] = useState(false)
   const [golEq, setGolEq] = useState('')
   const [golJug, setGolJug] = useState('')
@@ -1988,10 +2064,28 @@ function TabResultados({ data }) {
   const golesPartido = Object.entries(goles[partidoId] || {})
   const tarjetasPartido = Object.entries(tarjetas[partidoId] || {})
 
+  // Cuartos de final a ida y vuelta: si el global de la serie queda empatado, la vuelta se define por penales
+  const partidoActual = partido ? { id: partidoId, ...partido } : null
+  const esVueltaSel = !!partidoActual && esFaseVuelta(partidoActual.fase)
+  const idaSel = esVueltaSel ? (seriePorPartido(partidos, partidoActual)?.ida || null) : null
+  const globalASel = (idaSel?.jugado ? Number(idaSel.golesLocal) || 0 : 0) + (Number(gv) || 0)
+  const globalBSel = (idaSel?.jugado ? Number(idaSel.golesVisitante) || 0 : 0) + (Number(gl) || 0)
+  const empateGlobalSel = esVueltaSel && !!idaSel?.jugado && gl !== '' && gv !== '' && globalASel === globalBSel
+
   const guardarResultado = async () => {
     if (!partidoId || gl === '' || gv === '') return
+    if (empateGlobalSel) {
+      const pl = penL === '' ? null : Number(penL), pv = penV === '' ? null : Number(penV)
+      if (pl == null || pv == null || pl === pv) {
+        alert('El global quedó empatado: cargá los penales de los dos equipos (tiene que haber un ganador).')
+        return
+      }
+    }
     setSavingRes(true)
-    await update(rp(`partidos/${partidoId}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
+    await update(rp(`partidos/${partidoId}`), {
+      golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true,
+      ...(esVueltaSel ? { penalesLocal: empateGlobalSel ? Number(penL) : null, penalesVisitante: empateGlobalSel ? Number(penV) : null } : {}),
+    })
     setSavingRes(false)
   }
 
@@ -2048,12 +2142,14 @@ function TabResultados({ data }) {
           setPartidoId(e.target.value)
           setGl(p?.golesLocal ?? '')
           setGv(p?.golesVisitante ?? '')
+          setPenL(p?.penalesLocal ?? '')
+          setPenV(p?.penalesVisitante ?? '')
         }}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
           <option value="">— Elegí un partido —</option>
           {listaPartidos.map(p => (
             <option key={p.id} value={p.id}>
-              F{p.numero} · {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' ✓' : ''}
+              {p.numero != null ? `F${p.numero}` : `${String(p.fase).replace(/_/g, ' ')}${p.serie != null ? ' ' + p.serie : ''}`} · {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' ✓' : ''}
             </option>
           ))}
         </select>
@@ -2076,6 +2172,35 @@ function TabResultados({ data }) {
                   className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-3 text-white text-2xl font-black text-center outline-none" />
               </div>
             </div>
+            {esVueltaSel && (
+              <div className="rounded-xl bg-[#111] border border-green-900/20 px-3 py-2 text-xs text-gray-300 space-y-1">
+                <p className="font-bold text-green-400 text-[10px] uppercase tracking-wider">Cuartos de final · Vuelta</p>
+                {!idaSel && <p className="text-amber-400">No se encontró el partido de ida de este cruce.</p>}
+                {idaSel && !idaSel.jugado && <p className="text-amber-400">Falta cargar el resultado de la ida.</p>}
+                {idaSel?.jugado && (
+                  <>
+                    <p>Ida: {equipos[idaSel.local]?.nombre || '?'} {idaSel.golesLocal} - {idaSel.golesVisitante} {equipos[idaSel.visitante]?.nombre || '?'}</p>
+                    {gl !== '' && gv !== '' && (
+                      <p className="font-bold text-white">Global: {equipos[idaSel.local]?.nombre || '?'} {globalASel} - {globalBSel} {equipos[idaSel.visitante]?.nombre || '?'}</p>
+                    )}
+                  </>
+                )}
+                {empateGlobalSel && (
+                  <div className="pt-1">
+                    <p className="text-yellow-300 font-bold mb-1">Empate en el global: se define por penales</p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 text-right truncate">{equipos[partido.local]?.nombre || '?'}</span>
+                      <input type="number" min="0" value={penL} onChange={e => setPenL(e.target.value)} aria-label="Penales del local"
+                        className="w-12 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-lg font-black text-center outline-none py-1" />
+                      <span className="text-gray-600 font-black">-</span>
+                      <input type="number" min="0" value={penV} onChange={e => setPenV(e.target.value)} aria-label="Penales del visitante"
+                        className="w-12 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-lg font-black text-center outline-none py-1" />
+                      <span className="flex-1 truncate">{equipos[partido.visitante]?.nombre || '?'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <button onClick={guardarResultado} disabled={savingRes || gl === '' || gv === ''}
               className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
               {savingRes ? 'Guardando...' : partido.jugado ? '✓ Actualizar Resultado' : 'Guardar Resultado'}

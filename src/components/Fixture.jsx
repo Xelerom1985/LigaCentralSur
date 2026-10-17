@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { cuartosIdaVuelta, resumenDeVuelta, textoGlobal } from '../copasSeries'
 
 const FASES = [
   { id: 'amistoso', label: 'Amistosos' },
@@ -8,16 +9,19 @@ const FASES = [
   { id: 'copa_bronce', label: 'Copa de Bronce' },
 ]
 
-const ORO_FASES = ['oro_4tos', 'oro_semi', 'oro_final']
+const ORO_FASES = ['oro_4tos', 'oro_4tos_vuelta', 'oro_semi', 'oro_final']
 const PLATA_FASES = ['plata_semi', 'plata_final']
-const BRONCE_FASES = ['bronce_4tos', 'bronce_semi', 'bronce_final']
+const BRONCE_FASES = ['bronce_4tos', 'bronce_4tos_vuelta', 'bronce_semi', 'bronce_final']
+// Orden en que se muestran las rondas de copa dentro de cada pestaña
+const ORDEN_FASES = ['oro_4tos', 'oro_4tos_vuelta', 'oro_semi', 'oro_final', 'plata_semi', 'plata_final', 'bronce_4tos', 'bronce_4tos_vuelta', 'bronce_semi', 'bronce_final']
 
 const FASE_LABEL = {
   liga: 'Liga', amistoso: 'Amistosos', oro_4tos: '4tos de Final', oro_semi: 'Semifinal', oro_final: 'Final',
   plata_semi: 'Semifinal', plata_final: 'Final', bronce_4tos: '4tos', bronce_semi: 'Semifinal', bronce_final: 'Final',
+  oro_4tos_vuelta: '4tos de Final · Vuelta', bronce_4tos_vuelta: '4tos · Vuelta',
 }
 
-export default function Fixture({ data }) {
+export default function Fixture({ data, torneo }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
 
@@ -90,8 +94,16 @@ export default function Fixture({ data }) {
     return (!t || t === '00:00') ? null : t
   }
 
+  // En los torneos con cuartos a ida y vuelta, la ronda de ida se rotula "· Ida"
+  const etiquetaSubfase = key => {
+    const base = FASE_LABEL[key] || key
+    return (cuartosIdaVuelta(torneo) && (key === 'oro_4tos' || key === 'bronce_4tos')) ? base + ' · Ida' : base
+  }
+
   const PartidoCard = ({ p }) => {
     const eqLocal = equipos[p.local] || {}
+    const rv = resumenDeVuelta(partidos, p)
+    const textoSerie = rv ? textoGlobal(rv.res, id => equipos[id]?.nombre || '?') : null
     const eqVisitante = equipos[p.visitante] || {}
     const fecha = formatFecha(p.fechaHora)
     const hora = formatHora(p.fechaHora) || p.hora || null
@@ -147,6 +159,7 @@ export default function Fixture({ data }) {
             <p className="text-xs font-semibold leading-tight">{eqVisitante.nombre || (p.visitante ? '?' : 'A definir')}</p>
           </div>
         </div>
+        {textoSerie && <p className="text-center text-[11px] font-semibold text-yellow-300/90 mt-2">{textoSerie}</p>}
       </div>
     )
   }
@@ -200,9 +213,9 @@ export default function Fixture({ data }) {
           grupos && Object.keys(grupos).length === 0 ? (
             <p className="text-center text-gray-600 py-8">Sin partidos cargados</p>
           ) : (
-            grupos && Object.entries(grupos).map(([subfase, ps]) => (
+            grupos && Object.entries(grupos).sort(([a], [b]) => ORDEN_FASES.indexOf(a) - ORDEN_FASES.indexOf(b)).map(([subfase, ps]) => (
               <div key={subfase} className="mb-5">
-                <h3 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-2">{FASE_LABEL[subfase] || subfase}</h3>
+                <h3 className="text-xs font-bold text-green-400 uppercase tracking-widest mb-2">{etiquetaSubfase(subfase)}</h3>
                 <div className="space-y-2">
                   {ps.map(p => <PartidoCard key={p.id} p={p} />)}
                 </div>

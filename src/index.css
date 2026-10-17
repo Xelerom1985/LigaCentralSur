@@ -102,3 +102,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .conn-l-up::after { top: 50%; height: calc((var(--colh) - var(--boxh)) / 2 + var(--boxh) / 2); border-top: 2px solid var(--line); }
 .conn-l-down::after { bottom: 50%; height: calc((var(--colh) - var(--boxh)) / 2 + var(--boxh) / 2); border-bottom: 2px solid var(--line); }
 .conn-l::after { top: 50%; height: 0; border-top: 2px solid var(--line); transform: translateY(-1px); }
+
+/* Cuartos de final a ida y vuelta: global a la derecha de cada equipo y penales */
+.match-box .team-row { position: relative; }
+.match-box .team-gana span { color: #4ade80; }
+.serie-goles { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 900; color: #fff; }
+.serie-pen { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); font-size: 8px; font-weight: 800; background: #facc15; color: #000; border-radius: 4px; padding: 0 5px; white-space: nowrap; }

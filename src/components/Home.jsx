@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { jornadasCopa, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
+import { jornadasCopa, faseLabel, COPA_LABELS } from '../copaJornadas'
+import { resumenDeVuelta, textoGlobal } from '../copasSeries'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -139,7 +140,11 @@ export default function Home({ data, torneo }) {
 
   const MatchRow = ({ p }) => {
     const hora = fmtHora(p.fechaHora) || p.hora || null
+    // Cuartos de final a ida y vuelta: en el partido de vuelta se muestra el global y los penales
+    const rv = resumenDeVuelta(partidos, p)
+    const textoSerie = rv ? textoGlobal(rv.res, id => equipos[id]?.nombre || '?') : null
     return (
+      <div>
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || (p.local ? '?' : 'A definir')}</span>
@@ -172,6 +177,8 @@ export default function Home({ data, torneo }) {
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
           <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || (p.visitante ? '?' : 'A definir')}</span>
         </div>
+      </div>
+      {textoSerie && <p className="px-4 pb-2.5 -mt-1 text-center text-[10px] font-semibold text-yellow-300/90">{textoSerie}</p>}
       </div>
     )
   }
@@ -236,7 +243,7 @@ export default function Home({ data, torneo }) {
             <div key={fase} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
-                  {COPA_LABELS[fase.split('_')[0]]} · {FASE_LABELS[fase]}
+                  {COPA_LABELS[fase.split('_')[0]]} · {faseLabel(fase, torneo)}
                 </span>
                 {fechaLabel && (
                   <span className="text-gray-400 text-xs capitalize">{fechaLabel}</span>

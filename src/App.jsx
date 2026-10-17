@@ -448,7 +448,7 @@ export default function App() {
 
       {/* Secciones */}
       {seccion === 'home' && <Home data={offlineData} torneo={torneo} />}
-      {seccion === 'fixture' && <Fixture data={offlineData} />}
+      {seccion === 'fixture' && <Fixture data={offlineData} torneo={torneo} />}
       {seccion === 'tabla' && <Tabla data={offlineData} />}
       {seccion === 'copas' && <Copas data={data} torneo={torneo} />}
       {seccion === 'equipos' && <Equipos data={data} />}
