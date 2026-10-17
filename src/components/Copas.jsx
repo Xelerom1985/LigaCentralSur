@@ -264,7 +264,7 @@ export default function Copas({ data, torneo }) {
     <div className="bg-[#1a1a1a] rounded-xl p-3 border border-green-900/30 mb-4">
       <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest mb-2">Cuartos de final: ida y vuelta</p>
       <p className="text-xs text-gray-300 leading-relaxed mb-3">
-        Cada cruce de cuartos se juega en <span className="font-bold text-white">2 partidos</span> (ida y vuelta, invirtiendo la localía).
+        Cada cruce de cuartos se juega en <span className="font-bold text-white">2 partidos</span> (ida y vuelta).
         Pasa el equipo con mejor <span className="font-bold text-white">diferencia de gol</span> sumando los dos partidos.
         Si el global queda igual, se define por <span className="font-bold text-yellow-300">penales</span>.
         Las semifinales y las finales son a partido único.
