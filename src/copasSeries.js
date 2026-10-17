@@ -1,4 +1,5 @@
-// Cuartos de final a IDA Y VUELTA (Sábados 2da y Domingos). Semifinales y finales son partido único.
+// Cuartos de final a IDA Y VUELTA (solo Domingos). Semifinales y finales son partido único.
+// Sábados 2da y la 1ra Edición juegan los cuartos a partido único.
 //
 // Cada cruce de cuartos es una "serie" de dos partidos con el mismo campo `serie`:
 //   ida    -> fase 'oro_4tos'        (o 'bronce_4tos')         local = equipo A, visitante = equipo B
@@ -7,9 +8,9 @@
 // Si el global queda igual, se define por penales, que se cargan en el partido de VUELTA
 // (penalesLocal = penales del local de la vuelta = equipo B, penalesVisitante = equipo A).
 
-const TORNEOS_IDA_VUELTA = ['sabados2', 'domingos']
+const TORNEOS_IDA_VUELTA = ['domingos']
 
-// torneo: 'sabados2' | 'domingos' | prefijo 'sabados2/' ...
+// torneo: 'domingos' | prefijo 'domingos/' ...
 export const cuartosIdaVuelta = torneo => TORNEOS_IDA_VUELTA.includes(String(torneo || '').replace('/', ''))
 
 export const esFaseVuelta = fase => typeof fase === 'string' && fase.endsWith('_4tos_vuelta')

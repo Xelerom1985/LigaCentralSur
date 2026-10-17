@@ -9,12 +9,11 @@ export const COPA_JORNADAS = {
 }
 
 // Sábados 2da Edición (16 equipos): Oro 1° al 8°, Bronce 9° al 16° y Plata con los 4 que pierden en cuartos de Oro.
-// Los cuartos se juegan a IDA y VUELTA (fechas de copa 1 y 2); semifinales y finales son partido único.
+// Cuartos, semifinal y final a partido único (3 fechas de copa).
 export const COPA_JORNADAS_2DA = {
   copa_1: ['oro_4tos', 'bronce_4tos'],
-  copa_2: ['oro_4tos_vuelta', 'bronce_4tos_vuelta'],
-  copa_3: ['oro_semi', 'plata_semi', 'bronce_semi'],
-  copa_4: ['oro_final', 'plata_final', 'bronce_final'],
+  copa_2: ['oro_semi', 'plata_semi', 'bronce_semi'],
+  copa_3: ['oro_final', 'plata_final', 'bronce_final'],
 }
 
 // Domingos (8 equipos, solo Oro y Plata): los 8 juegan cuartos de Oro (ida y vuelta) y los 4 que pierden pasan a Plata
