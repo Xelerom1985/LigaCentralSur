@@ -162,6 +162,7 @@ export default function Home({ data, torneo }) {
     )
   }
 
+
   return (
     <div className="relative min-h-screen">
       {/* Fondo */}
