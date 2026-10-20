@@ -2374,7 +2374,7 @@ const GASTOS_POR_TORNEO = {
     { key: 'cancha', label: 'Cancha' },
     { key: 'arbitros', label: 'Árbitros' },
     { key: 'facu', label: 'Facu' },
-    { key: 'marmol_poli', label: 'Marmol / Poli' },
+    { key: 'marmol_poli', label: 'Marmol / Poli', cuotas: 12 },
   ],
   'domingos/': [
     { key: 'cancha', label: 'Cancha' },
@@ -2834,7 +2834,12 @@ function TabFinanzas({ data }) {
         <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
         {gastosFijosDe().filter(g => !g.desde || copaJornadasActual()[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
-            <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
+            <span className={`${g.cuotas ? 'w-24' : 'w-20'} text-xs text-gray-400 flex-shrink-0 leading-tight`}>
+              {g.label}
+              {g.cuotas && /^\d+$/.test(String(fechaSel)) && Number(fechaSel) <= g.cuotas && (
+                <span className="block text-[10px] text-green-500 font-semibold">{fechaSel} de {g.cuotas}</span>
+              )}
+            </span>
             <MoneyInput value={gastoInputs[g.key] ?? ''}
               onChange={v => setGastoInputs(prev => ({ ...prev, [g.key]: v }))}
               className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-3 py-2 text-white text-sm outline-none" />
