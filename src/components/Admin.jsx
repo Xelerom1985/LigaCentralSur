@@ -3,6 +3,7 @@ import { push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 import { jornadasCopa } from '../copaJornadas'
+import { cuartosIdaVuelta, resultadoCuartos, partidosDeCuartos, seriePorPartido, esFaseVuelta, esFaseCuartosIda, copaDeFase } from '../copasSeries'
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Inscripciones', 'Finanzas']
 
@@ -452,32 +453,147 @@ const gameSlots = () => {
 }
 
 // Reparto al azar, 2 partidos por franja — evita que un equipo quede siempre en el mismo horario
-// Equipos que NO pueden jugar en ciertas franjas (por torneo). Se respeta al sortear cada fecha.
+// Excepciones de horario por torneo (Sábados 2da Edición):
+//  - horas: franjas en las que el equipo NO puede jugar
+//  - soloHoras: únicas franjas en las que el equipo SÍ puede jugar
+// Se respetan al sortear la fecha y también al cargar o cambiar un horario a mano.
 const EXCLUSIONES_HORARIO = {
-  'sabados2/': [{ equipo: /197/, horas: [13] }],
+  'sabados2/': [
+    { equipo: /197/, horas: [13] },
+    { equipo: /calzada/i, soloHoras: [15, 16] },
+  ],
 }
 
-function assignMatchSlots(matches, equipos = {}) {
-  const res = new Map()
-  const shuffled = [...matches].sort(() => Math.random() - 0.5)
-  shuffled.forEach((m, i) => res.set(m, gameSlots()[Math.floor(i / 2) % gameSlots().length]))
-
-  // Horas prohibidas de un partido según las exclusiones del torneo
+// Horas (números) que NO se pueden usar para un partido entre estos dos equipos
+function horasNoPermitidas(local, visitante, equipos = {}) {
   const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
-  const prohibidas = m => reglas
-    .filter(r => [m.local, m.visitante].some(id => id && r.equipo.test(equipos[id]?.nombre || '')))
-    .flatMap(r => r.horas)
-  for (const m of shuffled) {
-    if (!prohibidas(m).includes(res.get(m))) continue
-    // intercambiar franja con otro partido al que le sirva la de este y a este la del otro
-    const otro = shuffled.find(k => k !== m
-      && !prohibidas(m).includes(res.get(k))
-      && !prohibidas(k).includes(res.get(m)))
-    if (otro) {
-      const h = res.get(m); res.set(m, res.get(otro)); res.set(otro, h)
+  const out = new Set()
+  for (const r of reglas) {
+    const juega = [local, visitante].some(id => id && r.equipo.test(equipos[id]?.nombre || ''))
+    if (!juega) continue
+    if (r.horas) r.horas.forEach(h => out.add(h))
+    if (r.soloHoras) gameSlots().filter(h => !r.soloHoras.includes(h)).forEach(h => out.add(h))
+  }
+  return out
+}
+
+// Si la hora ("15:00" o 15) no está permitida devuelve el aviso para mostrar, si no null
+function avisoHorario(local, visitante, hora, equipos = {}) {
+  const h = typeof hora === 'number' ? hora : parseInt(String(hora).split(':')[0], 10)
+  if (!horasNoPermitidas(local, visitante, equipos).has(h)) return null
+  const reglas = EXCLUSIONES_HORARIO[getTorneoPrefix()] || []
+  for (const r of reglas) {
+    const eq = [local, visitante].find(id => id && r.equipo.test(equipos[id]?.nombre || ''))
+    if (!eq) continue
+    if (r.soloHoras && !r.soloHoras.includes(h))
+      return `${equipos[eq]?.nombre} solo puede jugar a las ${r.soloHoras.join(' y ')} hs.`
+    if (r.horas && r.horas.includes(h))
+      return `${equipos[eq]?.nombre} no puede jugar a las ${h}:00 hs.`
+  }
+  return 'Ese horario no está permitido para este partido.'
+}
+
+// 'ocupadas' = horas (números) de partidos que ya están cargados en la fecha: se reparte el resto alrededor de ellos
+function assignMatchSlots(matches, equipos = {}, ocupadas = []) {
+  const slots = gameSlots()
+  // 'extra' sube el cupo de partidos por franja cuando las reglas de horario no entran en el reparto parejo
+  const asignar = extra => {
+    const res = new Map()
+    const cupo = Math.ceil((matches.length + ocupadas.length) / slots.length) + extra
+    let fichas = slots.flatMap(h => Array(Math.max(0, cupo - ocupadas.filter(o => o === h).length)).fill(h))
+    while (fichas.length < matches.length) fichas = fichas.concat(slots)
+    fichas = [...fichas].sort(() => Math.random() - 0.5)
+    const mezclados = [...matches].sort(() => Math.random() - 0.5)
+    mezclados.forEach((m, i) => res.set(m, fichas[i]))
+    return res
+  }
+  const cumple = res => matches.every(m => !horasNoPermitidas(m.local, m.visitante, equipos).has(res.get(m)))
+  // Se reparte al azar y se repite hasta que ningún partido caiga en un horario prohibido
+  let res = asignar(0)
+  for (let extra = 0; extra <= 3; extra++) {
+    for (let intento = 0; intento < 300; intento++) {
+      res = asignar(extra)
+      if (cumple(res)) return res
     }
   }
   return res
+}
+
+/* ─── SORTEO AL AZAR SIN REPETIR CRUCES (Sábados 2da y Domingos, Fecha 2 en adelante) ─── */
+const claveCruce = (a, b) => [a, b].sort().join('|')
+
+// Cruces de liga ya armados en OTRAS fechas (un equipo libre cuenta como cruce contra 'bye')
+function crucesUsados(partidos, fechaActual) {
+  const usados = new Set()
+  Object.values(partidos || {}).forEach(p => {
+    if (p.fase !== 'liga' || p.numero == null || Number(p.numero) === Number(fechaActual) || !p.local) return
+    if (p.libre || !p.visitante) usados.add(claveCruce(p.local, 'bye'))
+    else usados.add(claveCruce(p.local, p.visitante))
+  })
+  return usados
+}
+
+const mezclar = arr => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// Busca (con retroceso) un emparejamiento completo entre los nodos usando solo pares permitidos
+function emparejar(nodos, permitido, aleatorio) {
+  if (nodos.length === 0) return []
+  const [v, ...resto] = nodos
+  const opciones = aleatorio ? mezclar(resto) : resto
+  for (const u of opciones) {
+    if (!permitido(v, u)) continue
+    const sub = emparejar(resto.filter(x => x !== u), permitido, aleatorio)
+    if (sub) return [[v, u], ...sub]
+  }
+  return null
+}
+
+// ¿Se pueden armar TODAS las fechas que faltan con los cruces que quedan? Prueba varios repartos al azar.
+function sePuedeCompletar(nodos, permitido) {
+  for (let prueba = 0; prueba < 40; prueba++) {
+    const gastados = new Set()
+    const libre = (a, b) => permitido(a, b) && !gastados.has(claveCruce(a, b))
+    let ok = true
+    while (nodos.some((a, i) => nodos.slice(i + 1).some(b => libre(a, b)))) {
+      const par = emparejar(mezclar(nodos), libre, true)
+      if (!par) { ok = false; break }
+      par.forEach(([a, b]) => gastados.add(claveCruce(a, b)))
+    }
+    if (ok) return true
+  }
+  return false
+}
+
+// Sortea los cruces de una fecha al azar. Elige un reparto que no repita cruces y que además deje posible
+// armar todas las fechas siguientes. 'fijos' son partidos ya cargados a mano que se conservan: solo se
+// sortean los equipos que no están en ellos. Devuelve null si ya no hay forma.
+function sortearFechaAlAzar(ids, usados, fijos = []) {
+  const todos = ids.length % 2 === 0 ? [...ids] : [...ids, 'bye']
+  const ocupados = new Set(fijos.flatMap(([a, b]) => [a, b]))
+  const nodos = todos.filter(x => !ocupados.has(x))
+  const clavesFijas = fijos.map(([a, b]) => claveCruce(a, b))
+  const libreEntre = (a, b) => !usados.has(claveCruce(a, b))
+  for (let intento = 0; intento < 400; intento++) {
+    const par = emparejar(mezclar(nodos), libreEntre, true)
+    if (!par) return null
+    // lo que queda sin jugar después de esta fecha tiene que poder completarse
+    const nuevos = new Set([...par.map(([a, b]) => claveCruce(a, b)), ...clavesFijas])
+    const quedan = (a, b) => libreEntre(a, b) && !nuevos.has(claveCruce(a, b))
+    if (sePuedeCompletar(todos, quedan)) {
+      return par.map(([a, b]) => (Math.random() < 0.5 ? [a, b] : [b, a]))
+        .map(([a, b]) => (a === 'bye' ? { local: b, visitante: null, libre: true }
+          : b === 'bye' ? { local: a, visitante: null, libre: true }
+          : { local: a, visitante: b }))
+    }
+  }
+  return null
 }
 
 /* ─── ROUND ROBIN (Berger determinístico) ─── */
@@ -549,7 +665,7 @@ function PartidoCard(props) {
 }
 
 // Tarjeta de un partido real (separada de PartidoCard para que los hooks no queden después de un return)
-function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada }) {
+function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerrada, partidos = {} }) {
   const [gl, setGl] = useState(String(p.golesLocal ?? ''))
   const [gv, setGv] = useState(String(p.golesVisitante ?? ''))
   const [hora, setHora] = useState(p.fechaHora ? p.fechaHora.split('T')[1]?.slice(0, 5) : (p.hora || ''))
@@ -560,6 +676,8 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
   const [tarjTipo, setTarjTipo] = useState('amarilla')
   const [selGol, setSelGol] = useState({ [p.local]: '', [p.visitante]: '' })
   const [quickNames, setQuickNames] = useState({ [p.local]: '', [p.visitante]: '' })
+  const [penL, setPenL] = useState(String(p.penalesLocal ?? ''))
+  const [penV, setPenV] = useState(String(p.penalesVisitante ?? ''))
 
   // Separado: la hora se sincroniza siempre (puede cambiar con "Aplicar a todos")
   // Los goles NO se sincronizan cuando cambia la hora — evita resetear lo que el usuario está escribiendo
@@ -571,6 +689,20 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
     setGl(String(p.golesLocal ?? ''))
     setGv(String(p.golesVisitante ?? ''))
   }, [p.golesLocal, p.golesVisitante])
+
+  useEffect(() => {
+    setPenL(String(p.penalesLocal ?? ''))
+    setPenV(String(p.penalesVisitante ?? ''))
+  }, [p.penalesLocal, p.penalesVisitante])
+
+  // Cuartos de final a ida y vuelta: en la vuelta el local es el equipo B y el visitante el equipo A de la ida
+  const esVuelta = esFaseVuelta(p.fase)
+  const esIda = esFaseCuartosIda(p.fase)
+  const idaDeSerie = esVuelta ? (seriePorPartido(partidos, p)?.ida || null) : null
+  const globalA = (idaDeSerie?.jugado ? Number(idaDeSerie.golesLocal) || 0 : 0) + (Number(gv) || 0)
+  const globalB = (idaDeSerie?.jugado ? Number(idaDeSerie.golesVisitante) || 0 : 0) + (Number(gl) || 0)
+  const marcadorCargado = gl !== '' && gv !== ''
+  const empateGlobal = esVuelta && !!idaDeSerie?.jugado && marcadorCargado && globalA === globalB
 
   const golesPartido = Object.entries(goles[p.id] || {})
   const tarjetasPartido = Object.entries(tarjetas[p.id] || {})
@@ -625,6 +757,14 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
 
   // Cerrar partido: guarda resultado + hora de una y bloquea la tarjeta (reemplaza los dos tildes sueltos)
   const cerrarPartido = async () => {
+    // Global empatado en la vuelta de cuartos: tiene que haber un ganador por penales
+    if (empateGlobal) {
+      const pl = penL === '' ? null : Number(penL), pv = penV === '' ? null : Number(penV)
+      if (pl == null || pv == null || pl === pv) {
+        alert('El global quedó empatado: cargá los penales de los dos equipos (tiene que haber un ganador).')
+        return
+      }
+    }
     setSaving(true)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     await update(rp(`partidos/${p.id}`), {
@@ -632,22 +772,29 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
       hora: hora || null,
       fechaHora: (dia && hora) ? `${dia}T${hora}` : null,
       cerrado: true,
+      ...(esVuelta ? { penalesLocal: empateGlobal ? Number(penL) : null, penalesVisitante: empateGlobal ? Number(penV) : null } : {}),
     })
     setSaving(false)
   }
   // Un toque en una franja horaria = guarda la hora del partido
   const guardarHora = async nueva => {
+    const aviso = avisoHorario(p.local, p.visitante, nueva, equipos)
+    if (aviso) { alert(aviso); return }
     setHora(nueva)
     const dia = fechaDia || (p.fechaHora ? p.fechaHora.split('T')[0] : null)
     await update(rp(`partidos/${p.id}`), {
       hora: nueva,
       fechaHora: dia ? `${dia}T${nueva}` : null,
+      reprogramado: null,   // al elegir una hora nueva deja de figurar como reprogramado
     })
   }
 
   const reabrirPartido = () => update(rp(`partidos/${p.id}`), { cerrado: false })
   const toggleSinCuota = () => update(rp(`partidos/${p.id}`), { sinCuota: !p.sinCuota })
   const toggleSuspendido = () => update(rp(`partidos/${p.id}`), { suspendido: !p.suspendido })
+  // Reprogramado: se saca la hora y Inicio/Fixture muestran "REPROGRAMADO" hasta que se elija una hora nueva
+  const toggleReprogramado = () => update(rp(`partidos/${p.id}`),
+    p.reprogramado ? { reprogramado: null } : { reprogramado: true, hora: null, fechaHora: null })
 
   const partidoCerrado = !!p.cerrado
   const bloqueado = cerrada || partidoCerrado
@@ -677,6 +824,38 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
           </div>
         </div>
 
+        {/* Cuartos de final a ida y vuelta: qué partido es, resultado de la ida, global y penales */}
+        {(esVuelta || esIda) && (
+          <div className="mb-2 rounded-lg bg-[#111] border border-green-900/20 px-2.5 py-2 text-[11px] text-gray-300 space-y-1">
+            <p className="font-bold text-green-400 text-[10px] uppercase tracking-wider">{esVuelta ? 'Cuartos de final · Vuelta' : 'Cuartos de final · Ida'}</p>
+            {esIda && <p className="text-gray-500">Se suma con la vuelta: pasa el equipo con mejor diferencia de gol global.</p>}
+            {esVuelta && !idaDeSerie && <p className="text-amber-400">No se encontró el partido de ida de este cruce.</p>}
+            {esVuelta && idaDeSerie && !idaDeSerie.jugado && <p className="text-amber-400">Falta cargar el resultado de la ida.</p>}
+            {esVuelta && idaDeSerie?.jugado && (
+              <>
+                <p>Ida: {equipos[idaDeSerie.local]?.nombre || '?'} {idaDeSerie.golesLocal} - {idaDeSerie.golesVisitante} {equipos[idaDeSerie.visitante]?.nombre || '?'}</p>
+                {marcadorCargado && (
+                  <p className="font-bold text-white">Global: {equipos[idaDeSerie.local]?.nombre || '?'} {globalA} - {globalB} {equipos[idaDeSerie.visitante]?.nombre || '?'}</p>
+                )}
+              </>
+            )}
+            {empateGlobal && (
+              <div className="pt-1">
+                <p className="text-yellow-300 font-bold mb-1">Empate en el global: se define por penales</p>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-right truncate">{equipos[p.local]?.nombre || '?'}</span>
+                  <input type="number" min="0" value={penL} onChange={e => setPenL(e.target.value)} disabled={bloqueado} aria-label="Penales del local"
+                    className="w-10 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-base font-black text-center outline-none py-0.5 disabled:opacity-50" />
+                  <span className="text-gray-600 font-black">-</span>
+                  <input type="number" min="0" value={penV} onChange={e => setPenV(e.target.value)} disabled={bloqueado} aria-label="Penales del visitante"
+                    className="w-10 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-base font-black text-center outline-none py-0.5 disabled:opacity-50" />
+                  <span className="flex-1 truncate">{equipos[p.visitante]?.nombre || '?'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Hora: botones con las franjas del torneo (se guarda al tocar) */}
         {!bloqueado && (
           <div className="flex gap-2">
@@ -702,6 +881,12 @@ function PartidoJugable({ p, equipos, jugadores, goles, tarjetas, fechaDia, cerr
         <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 cursor-pointer select-none">
           <input type="checkbox" checked={!!p.suspendido} onChange={toggleSuspendido} className="accent-red-500 w-3.5 h-3.5" />
           ⛔ Partido suspendido
+        </label>
+
+        {/* Reprogramado: sin hora, se muestra "REPROGRAMADO" en Inicio y Fixture; al elegir una hora nueva se destilda solo */}
+        <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 cursor-pointer select-none">
+          <input type="checkbox" checked={!!p.reprogramado} onChange={toggleReprogramado} className="accent-amber-500 w-3.5 h-3.5" />
+          🔄 Partido reprogramado (sin hora)
         </label>
       </div>
 
@@ -1018,23 +1203,47 @@ function TabPartidos({ data }) {
   const generarFecha = async () => {
     if (cantEquipos < 2) return alert('Necesitás al menos 2 equipos')
     const yaExiste = partidosFecha.length > 0
-    if (yaExiste && !confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    // Partidos reales ya cargados en esta fecha (por ejemplo a mano)
+    const fijosLiga = partidosFecha.filter(p => !p.libre && p.local && p.visitante)
+    let completar = false
+    if (yaExiste) {
+      if (getTorneoPrefix() !== '' && fijosLiga.length > 0) {
+        completar = confirm(`La Fecha ${fechaSel} ya tiene ${fijosLiga.length} partido(s) cargado(s).\n\nACEPTAR: conservarlos y sortear solo los que faltan.\nCANCELAR: más opciones.`)
+        if (!completar && !confirm(`¿Reemplazar TODOS los partidos de la Fecha ${fechaSel} por un sorteo nuevo?`)) return
+      } else if (!confirm(`La Fecha ${fechaSel} ya tiene partidos. ¿Reemplazarlos?`)) return
+    }
     setGenerando(true)
     // Al generar Fecha 1, siempre hacer un nuevo sorteo aleatorio (borra el fixture anterior)
-    let fixture = fechaSel === 1 ? null : masterFixture
+    let fixture = completar ? {} : (fechaSel === 1 ? null : masterFixture)
     if (!fixture) {
       fixture = buildRoundRobin(Object.keys(equiposActivos), equipos)
       await set(rp('master_fixture'), fixture)
     }
+    // Sábados 2da y Domingos (Fecha 2 en adelante): cada vez que se toca el botón se sortea de nuevo,
+    // al azar entre todos los equipos, sin repetir cruces de otras fechas
+    let crucesAzar = null
+    if (getTorneoPrefix() !== '' && (fechaSel !== 1 || completar)) {
+      const fijosPares = completar ? fijosLiga.map(p => [p.local, p.visitante]) : []
+      crucesAzar = sortearFechaAlAzar(Object.keys(equiposActivos), crucesUsados(partidos, fechaSel), fijosPares)
+      if (!crucesAzar) {
+        setGenerando(false)
+        return alert('No se pudo sortear la fecha: ya no quedan cruces posibles sin repetir partidos.')
+      }
+      if (completar && crucesAzar.length === 0) {
+        setGenerando(false)
+        return alert('La fecha ya tiene todos los partidos cargados: no falta ningún cruce.')
+      }
+    }
     for (const [id, p] of Object.entries(partidos)) {
       if (p.fase === 'liga' && p.numero === fechaSel) {
+        if (completar && !p.libre && p.local && p.visitante) continue   // los partidos cargados se conservan
         await remove(rp(`partidos/${id}`))
         await remove(rp(`goles/${id}`))
         await remove(rp(`tarjetas/${id}`))
       }
     }
     const ronda = fixture[fechaSel] || []
-    let arr = Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)]
+    let arr = crucesAzar ? [...crucesAzar] : (Array.isArray(ronda) ? [...ronda] : [...Object.values(ronda)])
     // Equipos retirados → ya no juegan más; sus rivales ("huérfanos") se emparejan entre sí
     const retirados = new Set(Object.entries(equipos).filter(([, eq]) => eq.retirado).map(([id]) => id))
     if (retirados.size > 0) {
@@ -1083,7 +1292,11 @@ function TabPartidos({ data }) {
     // Separar LIBRE de activos y asignar franjas horarias automáticas
     const libres  = arr.filter(m => m.libre)
     const activos = arr.filter(m => !m.libre)
-    const slotMap = assignMatchSlots(activos, equipos)
+    // Horas de los partidos que se conservaron, para repartir los nuevos alrededor
+    const horasFijas = completar
+      ? fijosLiga.map(p => parseInt(String(p.fechaHora ? p.fechaHora.split('T')[1] : (p.hora || '')).split(':')[0], 10)).filter(h => !isNaN(h))
+      : []
+    const slotMap = assignMatchSlots(activos, equipos, horasFijas)
     const activosSorted = [...activos].sort((a, b) => (slotMap.get(a) ?? 14) - (slotMap.get(b) ?? 14))
     for (const m of activosSorted) {
       const slot = slotMap.get(m) ?? 14
@@ -1244,6 +1457,10 @@ function TabPartidos({ data }) {
     if (!manualLocal) return alert('Elegí el equipo local')
     if (!manualVisitante) return alert('Elegí el visitante (o LIBRE)')
     if (manualLocal === manualVisitante) return alert('Local y visitante no pueden ser el mismo')
+    if (manualVisitante !== '__libre__') {
+      const aviso = avisoHorario(manualLocal, manualVisitante, manualHora, equipos)
+      if (aviso) return alert(aviso)
+    }
     setAgregando(true)
     const esLibre = manualVisitante === '__libre__'
     await push(rp('partidos'), {
@@ -1523,6 +1740,7 @@ function TabPartidos({ data }) {
               tarjetas={tarjetas}
               fechaDia={fechaDia}
               cerrada={cerrada}
+              partidos={partidos}
             />
           ))}
 
@@ -1568,12 +1786,13 @@ function TabCopas({ data }) {
     { id: 'oro',    label: 'Copa Oro',    icon: '🥇' },
     { id: 'plata',  label: 'Copa Plata',  icon: '🥈' },
     { id: 'bronce', label: 'Copa Bronce', icon: '🥉' },
-  ]
+  ].filter(cp => !(getTorneoPrefix() === 'domingos/' && cp.id === 'bronce'))
 
-  const es2da = getTorneoPrefix() === 'sabados2/'
+  const es2da = getTorneoPrefix() === 'sabados2/' || getTorneoPrefix() === 'domingos/'   // 2da y Domingos: rondas armadas solas con los resultados
+  const idaVuelta = cuartosIdaVuelta(getTorneoPrefix())   // 2da y Domingos: los cuartos son a ida y vuelta
   const RONDAS = {
     oro:    [
-      { fase: 'oro_4tos',  label: '4tos de Final', minEq: 4 },
+      { fase: 'oro_4tos',  label: idaVuelta ? 'Cuartos de Final (ida y vuelta)' : '4tos de Final', minEq: es2da ? 8 : 4 },
       { fase: 'oro_semi',  label: 'Semifinales',   minEq: 2 },
       { fase: 'oro_final', label: 'Final',          minEq: 2 },
     ],
@@ -1582,7 +1801,7 @@ function TabCopas({ data }) {
       { fase: 'plata_final', label: 'Final',        minEq: 2 },
     ],
     bronce: es2da ? [
-      { fase: 'bronce_4tos',  label: 'Cuartos (el 1° y 2° de la lista pasan directo)', minEq: 6 },
+      { fase: 'bronce_4tos',  label: idaVuelta ? 'Cuartos de Final (ida y vuelta)' : 'Cuartos de Final', minEq: 8 },
       { fase: 'bronce_semi',  label: 'Semifinal', minEq: 4 },
       { fase: 'bronce_final', label: 'Final',      minEq: 2 },
     ] : [
@@ -1645,6 +1864,8 @@ function TabCopas({ data }) {
   }
   // Ganadores/perdedores de una ronda ya jugada (null si falta jugar o hay empate sin definir)
   const resultadoRonda = (fase) => {
+    // Cuartos a ida y vuelta: gana el que tiene mejor diferencia de gol global; si empatan, penales
+    if (idaVuelta && fase.endsWith('_4tos')) return resultadoCuartos(partidos, copaDeFase(fase))
     const ps = Object.values(partidos).filter(p => p.fase === fase)
     if (ps.length === 0) return { error: 'Primero generá la ronda anterior' }
     if (ps.some(p => !p.jugado)) return { error: 'Faltan jugar partidos de la ronda anterior' }
@@ -1674,12 +1895,12 @@ function TabCopas({ data }) {
       return sorteo(r.perdedores)
     }
     if (fase === 'bronce_4tos') {
-      if (equiposCopa.length !== 6) return { error: 'La Copa de Bronce necesita exactamente 6 equipos en la lista (el 1° y 2° pasan directo)' }
-      return sorteo(equiposCopa.slice(2))
+      if (equiposCopa.length !== 8) return { error: 'La Copa de Bronce necesita exactamente 8 equipos en la lista (puestos 9° a 16°)' }
+      return sorteo(equiposCopa)
     }
     if (fase === 'bronce_semi') {
       const r = resultadoRonda('bronce_4tos'); if (r.error) return r
-      return sorteo([...equiposCopa.slice(0, 2), ...r.ganadores])
+      return sorteo(r.ganadores)
     }
     return null
   }
@@ -1692,17 +1913,25 @@ function TabCopas({ data }) {
       crucesAuto = r?.cruces || null
     }
     if (!crucesAuto && equiposCopa.length < minEq) return alert(`Necesitás al menos ${minEq} equipos`)
-    const yaHay = Object.values(partidos).some(p => p.fase === fase)
-    if (yaHay && !confirm('Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
+    // En cuartos a ida y vuelta se arman los dos partidos de cada cruce (ida y vuelta)
+    const esCuartosIV = idaVuelta && fase.endsWith('_4tos')
+    const fasesRonda = esCuartosIV ? [fase, fase + '_vuelta'] : [fase]
+    const yaHay = Object.values(partidos).some(p => fasesRonda.includes(p.fase))
+    if (yaHay && !confirm(esCuartosIV ? 'Ya hay cuartos de final (ida y vuelta) generados. ¿Reemplazarlos?' : 'Ya hay partidos en esta ronda. ¿Reemplazarlos?')) return
     setGen(fase)
     for (const [id, p] of Object.entries(partidos))
-      if (p.fase === fase) {
+      if (fasesRonda.includes(p.fase)) {
         await remove(rp(`partidos/${id}`))
         await remove(rp(`goles/${id}`))
         await remove(rp(`tarjetas/${id}`))
       }
-    for (const { local, visitante } of (crucesAuto || buildBracket(equiposCopa)))
-      await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+    const cruces = crucesAuto || buildBracket(equiposCopa)
+    if (esCuartosIV) {
+      for (const partido of partidosDeCuartos(cruces, fase)) await push(rp('partidos'), partido)
+    } else {
+      for (const { local, visitante } of cruces)
+        await push(rp('partidos'), { numero: null, fase, local, visitante, fechaHora: null, jugado: false, golesLocal: null, golesVisitante: null })
+    }
     setGen(false)
   }
 
@@ -1764,8 +1993,9 @@ function TabCopas({ data }) {
         <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Rondas</p>
         {rondasCopa.map(({ fase, label, minEq }) => {
           const ps = Object.entries(partidos)
-            .filter(([, p]) => p.fase === fase)
+            .filter(([, p]) => p.fase === fase || (idaVuelta && fase.endsWith('_4tos') && p.fase === fase + '_vuelta'))
             .map(([id, p]) => ({ id, ...p }))
+            .sort((a, b) => (a.serie ?? 0) - (b.serie ?? 0) || (esFaseVuelta(a.fase) ? 1 : 0) - (esFaseVuelta(b.fase) ? 1 : 0))
           return (
             <div key={fase} className="bg-[#1a1a1a] rounded-xl border border-green-900/20 overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3">
@@ -1782,6 +2012,9 @@ function TabCopas({ data }) {
                 <div className="border-t border-green-900/10 divide-y divide-green-900/5">
                   {ps.map(p => (
                     <div key={p.id} className="flex items-center gap-2 px-4 py-2 text-xs">
+                      {idaVuelta && p.serie != null && (
+                        <span className="w-12 flex-shrink-0 text-[9px] text-gray-500 uppercase">{esFaseVuelta(p.fase) ? 'Vuelta' : 'Ida'} {p.serie}</span>
+                      )}
                       <span className="flex-1 text-right text-white font-semibold truncate">{equipos[p.local]?.nombre || '?'}</span>
                       <span className={`flex-shrink-0 px-2 font-black ${p.jugado ? 'text-green-400' : 'text-gray-600'}`}>
                         {p.jugado ? `${p.golesLocal}-${p.golesVisitante}` : 'vs'}
@@ -1813,6 +2046,8 @@ function TabResultados({ data }) {
   const [partidoId, setPartidoId] = useState('')
   const [gl, setGl] = useState('')
   const [gv, setGv] = useState('')
+  const [penL, setPenL] = useState('')
+  const [penV, setPenV] = useState('')
   const [savingRes, setSavingRes] = useState(false)
   const [golEq, setGolEq] = useState('')
   const [golJug, setGolJug] = useState('')
@@ -1829,10 +2064,28 @@ function TabResultados({ data }) {
   const golesPartido = Object.entries(goles[partidoId] || {})
   const tarjetasPartido = Object.entries(tarjetas[partidoId] || {})
 
+  // Cuartos de final a ida y vuelta: si el global de la serie queda empatado, la vuelta se define por penales
+  const partidoActual = partido ? { id: partidoId, ...partido } : null
+  const esVueltaSel = !!partidoActual && esFaseVuelta(partidoActual.fase)
+  const idaSel = esVueltaSel ? (seriePorPartido(partidos, partidoActual)?.ida || null) : null
+  const globalASel = (idaSel?.jugado ? Number(idaSel.golesLocal) || 0 : 0) + (Number(gv) || 0)
+  const globalBSel = (idaSel?.jugado ? Number(idaSel.golesVisitante) || 0 : 0) + (Number(gl) || 0)
+  const empateGlobalSel = esVueltaSel && !!idaSel?.jugado && gl !== '' && gv !== '' && globalASel === globalBSel
+
   const guardarResultado = async () => {
     if (!partidoId || gl === '' || gv === '') return
+    if (empateGlobalSel) {
+      const pl = penL === '' ? null : Number(penL), pv = penV === '' ? null : Number(penV)
+      if (pl == null || pv == null || pl === pv) {
+        alert('El global quedó empatado: cargá los penales de los dos equipos (tiene que haber un ganador).')
+        return
+      }
+    }
     setSavingRes(true)
-    await update(rp(`partidos/${partidoId}`), { golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true })
+    await update(rp(`partidos/${partidoId}`), {
+      golesLocal: Number(gl), golesVisitante: Number(gv), jugado: true,
+      ...(esVueltaSel ? { penalesLocal: empateGlobalSel ? Number(penL) : null, penalesVisitante: empateGlobalSel ? Number(penV) : null } : {}),
+    })
     setSavingRes(false)
   }
 
@@ -1889,12 +2142,14 @@ function TabResultados({ data }) {
           setPartidoId(e.target.value)
           setGl(p?.golesLocal ?? '')
           setGv(p?.golesVisitante ?? '')
+          setPenL(p?.penalesLocal ?? '')
+          setPenV(p?.penalesVisitante ?? '')
         }}
           className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
           <option value="">— Elegí un partido —</option>
           {listaPartidos.map(p => (
             <option key={p.id} value={p.id}>
-              F{p.numero} · {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' ✓' : ''}
+              {p.numero != null ? `F${p.numero}` : `${String(p.fase).replace(/_/g, ' ')}${p.serie != null ? ' ' + p.serie : ''}`} · {equipos[p.local]?.nombre || '?'} vs {equipos[p.visitante]?.nombre || '?'}{p.jugado ? ' ✓' : ''}
             </option>
           ))}
         </select>
@@ -1917,6 +2172,35 @@ function TabResultados({ data }) {
                   className="w-full bg-[#111] border border-green-900/40 rounded-xl px-3 py-3 text-white text-2xl font-black text-center outline-none" />
               </div>
             </div>
+            {esVueltaSel && (
+              <div className="rounded-xl bg-[#111] border border-green-900/20 px-3 py-2 text-xs text-gray-300 space-y-1">
+                <p className="font-bold text-green-400 text-[10px] uppercase tracking-wider">Cuartos de final · Vuelta</p>
+                {!idaSel && <p className="text-amber-400">No se encontró el partido de ida de este cruce.</p>}
+                {idaSel && !idaSel.jugado && <p className="text-amber-400">Falta cargar el resultado de la ida.</p>}
+                {idaSel?.jugado && (
+                  <>
+                    <p>Ida: {equipos[idaSel.local]?.nombre || '?'} {idaSel.golesLocal} - {idaSel.golesVisitante} {equipos[idaSel.visitante]?.nombre || '?'}</p>
+                    {gl !== '' && gv !== '' && (
+                      <p className="font-bold text-white">Global: {equipos[idaSel.local]?.nombre || '?'} {globalASel} - {globalBSel} {equipos[idaSel.visitante]?.nombre || '?'}</p>
+                    )}
+                  </>
+                )}
+                {empateGlobalSel && (
+                  <div className="pt-1">
+                    <p className="text-yellow-300 font-bold mb-1">Empate en el global: se define por penales</p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 text-right truncate">{equipos[partido.local]?.nombre || '?'}</span>
+                      <input type="number" min="0" value={penL} onChange={e => setPenL(e.target.value)} aria-label="Penales del local"
+                        className="w-12 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-lg font-black text-center outline-none py-1" />
+                      <span className="text-gray-600 font-black">-</span>
+                      <input type="number" min="0" value={penV} onChange={e => setPenV(e.target.value)} aria-label="Penales del visitante"
+                        className="w-12 bg-[#0a0a0a] border border-yellow-700/50 rounded-lg text-white text-lg font-black text-center outline-none py-1" />
+                      <span className="flex-1 truncate">{equipos[partido.visitante]?.nombre || '?'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <button onClick={guardarResultado} disabled={savingRes || gl === '' || gv === ''}
               className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40">
               {savingRes ? 'Guardando...' : partido.jugado ? '✓ Actualizar Resultado' : 'Guardar Resultado'}
@@ -2090,7 +2374,7 @@ const GASTOS_POR_TORNEO = {
     { key: 'cancha', label: 'Cancha' },
     { key: 'arbitros', label: 'Árbitros' },
     { key: 'facu', label: 'Facu' },
-    { key: 'marmol_poli', label: 'Marmol / Poli' },
+    { key: 'marmol_poli', label: 'Marmol / Poli', cuotas: 12 },
   ],
   'domingos/': [
     { key: 'cancha', label: 'Cancha' },
@@ -2550,7 +2834,12 @@ function TabFinanzas({ data }) {
         <p className="text-sm font-bold text-green-400">Gastos — {labelFecha}</p>
         {gastosFijosDe().filter(g => !g.desde || copaJornadasActual()[fechaSel] || Number(fechaSel) >= g.desde).map(g => (
           <div key={g.key} className="flex items-center gap-2">
-            <span className="w-20 text-xs text-gray-400 flex-shrink-0">{g.label}</span>
+            <span className={`${g.cuotas ? 'w-24' : 'w-20'} text-xs text-gray-400 flex-shrink-0 leading-tight`}>
+              {g.label}
+              {g.cuotas && /^\d+$/.test(String(fechaSel)) && Number(fechaSel) <= g.cuotas && (
+                <span className="block text-[10px] text-green-500 font-semibold">{fechaSel} de {g.cuotas}</span>
+              )}
+            </span>
             <MoneyInput value={gastoInputs[g.key] ?? ''}
               onChange={v => setGastoInputs(prev => ({ ...prev, [g.key]: v }))}
               className="flex-1 bg-[#111] border border-green-900/40 rounded-lg px-3 py-2 text-white text-sm outline-none" />

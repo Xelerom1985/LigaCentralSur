@@ -23,8 +23,8 @@ export default function Stats({ data, torneo }) {
   // Premios por fecha: solo en la 2da Edición de Sábados
   const premiosFecha = useMemo(() => {
     if (torneo !== 'sabados2') return []
-    return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos }).reverse()
-  }, [torneo, data.partidos, data.goles, jugadores, equipos])
+    return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos, manual: data.premios_manual }).reverse()
+  }, [torneo, data.partidos, data.goles, data.premios_manual, jugadores, equipos])
 
   const goleadores = useMemo(() => {
     const cnt = {}
@@ -242,6 +242,7 @@ export default function Stats({ data, torneo }) {
                       </div>
                     ) : <p className="text-xs text-gray-600">Sin partidos jugados</p>}
                     {f.valla?.desempate && <p className="text-[10px] text-gray-600 mt-1">Desempate: {f.valla.desempate}</p>}
+                    {f.valla?.manual && <p className="text-[10px] text-gray-600 mt-1">Definido por la organización</p>}
                   </div>
                 </div>
               ))}

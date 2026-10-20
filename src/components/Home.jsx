@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { jornadasCopa, FASE_LABELS, COPA_LABELS } from '../copaJornadas'
+import { jornadasCopa, faseLabel, COPA_LABELS } from '../copaJornadas'
+import { resumenDeVuelta, textoGlobal } from '../copasSeries'
 
 function Lightbox({ src, onClose }) {
   const imgRef = useRef(null)
@@ -69,6 +70,15 @@ const CAMPEONES = [
   { copa: 'Bronce', emoji: '🥉', buscar: /197/ },
 ]
 
+// Sponsors por torneo: logos en /public/sponsors, link a su Instagram
+const SB      = { nombre: 'SB Sports',   logo: '/sponsors/sb.png',      instagram: 'https://www.instagram.com/sbsports.ar/' }
+const ROMAN   = { nombre: 'Román Logic', logo: '/sponsors/roman.png',   instagram: 'https://www.instagram.com/romanlogic.sj/' }
+const BOMBERS = { nombre: 'Bombers',     logo: '/sponsors/bombers.png', instagram: 'https://www.instagram.com/bombers_sj/' }
+const SPONSORS = {
+  sabados2: [SB, ROMAN, BOMBERS],
+  domingos: [SB],
+}
+
 export default function Home({ data, torneo }) {
   const equipos  = data.equipos  || {}
   const partidos = data.partidos || {}
@@ -130,7 +140,11 @@ export default function Home({ data, torneo }) {
 
   const MatchRow = ({ p }) => {
     const hora = fmtHora(p.fechaHora) || p.hora || null
+    // Cuartos de final a ida y vuelta: en el partido de vuelta se muestra el global y los penales
+    const rv = resumenDeVuelta(partidos, p)
+    const textoSerie = rv ? textoGlobal(rv.res, id => equipos[id]?.nombre || '?') : null
     return (
+      <div>
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="text-white text-xs font-bold truncate">{equipos[p.local]?.nombre || (p.local ? '?' : 'A definir')}</span>
@@ -141,6 +155,11 @@ export default function Home({ data, torneo }) {
         <div className="flex-shrink-0 text-center w-20">
           {p.suspendido && !p.jugado ? (
             <p className="text-red-400 font-black text-[11px] leading-tight">SUSPENDIDO</p>
+          ) : p.reprogramado && !p.jugado ? (
+            <>
+              <p className="text-gray-500 text-sm font-bold leading-tight">vs</p>
+              <p className="text-amber-400 font-black text-[10px] leading-tight mt-1">REPROGRAMADO</p>
+            </>
           ) : p.jugado ? (
             <>
               <p className="text-white font-black text-xl leading-tight">{p.golesLocal} - {p.golesVisitante}</p>
@@ -158,6 +177,8 @@ export default function Home({ data, torneo }) {
             : <div className="w-8 h-8 rounded bg-green-900/30 flex-shrink-0" />}
           <span className="text-white text-xs font-bold truncate">{equipos[p.visitante]?.nombre || (p.visitante ? '?' : 'A definir')}</span>
         </div>
+      </div>
+      {textoSerie && <p className="px-4 pb-2.5 -mt-1 text-center text-[10px] font-semibold text-yellow-300/90">{textoSerie}</p>}
       </div>
     )
   }
@@ -223,7 +244,7 @@ export default function Home({ data, torneo }) {
             <div key={fase} className="bg-black/60 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
               <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-green-400 text-xs font-black uppercase tracking-widest">
-                  {COPA_LABELS[fase.split('_')[0]]} · {FASE_LABELS[fase]}
+                  {COPA_LABELS[fase.split('_')[0]]} · {faseLabel(fase, torneo)}
                 </span>
                 {fechaLabel && (
                   <span className="text-gray-400 text-xs capitalize">{fechaLabel}</span>
@@ -314,6 +335,23 @@ export default function Home({ data, torneo }) {
           <div className="text-center text-[9px] text-white/40">Fernando</div>
           <div className="text-center text-[9px] text-white/40">Sasha</div>
         </div>
+
+        {/* Sponsors del torneo (Sábados 2da: 3, Domingos: 1) */}
+        {SPONSORS[torneo] && (
+          <div className="mt-3 pt-2 border-t border-white/10">
+            <div className="text-center text-[9px] text-white/50 font-semibold uppercase tracking-wide mb-2">
+              {SPONSORS[torneo].length > 1 ? 'Sponsors' : 'Sponsor'}
+            </div>
+            <div className={`grid items-center ${SPONSORS[torneo].length > 1 ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {SPONSORS[torneo].map(s => (
+                <a key={s.nombre} href={s.instagram} target="_blank" rel="noopener noreferrer"
+                  className="flex justify-center">
+                  <img src={s.logo} alt={s.nombre} className="h-12 max-w-[80%] object-contain" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Crédito desarrollador */}
         <p className="text-center text-[9px] text-white/20 mt-1">App desarrollada por Fernando Flores</p>

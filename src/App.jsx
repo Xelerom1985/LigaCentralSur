@@ -33,7 +33,7 @@ const PIN = '2041'
 const CRED_KEY = 'lcs_admin_cred'
 const SESSION_KEY = 'lcs_admin_session'
 const DATA_CACHE_KEY = 'lcs_data_cache'
-const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'analytics']
+const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'premios_manual', 'analytics']
 // Prefijo de Firebase por torneo. 'sabados' (la 1ra edición) vive en la raíz ('').
 const TORNEO_PREFIJOS = { domingos: 'domingos/', sabados2: 'sabados2/' }
 const prefijoDe = t => TORNEO_PREFIJOS[t] || ''
@@ -448,7 +448,7 @@ export default function App() {
 
       {/* Secciones */}
       {seccion === 'home' && <Home data={offlineData} torneo={torneo} />}
-      {seccion === 'fixture' && <Fixture data={offlineData} />}
+      {seccion === 'fixture' && <Fixture data={offlineData} torneo={torneo} />}
       {seccion === 'tabla' && <Tabla data={offlineData} />}
       {seccion === 'copas' && <Copas data={data} torneo={torneo} />}
       {seccion === 'equipos' && <Equipos data={data} />}
