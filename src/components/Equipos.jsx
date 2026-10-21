@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { calcTabla } from './Tabla'
 
 export default function Equipos({ data }) {
   const equipos = data.equipos || {}
   const jugadores = data.jugadores || {}
+  const tablaMap = useMemo(() => {
+    const t = calcTabla(data.partidos || {}, equipos)
+    return Object.fromEntries(t.map((r, i) => [r.id, { pos: i + 1, pts: r.pts }]))
+  }, [data.partidos, equipos])
   const [equipoId, setEquipoId] = useState(null)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
 
@@ -13,8 +18,8 @@ export default function Equipos({ data }) {
       .sort((a, b) => (Number(a.numero) || 999) - (Number(b.numero) || 999))
 
     return (
-      <div className="min-h-screen">
-        <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-5">
+      <div className="min-h-dvh">
+        <div className="bg-gradient-to-b from-green-800/60 to-transparent px-4 pt-6 pb-5">
           <button
             onClick={() => setEquipoId(null)}
             className="flex items-center gap-1.5 text-green-400 text-sm mb-4 active:opacity-70"
@@ -90,26 +95,44 @@ export default function Equipos({ data }) {
   const lista = Object.entries(equipos).filter(([, eq]) => !eq.retirado).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre))
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
+    <div className="min-h-dvh">
+      <div className="bg-gradient-to-b from-green-800/60 to-transparent px-4 pt-6 pb-4">
         <h1 className="text-xl font-black text-white">Equipos</h1>
         <p className="text-green-400 text-xs mt-1">Fútbol 6 · Liga Central Sur</p>
       </div>
 
       <div className="px-4 pb-4 grid grid-cols-2 gap-3">
-        {lista.map(([id, eq]) => (
-          <button
-            key={id}
-            onClick={() => setEquipoId(id)}
-            className="bg-[#1a1a1a] border border-green-900/20 rounded-2xl p-4 flex flex-col items-center gap-3 active:scale-95 transition-all"
-          >
-            {eq.escudo
-              ? <img src={eq.escudo} className="w-16 h-16 object-contain" />
-              : <div className="w-16 h-16 rounded-full bg-green-900/20 flex items-center justify-center text-3xl">⚽</div>
-            }
-            <p className="text-white text-sm font-bold text-center leading-tight">{eq.nombre}</p>
-          </button>
-        ))}
+        {lista.map(([id, eq]) => {
+          const stat = tablaMap[id]
+          return (
+            <button
+              key={id}
+              onClick={() => setEquipoId(id)}
+              className="bg-[#0d1a0f] border border-green-900/40 rounded-2xl p-3 flex items-center gap-2.5 text-left active:scale-95 transition-all"
+            >
+              {eq.escudo
+                ? <img src={eq.escudo} className="w-12 h-12 object-contain flex-shrink-0" />
+                : <div className="w-12 h-12 rounded-xl bg-green-900/20 flex items-center justify-center flex-shrink-0 text-xl">⚽</div>
+              }
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-[13px] font-bold leading-tight">{eq.nombre}</p>
+                {stat && (
+                  <>
+                    <div className="border-t border-green-900/30 my-2" />
+                    <div className="space-y-0.5">
+                      <p className="text-white/50 text-xs leading-tight">
+                        <span className="text-white font-bold">{stat.pos}°</span> posición
+                      </p>
+                      <p className="text-white/50 text-xs leading-tight">
+                        <span className="text-white font-bold">{stat.pts}</span> puntos
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

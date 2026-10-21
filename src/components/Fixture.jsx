@@ -21,7 +21,7 @@ const FASE_LABEL = {
   oro_4tos_vuelta: '4tos de Final · Vuelta', bronce_4tos_vuelta: '4tos · Vuelta',
 }
 
-export default function Fixture({ data, torneo }) {
+export default function Fixture({ data, torneo, onBack }) {
   const equipos = data.equipos || {}
   const partidos = data.partidos || {}
 
@@ -166,7 +166,15 @@ export default function Fixture({ data, torneo }) {
 
   return (
     <div className="min-h-screen">
-      <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
+      <div className="bg-gradient-to-b from-green-800/60 to-transparent px-4 pt-6 pb-4">
+        {onBack && (
+          <button onClick={onBack} className="flex items-center gap-1.5 text-green-400 text-sm mb-4 active:opacity-70">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            Mi Equipo
+          </button>
+        )}
         <h1 className="text-xl font-black text-white mb-4">Fixture</h1>
         {/* Selector de fase */}
         <div className="flex gap-2 overflow-x-auto pb-1">

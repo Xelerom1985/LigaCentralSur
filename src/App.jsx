@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { db, ref, onValue, push, update, increment, adminSignIn, adminSignOut, setTorneoPrefix } from './firebase'
 
@@ -28,11 +28,13 @@ import Copas from './components/Copas'
 import Equipos from './components/Equipos'
 import Stats from './components/Stats'
 import Admin from './components/Admin'
+import MiEquipo from './components/MiEquipo'
 
 const PIN = '2041'
 const CRED_KEY = 'lcs_admin_cred'
 const SESSION_KEY = 'lcs_admin_session'
 const DATA_CACHE_KEY = 'lcs_data_cache'
+const MI_EQUIPO_PREFIX = 'lcs_mi_equipo_'
 const PUBLIC_PATHS = ['equipos', 'jugadores', 'partidos', 'goles', 'tarjetas', 'novedades', 'copas_equipos', 'master_fixture', 'home_fecha', 'fechas_cerradas', 'premios_manual', 'analytics']
 // Prefijo de Firebase por torneo. 'sabados' (la 1ra edición) vive en la raíz ('').
 const TORNEO_PREFIJOS = { domingos: 'domingos/', sabados2: 'sabados2/' }
@@ -52,8 +54,22 @@ export default function App() {
     return ['sabados', 'sabados2', 'domingos'].includes(guardado) ? guardado : null
   })
   // Ir al lobby (casita) borra la preferencia guardada; elegir un torneo la guarda
-  const irAlLobby = () => { localStorage.removeItem(TORNEO_KEY); setTorneo(null) }
+  const irAlLobby = () => { localStorage.removeItem(TORNEO_KEY); setTorneo(null); setMiEquipo(undefined) }
   const elegirYGuardarTorneo = t => { localStorage.setItem(TORNEO_KEY, t); setTorneo(t) }
+  // null = "ver general"; teamId string = equipo elegido; undefined = no eligió aún
+  const [miEquipo, setMiEquipo] = useState(() => {
+    const torneoGuardado = localStorage.getItem(TORNEO_KEY)
+    if (!['sabados', 'sabados2', 'domingos'].includes(torneoGuardado)) return undefined
+    const val = localStorage.getItem(MI_EQUIPO_PREFIX + torneoGuardado)
+    if (val === null) return undefined
+    return val === '' ? null : val
+  })
+  const elegirMiEquipo = id => {
+    localStorage.setItem(MI_EQUIPO_PREFIX + torneo, id ?? '')
+    setMiEquipo(id ?? null)
+    setSeccion(seccion === 'miequipo' ? 'miequipo' : 'home')
+  }
+
   const [seccion, setSeccion] = useState('home')
   const [authed, setAuthed] = useState(false)
   const [showPin, setShowPin] = useState(false)
@@ -156,8 +172,32 @@ export default function App() {
     setInstallPrompt(null)
   }
 
+  const [exitToast, setExitToast] = useState(false)
+  const lastBackRef = useRef(0)
+  const seccionRef = useRef(seccion)
+  useEffect(() => { seccionRef.current = seccion }, [seccion])
+
   useEffect(() => {
-    const handler = () => {}
+    history.pushState(null, '')
+    const handler = () => {
+      const cur = seccionRef.current
+      if (['fixture', 'tabla', 'stats'].includes(cur)) {
+        setSeccion('miequipo')
+        history.pushState(null, '')
+        return
+      }
+      if (cur === 'miequipo') {
+        setSeccion('home')
+        history.pushState(null, '')
+        return
+      }
+      const now = Date.now()
+      if (now - lastBackRef.current < 2000) return
+      lastBackRef.current = now
+      history.pushState(null, '')
+      setExitToast(true)
+      setTimeout(() => setExitToast(false), 2000)
+    }
     window.addEventListener('popstate', handler)
     return () => window.removeEventListener('popstate', handler)
   }, [])
@@ -190,6 +230,9 @@ export default function App() {
       if (authed) setSeccion('admin')
       else setShowPin(true)
       return
+    }
+    if (sec === 'miequipo' && !miEquipo) {
+      setMiEquipo(undefined)
     }
     setSeccion(sec)
     window.history.pushState(null, '', '/')
@@ -271,6 +314,9 @@ export default function App() {
 
   const elegirTorneo = t => {
     elegirYGuardarTorneo(t)
+    // Restaurar equipo guardado para este torneo, o pedir que elija
+    const val = localStorage.getItem(MI_EQUIPO_PREFIX + t)
+    setMiEquipo(val === null ? undefined : val === '' ? null : val)
     setSeccion(authed ? 'admin' : 'home')
   }
 
@@ -354,8 +400,72 @@ export default function App() {
     </div>
   )
 
+  // ── SELECCIÓN DE EQUIPO ───────────────────────────────────────────
+  if (torneo && miEquipo === undefined) {
+    const equiposObj = data.equipos || {}
+    const listaEquipos = Object.entries(equiposObj)
+      .map(([id, e]) => ({ id, ...e }))
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))
+    const cargando = Object.keys(equiposObj).length === 0
+
+    return (
+      <div className="min-h-dvh bg-[#0a0a0a] text-white relative overflow-hidden">
+        <img src="/fondo-inicio.png" alt="" className="absolute inset-0 w-full h-full object-cover object-center opacity-20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/90" />
+
+        <div className="relative z-10 min-h-dvh flex flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3">
+            <button onClick={irAlLobby} className="w-9 h-9 flex items-center justify-center text-white/50 active:text-white transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest font-medium">Liga Central Sur</p>
+              <p className="text-white font-bold text-base leading-tight">¿De qué equipo sos?</p>
+            </div>
+          </div>
+
+          <p className="text-white/30 text-xs uppercase tracking-widest font-medium px-4 mb-3">Equipos</p>
+
+          {/* Grid de equipos + Ver todo al final */}
+          <div className="flex-1 overflow-y-auto px-4 pb-8">
+            {cargando ? (
+              <div className="grid grid-cols-2 gap-3">
+                {Array.from({length: 8}).map((_, i) => (
+                  <div key={i} className="bg-white/5 rounded-2xl h-24 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {listaEquipos.map(eq => (
+                    <button
+                      key={eq.id}
+                      onClick={() => elegirMiEquipo(eq.id)}
+                      className="bg-[#0d1a0f] border border-green-900/40 rounded-2xl p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-all active:border-green-500/60">
+                      {eq.escudo
+                        ? <img src={eq.escudo} className="w-14 h-14 object-contain" />
+                        : <div className="w-14 h-14 rounded-xl bg-green-900/20 flex items-center justify-center">
+                            <span className="text-green-400 text-xs font-bold">{(eq.nombre||'').slice(0,3).toUpperCase()}</span>
+                          </div>
+                      }
+                      <p className="text-white text-xs font-semibold text-center leading-tight line-clamp-2">{eq.nombre}</p>
+                    </button>
+                  ))}
+                </div>
+
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-dvh bg-[#0a0a0a] text-white pb-[72px]">
+    <div className="min-h-dvh text-white" style={{background:'#050d07', paddingBottom:'calc(72px + env(safe-area-inset-bottom, 0px))'}}>
       {/* Banner nueva versión */}
       {needRefresh && authed && (
         <div className="fixed bottom-[72px] inset-x-0 z-50 px-3 pb-2">
@@ -447,15 +557,16 @@ export default function App() {
       )}
 
       {/* Secciones */}
-      {seccion === 'home' && <Home data={offlineData} torneo={torneo} />}
-      {seccion === 'fixture' && <Fixture data={offlineData} torneo={torneo} />}
-      {seccion === 'tabla' && <Tabla data={offlineData} />}
+      {seccion === 'home' && <Home data={offlineData} torneo={torneo} miEquipo={miEquipo} onCambiarEquipo={() => { setMiEquipo(undefined); setSeccion('miequipo') }} />}
+      {seccion === 'miequipo' && miEquipo && <MiEquipo data={offlineData} torneo={torneo} equipoId={miEquipo} onCambiarEquipo={() => setMiEquipo(undefined)} onNavegar={setSeccion} />}
+      {seccion === 'fixture' && <Fixture data={offlineData} torneo={torneo} onBack={() => setSeccion('miequipo')} />}
+      {seccion === 'tabla' && <Tabla data={offlineData} onBack={() => setSeccion('miequipo')} />}
       {seccion === 'copas' && <Copas data={data} torneo={torneo} />}
       {seccion === 'equipos' && <Equipos data={data} />}
-      {seccion === 'stats' && <Stats data={offlineData} torneo={torneo} />}
+      {seccion === 'stats' && <Stats data={offlineData} torneo={torneo} onBack={() => setSeccion('miequipo')} />}
       {seccion === 'admin' && authed && <Admin data={data} />}
 
-      <Navbar seccion={seccion} navegar={navegar} torneo={torneo} />
+      <Navbar seccion={seccion} navegar={navegar} torneo={torneo} authed={authed} />
 
       {/* Botón volver al lobby — píldora con nombre del torneo */}
       <button onClick={irAlLobby}
@@ -463,7 +574,7 @@ export default function App() {
         style={{ top: '34px', right: authed ? '106px' : '62px', transform: 'translateY(-50%)' }}>
         <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
         <span className="text-white text-[10px] font-semibold tracking-wide">
-          {{ sabados: 'Sábados · 1ra Ed.', sabados2: 'Sábados · 2da Ed.', domingos: 'Domingos' }[torneo] ?? torneo}
+          Sáb / Dom
         </span>
         <span className="text-white/40 text-[9px]">▾</span>
       </button>
@@ -479,6 +590,15 @@ export default function App() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
+      )}
+
+      {/* Toast salir con back */}
+      {exitToast && (
+        <div className="fixed bottom-[88px] inset-x-0 flex justify-center z-50 pointer-events-none">
+          <div className="bg-black/80 text-white text-sm font-medium px-5 py-2.5 rounded-full border border-white/10">
+            Presioná de nuevo para salir
+          </div>
+        </div>
       )}
 
       {/* Candado admin — top right */}

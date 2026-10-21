@@ -368,8 +368,8 @@ export default function Copas({ data, torneo }) {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-4">
+    <div className="min-h-dvh">
+      <div className="bg-gradient-to-b from-green-800/60 to-transparent px-4 pt-6 pb-4">
         <h1 className="text-xl font-black text-white mb-4">Copas</h1>
         {idaVuelta ? <EsquemaIdaVuelta /> : <EsquemaCopas />}
         {idaVuelta && <ExplicacionIdaVuelta />}

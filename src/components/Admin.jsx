@@ -169,16 +169,15 @@ export default function Admin({ data }) {
         </div>
       )}
 
-      <div className="bg-gradient-to-b from-green-900/40 to-[#0a0a0a] px-4 pt-6 pb-3">
+      <div className="bg-gradient-to-b from-green-800/60 to-transparent px-4 pt-6 pb-3">
         <h1 className="text-xl font-black text-white mb-3">Panel Admin</h1>
-        {/* Tabs en 2 renglones si no entran todos */}
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {TABS.map(t => (
             <button key={t} onClick={() => abrirTab(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
+              className={`py-3 rounded-xl text-xs font-bold transition-all leading-tight
                 ${tab === t
                   ? (t === 'Finanzas' ? 'bg-red-600 text-white' : 'bg-green-600 text-white')
-                  : 'bg-[#1a1a1a] text-gray-400 border border-green-900/30'}`}>
+                  : 'bg-[#0d1a0f] text-gray-400 border border-green-900/30'}`}>
               {t}
             </button>
           ))}
