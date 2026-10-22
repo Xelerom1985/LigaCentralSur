@@ -1,4 +1,69 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+
+function FotoModal({ src, onClose }) {
+  const [t, setT] = useState({ s: 1, x: 0, y: 0 })
+  const r = useRef({ s: 1, x: 0, y: 0, pinch: null, pan: null, lastTap: 0 })
+  const divRef = useRef(null)
+
+  const d2 = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+  const commit = u => { Object.assign(r.current, u); setT({ s: r.current.s, x: r.current.x, y: r.current.y }) }
+
+  useEffect(() => {
+    const el = divRef.current
+    const onStart = e => {
+      e.preventDefault()
+      const ts = e.touches
+      if (ts.length === 1) {
+        const now = Date.now()
+        if (now - r.current.lastTap < 280) { commit({ s: 1, x: 0, y: 0 }); r.current.lastTap = 0; return }
+        r.current.lastTap = now
+        r.current.pan = { sx: ts[0].clientX, sy: ts[0].clientY, ox: r.current.x, oy: r.current.y }
+      } else if (ts.length === 2) {
+        r.current.pan = null
+        r.current.pinch = { d0: d2(ts[0], ts[1]), s0: r.current.s }
+      }
+    }
+    const onMove = e => {
+      e.preventDefault()
+      const ts = e.touches
+      if (ts.length === 1 && r.current.pan && r.current.s > 1) {
+        const { sx, sy, ox, oy } = r.current.pan
+        commit({ x: ox + ts[0].clientX - sx, y: oy + ts[0].clientY - sy })
+      } else if (ts.length === 2 && r.current.pinch) {
+        const s = Math.min(5, Math.max(1, r.current.pinch.s0 * d2(ts[0], ts[1]) / r.current.pinch.d0))
+        commit(s <= 1 ? { s: 1, x: 0, y: 0 } : { s })
+      }
+    }
+    const onEnd = e => {
+      if (e.touches.length < 2) r.current.pinch = null
+      if (e.touches.length === 0) { r.current.pan = null; if (r.current.s <= 1) commit({ s: 1, x: 0, y: 0 }) }
+    }
+    el.addEventListener('touchstart', onStart, { passive: false })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+    }
+  }, [])
+
+  const zoomed = t.s > 1.05
+  return (
+    <div ref={divRef} className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center overflow-hidden touch-none">
+      <img src={src} draggable={false}
+        className="max-w-full max-h-dvh object-contain select-none pointer-events-none"
+        style={{ transform: `translate(${t.x}px,${t.y}px) scale(${t.s})`, transition: zoomed ? 'none' : 'transform 0.2s' }}
+      />
+      <button onClick={onClose}
+        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center">✕</button>
+      {zoomed
+        ? <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 whitespace-nowrap pointer-events-none">Doble toque para salir del zoom</p>
+        : <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 whitespace-nowrap pointer-events-none">Pellizcá para hacer zoom · Doble toque para cerrar</p>
+      }
+    </div>
+  )
+}
 import { calcTabla } from './Tabla'
 
 export default function Equipos({ data }) {
@@ -80,14 +145,7 @@ export default function Equipos({ data }) {
           }
         </div>
 
-        {fotoAmpliada && (
-          <div onClick={() => setFotoAmpliada(null)}
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-            <img src={fotoAmpliada} className="max-w-full max-h-full object-contain rounded-lg" />
-            <button onClick={() => setFotoAmpliada(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center">✕</button>
-          </div>
-        )}
+        {fotoAmpliada && <FotoModal src={fotoAmpliada} onClose={() => setFotoAmpliada(null)} />}
       </div>
     )
   }
