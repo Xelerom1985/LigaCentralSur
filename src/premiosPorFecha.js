@@ -5,7 +5,8 @@ import { calcTabla } from './components/Tabla'
 // - Goleador, empate: 1) gana el jugador cuyo equipo ganó, 2) mejor diferencia de gol del equipo en ese partido,
 //   3) equipo mejor ubicado en la tabla (con los resultados hasta esa fecha).
 // - Valla, empate: 1) más goles a favor en ese partido, 2) equipo mejor ubicado en la tabla.
-// - `manual` ({ [fecha]: { valla: equipoId } }) permite fijar a mano la valla de una fecha (el equipo debe haber jugado esa fecha).
+// - `manual` ({ [fecha]: { valla: equipoId, goleador: { equipoId, jugadorId } } }) permite fijar a mano la valla (el equipo debe haber jugado
+//   esa fecha) y/o el goleador (el jugador debe haber convertido en esa fecha) de una fecha.
 export function calcPremiosPorFecha({ partidos, goles, jugadores, equipos, manual }) {
   const porFecha = {}
   Object.entries(partidos || {}).forEach(([id, p]) => {
@@ -106,6 +107,10 @@ export function calcPremiosPorFecha({ partidos, goles, jugadores, equipos, manua
       }
       goleador = { ganadores, desempate, tieneOtro: !!otro }
     }
+
+    const fg = manual?.[n]?.goleador
+    const elegido = fg && candidatos.find(c => c.equipoId === fg.equipoId && c.jugadorId === fg.jugadorId)
+    if (elegido) goleador = { ganadores: [{ ...elegido, manual: true }], desempate: null, tieneOtro: candidatos.length > 1 }
 
     resultado.push({ fecha: n, completa, goleador, valla })
   }
