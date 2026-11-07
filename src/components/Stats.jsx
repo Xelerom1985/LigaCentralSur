@@ -280,9 +280,7 @@ export default function Stats({ data, torneo, onBack }) {
                     <div className="flex-1 min-w-0">
                       {g.numero && <span className="text-[11px] font-black text-green-400/60">#{g.numero} </span>}
                       <span className="text-sm font-semibold text-white">{g.nombre}</span>
-                      <p className="text-[10px] text-white/30 truncate">{g.equipo}</p>
-                      {g.manual && <p className="text-[9px] text-white/25 italic">Definido por la organización</p>}
-                    </div>
+                      <p className="text-[10px] text-white/30 truncate">{g.equipo}</p>                    </div>
                     <div className="text-right">
                       <span className="text-xl font-black text-green-400">{g.total}</span>
                       <p className="text-[9px] text-white/30 uppercase">goles</p>
