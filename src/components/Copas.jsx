@@ -375,7 +375,11 @@ export default function Copas({ data, torneo }) {
         {idaVuelta && <ExplicacionIdaVuelta />}
         <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3">
           <p className="text-xs text-yellow-200 leading-relaxed">
-            <span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa ({torneo === 'domingos' ? 'Oro y Plata' : 'Oro, Plata y Bronce'}).
+            {torneo === 'domingos' ? (
+              <><span className="font-bold">⚠️ Los cruces se arman por posición en la tabla.</span> El 1° juega contra el último, el 2° contra el anteúltimo, y así sucesivamente, entre los equipos que participan en cada copa (Oro y Plata).</>
+            ) : (
+              <><span className="font-bold">⚠️ Los cruces son al azar.</span> No se arman por posición en la tabla (1° vs último, 2° vs anteúltimo, etc.) — la app sortea los cruces entre los equipos que participan en cada copa (Oro, Plata y Bronce).</>
+            )}
           </p>
         </div>
       </div>

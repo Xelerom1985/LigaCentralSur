@@ -3,6 +3,7 @@ import { push, update, remove, set, rp, getTorneoPrefix } from '../firebase'
 import { compressImage } from '../utils/compressImage'
 import CropModal from './CropModal'
 import { jornadasCopa } from '../copaJornadas'
+import { calcTabla } from './Tabla'
 import { cuartosIdaVuelta, resultadoCuartos, partidosDeCuartos, seriePorPartido, esFaseVuelta, esFaseCuartosIda, copaDeFase } from '../copasSeries'
 
 const TABS = ['Equipos', 'Jugadores', 'Partidos', 'Copas', 'Resultados', 'Novedades', 'Inscripciones', 'Finanzas']
@@ -1861,6 +1862,16 @@ function TabCopas({ data }) {
     for (let i = 0; i + 1 < m.length; i += 2) out.push({ local: m[i], visitante: m[i + 1] })
     return out
   }
+  // Domingos: los cruces van por posición en la tabla de la liga (1° vs último, 2° vs anteúltimo, etc.) entre los equipos de cada ronda
+  const porPosicion = getTorneoPrefix() === 'domingos/'
+  const emparejarPorTabla = ids => {
+    const orden = calcTabla(partidos, equipos).map(e => e.id)
+    const pos = id => { const i = orden.indexOf(id); return i < 0 ? 999 : i }
+    const s = [...ids].sort((a, b) => pos(a) - pos(b))
+    const n = s.length, out = []
+    for (let i = 0; i < Math.floor(n / 2); i++) out.push({ local: s[i], visitante: s[n - 1 - i] })
+    return out
+  }
   // Ganadores/perdedores de una ronda ya jugada (null si falta jugar o hay empate sin definir)
   const resultadoRonda = (fase) => {
     // Cuartos a ida y vuelta: gana el que tiene mejor diferencia de gol global; si empatan, penales
@@ -1879,7 +1890,7 @@ function TabCopas({ data }) {
   }
   // Sábados 2da: cada ronda se sortea sola con los equipos que corresponden (todo al azar)
   const cruces2da = (fase) => {
-    const sorteo = ids => ({ cruces: emparejar(ids) })
+    const sorteo = ids => ({ cruces: porPosicion ? emparejarPorTabla(ids) : emparejar(ids) })
     if (fase === 'oro_4tos') {
       if (equiposCopa.length !== 8) return { error: 'La Copa de Oro necesita exactamente 8 equipos en la lista' }
       return sorteo(equiposCopa)
