@@ -85,6 +85,20 @@ export default function MiEquipo({ data, torneo, equipoId, onCambiarEquipo, onNa
       .sort((a, b) => (a.numero || 999) - (b.numero || 999))
   }, [jugadoresData, equipoId])
 
+  const goleadores = useMemo(() => {
+    const cont = {}
+    Object.values(data.goles || {}).forEach(gs => {
+      Object.values(gs || {}).forEach(g => {
+        if (g.enContra || !g.jugadorId || g.equipoId !== equipoId) return
+        cont[g.jugadorId] = (cont[g.jugadorId] || 0) + 1
+      })
+    })
+    const jugs = jugadoresData[equipoId] || {}
+    return Object.entries(cont)
+      .map(([id, goles]) => ({ id, goles, nombre: jugs[id]?.nombre || 'Jugador' }))
+      .sort((a, b) => b.goles - a.goles || a.nombre.localeCompare(b.nombre))
+  }, [data.goles, jugadoresData, equipoId])
+
   const torneoLabel = TORNEO_LABEL[torneo] || torneo
 
   return (
@@ -365,6 +379,27 @@ export default function MiEquipo({ data, torneo, equipoId, onCambiarEquipo, onNa
                 </div>
               )
             })()}
+
+            {/* Goleadores del equipo */}
+            {goleadores.length > 0 && (
+              <div className="bg-[#0d1a0f] rounded-2xl border border-green-900/40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-green-900/30">
+                  <span className="text-white font-bold text-sm">Goleadores del equipo</span>
+                </div>
+                <div className="grid grid-cols-[20px_1fr_40px] items-center px-4 py-1.5 border-b border-white/5">
+                  {['#', 'JUGADOR', 'GOLES'].map((h, i) => (
+                    <span key={i} className={`text-white/30 text-[9px] font-bold uppercase ${i === 1 ? '' : 'text-center'}`}>{h}</span>
+                  ))}
+                </div>
+                {goleadores.map((g, i) => (
+                  <div key={g.id} className="grid grid-cols-[20px_1fr_40px] items-center px-4 py-2.5 border-b border-white/5 last:border-0">
+                    <span className={`text-xs font-bold text-center ${i === 0 ? 'text-green-400' : 'text-white/40'}`}>{i + 1}</span>
+                    <span className={`text-xs font-semibold truncate ${i === 0 ? 'text-green-300' : 'text-white/80'}`}>{g.nombre}</span>
+                    <span className={`text-xs font-black text-center ${i === 0 ? 'text-green-400' : 'text-white'}`}>{g.goles}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {!proximoPartido && !ultimoPartido && (
               <p className="text-white/30 text-sm text-center py-8">Sin partidos registrados</p>
