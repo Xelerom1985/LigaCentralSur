@@ -459,7 +459,6 @@ const gameSlots = () => {
 // Se respetan al sortear la fecha y también al cargar o cambiar un horario a mano.
 const EXCLUSIONES_HORARIO = {
   'sabados2/': [
-    { equipo: /197/, horas: [13] },
     { equipo: /calzada/i, soloHoras: [15, 16] },
   ],
 }
