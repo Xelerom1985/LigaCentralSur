@@ -26,12 +26,19 @@ export default function Stats({ data, torneo, onBack }) {
     return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos, manual: data.premios_manual }).reverse()
   }, [torneo, data.partidos, data.goles, data.premios_manual, jugadores, equipos])
 
-  // Domingos: goleador y valla cuentan solo la fase de liga hasta la fecha 7 (4tos, semis y final no suman)
-  const cuentaParaPremio = p => torneo !== 'domingos' || (p.fase === 'liga' && Number(p.numero) <= 7)
+  // Domingos: estadísticas CONGELADAS a la fecha 7 de liga (4tos, semis y final no suman). Las tarjetas siguen sumando.
+  // Al terminar la copa se hace la publicación general con las estadísticas de todo el torneo.
+  const partidosStats = useMemo(() =>
+    torneo !== 'domingos' ? partidos
+      : Object.fromEntries(Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && Number(p.numero) <= 7))
+  , [partidos, torneo])
+  const golesStats = useMemo(() =>
+    Object.fromEntries(Object.entries(golesValidos).filter(([pid]) => partidosStats[pid]))
+  , [golesValidos, partidosStats])
 
   const goleadores = useMemo(() => {
     const cnt = {}
-    Object.entries(golesValidos).filter(([pid]) => cuentaParaPremio(partidos[pid])).map(([, g]) => g).flatMap(Object.values).forEach(g => {
+    Object.values(golesStats).flatMap(Object.values).forEach(g => {
       if (!g.enContra && g.jugadorId && g.equipoId) {
         const key = `${g.equipoId}___${g.jugadorId}`
         cnt[key] = (cnt[key] || 0) + 1
@@ -50,13 +57,13 @@ export default function Stats({ data, torneo, onBack }) {
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
-  }, [golesValidos, jugadores, equipos, partidos, torneo])
+  }, [golesStats, jugadores, equipos])
 
   const valla = useMemo(() => {
     const gc = {}
     const pj = {}
-    Object.values(partidos)
-      .filter(p => p.fase === 'liga' && cuentaParaPremio(p) && p.jugado && p.golesLocal != null && p.visitante && p.local)
+    Object.values(partidosStats)
+      .filter(p => p.fase === 'liga' && p.jugado && p.golesLocal != null && p.visitante && p.local)
       .forEach(p => {
         gc[p.local] = (gc[p.local] || 0) + Number(p.golesVisitante)
         gc[p.visitante] = (gc[p.visitante] || 0) + Number(p.golesLocal)
@@ -71,7 +78,7 @@ export default function Stats({ data, torneo, onBack }) {
       }))
       .sort((a, b) => a.golesRecibidos - b.golesRecibidos)
       .slice(0, 5)
-  }, [partidos, equipos, torneo])
+  }, [partidosStats, equipos])
 
   const amarillas = useMemo(() => {
     const cnt = {}
@@ -105,7 +112,7 @@ export default function Stats({ data, torneo, onBack }) {
 
   const equipoGoleador = useMemo(() => {
     const gf = {}, pj = {}
-    Object.values(partidos)
+    Object.values(partidosStats)
       .filter(p => p.jugado && p.golesLocal != null && p.local && p.visitante)
       .forEach(p => {
         gf[p.local] = (gf[p.local] || 0) + Number(p.golesLocal)
@@ -118,11 +125,11 @@ export default function Stats({ data, torneo, onBack }) {
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
       .slice(0, 5)
-  }, [partidos, equipos])
+  }, [partidosStats, equipos])
 
   const equipoGoleado = useMemo(() => {
     const gc = {}, pj = {}
-    Object.values(partidos)
+    Object.values(partidosStats)
       .filter(p => p.jugado && p.golesLocal != null && p.local && p.visitante)
       .forEach(p => {
         gc[p.local] = (gc[p.local] || 0) + Number(p.golesVisitante)
@@ -135,11 +142,11 @@ export default function Stats({ data, torneo, onBack }) {
       .map(([id, goles]) => ({ id, nombre: equipos[id]?.nombre || id, escudo: equipos[id]?.escudo, goles, pj: pj[id] || 0 }))
       .sort((a, b) => b.goles - a.goles)
       .slice(0, 5)
-  }, [partidos, equipos])
+  }, [partidosStats, equipos])
 
   const hatTricks = useMemo(() => {
     const lista = []
-    Object.entries(golesValidos).forEach(([partidoId, golesPartido]) => {
+    Object.entries(golesStats).forEach(([partidoId, golesPartido]) => {
       const cnt = {}
       Object.values(golesPartido).forEach(g => {
         if (!g.enContra && g.jugadorId && g.equipoId) {
@@ -165,7 +172,7 @@ export default function Stats({ data, torneo, onBack }) {
       })
     })
     return lista.sort((a, b) => b.goles - a.goles).slice(0, 5)
-  }, [golesValidos, jugadores, equipos, partidos])
+  }, [golesStats, jugadores, equipos, partidos])
 
   const Section = ({ title, children, empty }) => (
     <section className="mb-6">
