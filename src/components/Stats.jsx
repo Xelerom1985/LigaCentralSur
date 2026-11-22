@@ -26,12 +26,14 @@ export default function Stats({ data, torneo, onBack }) {
     return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos, manual: data.premios_manual }).reverse()
   }, [torneo, data.partidos, data.goles, data.premios_manual, jugadores, equipos])
 
-  // Domingos: estadísticas CONGELADAS a la fecha 7 de liga (4tos, semis y final no suman). Las tarjetas siguen sumando.
+  // Estadísticas solo de la fase de liga (4tos, semis y final no suman). Las tarjetas siguen sumando.
+  // Domingos: CONGELADAS a la fecha 7. Sábados 2da Edición: liga completa (16 equipos = 15 fechas).
   // Al terminar la copa se hace la publicación general con las estadísticas de todo el torneo.
+  const ULTIMA_FECHA_LIGA = torneo === 'domingos' ? 7 : torneo === 'sabados2' ? 15 : Infinity
   const partidosStats = useMemo(() =>
-    torneo !== 'domingos' ? partidos
-      : Object.fromEntries(Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && Number(p.numero) <= 7))
-  , [partidos, torneo])
+    ULTIMA_FECHA_LIGA === Infinity ? partidos
+      : Object.fromEntries(Object.entries(partidos).filter(([, p]) => p.fase === 'liga' && Number(p.numero) <= ULTIMA_FECHA_LIGA))
+  , [partidos, ULTIMA_FECHA_LIGA])
   const golesStats = useMemo(() =>
     Object.fromEntries(Object.entries(golesValidos).filter(([pid]) => partidosStats[pid]))
   , [golesValidos, partidosStats])
