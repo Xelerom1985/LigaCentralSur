@@ -26,9 +26,12 @@ export default function Stats({ data, torneo, onBack }) {
     return calcPremiosPorFecha({ partidos: data.partidos || {}, goles: data.goles || {}, jugadores, equipos, manual: data.premios_manual }).reverse()
   }, [torneo, data.partidos, data.goles, data.premios_manual, jugadores, equipos])
 
+  // Domingos: goleador y valla cuentan solo la fase de liga hasta la fecha 7 (4tos, semis y final no suman)
+  const cuentaParaPremio = p => torneo !== 'domingos' || (p.fase === 'liga' && Number(p.numero) <= 7)
+
   const goleadores = useMemo(() => {
     const cnt = {}
-    Object.values(golesValidos).flatMap(Object.values).forEach(g => {
+    Object.entries(golesValidos).filter(([pid]) => cuentaParaPremio(partidos[pid])).map(([, g]) => g).flatMap(Object.values).forEach(g => {
       if (!g.enContra && g.jugadorId && g.equipoId) {
         const key = `${g.equipoId}___${g.jugadorId}`
         cnt[key] = (cnt[key] || 0) + 1
@@ -47,13 +50,13 @@ export default function Stats({ data, torneo, onBack }) {
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
-  }, [golesValidos, jugadores, equipos])
+  }, [golesValidos, jugadores, equipos, partidos, torneo])
 
   const valla = useMemo(() => {
     const gc = {}
     const pj = {}
     Object.values(partidos)
-      .filter(p => p.fase === 'liga' && p.jugado && p.golesLocal != null && p.visitante && p.local)
+      .filter(p => p.fase === 'liga' && cuentaParaPremio(p) && p.jugado && p.golesLocal != null && p.visitante && p.local)
       .forEach(p => {
         gc[p.local] = (gc[p.local] || 0) + Number(p.golesVisitante)
         gc[p.visitante] = (gc[p.visitante] || 0) + Number(p.golesLocal)
@@ -68,7 +71,7 @@ export default function Stats({ data, torneo, onBack }) {
       }))
       .sort((a, b) => a.golesRecibidos - b.golesRecibidos)
       .slice(0, 5)
-  }, [partidos, equipos])
+  }, [partidos, equipos, torneo])
 
   const amarillas = useMemo(() => {
     const cnt = {}
